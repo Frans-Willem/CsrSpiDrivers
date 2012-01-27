@@ -308,10 +308,12 @@ const char* __cdecl spifns_command(const char *szCmd) {
 //Compiler makes 'inc esi'
 void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
 	char szPortName[8];
-	sprintf(szPortName,"LPT1",1); //Tiny bug ?
+	sprintf(szPortName,"LPT1");
 	pCallback(g_nSpiPort,szPortName,pData);
 	for (int nPort=2; nPort<=16; nPort++) {
-		if (spifns_open_port(nPort)!=INVALID_HANDLE_VALUE) {
+		HANDLE hDevice;
+		if ((hDevice=spifns_open_port(nPort))!=INVALID_HANDLE_VALUE) {
+			CloseHandle(hDevice);
 			sprintf(szPortName,"LPT%d",nPort);
 			pCallback(nPort,szPortName,pData);
 		}
