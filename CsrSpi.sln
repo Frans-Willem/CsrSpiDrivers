@@ -9,7 +9,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "spilpt.fixed", "spilpt.fixe
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7726B769-E098-486D-87F3-BB1413A9FF8D}"
 	ProjectSection(SolutionItems) = preProject
-		README = README
+		README.md = README.md
 	EndProjectSection
 EndProject
 Global
