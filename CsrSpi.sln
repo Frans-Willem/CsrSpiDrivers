@@ -5,6 +5,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "spilpt", "spilpt\spilpt.vcx
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpiLptHook", "SpiLptHook\SpiLptHook.vcxproj", "{72E8E8D0-C483-4188-86B5-94310E8DF7B5}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "spilpt.fixed", "spilpt.fixed\spilpt.fixed.vcxproj", "{F5658071-E645-401F-ABCA-D260741973DD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -19,6 +21,10 @@ Global
 		{72E8E8D0-C483-4188-86B5-94310E8DF7B5}.Debug|Win32.Build.0 = Debug|Win32
 		{72E8E8D0-C483-4188-86B5-94310E8DF7B5}.Release|Win32.ActiveCfg = Release|Win32
 		{72E8E8D0-C483-4188-86B5-94310E8DF7B5}.Release|Win32.Build.0 = Release|Win32
+		{F5658071-E645-401F-ABCA-D260741973DD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F5658071-E645-401F-ABCA-D260741973DD}.Debug|Win32.Build.0 = Debug|Win32
+		{F5658071-E645-401F-ABCA-D260741973DD}.Release|Win32.ActiveCfg = Release|Win32
+		{F5658071-E645-401F-ABCA-D260741973DD}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
