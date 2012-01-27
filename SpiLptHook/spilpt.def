@@ -1,0 +1,14 @@
+LIBRARY "spilpt"
+EXPORTS
+	spifns_bluecore_xap_stopped
+	spifns_chip_select
+	spifns_close
+	spifns_command
+	spifns_enumerate_ports
+	spifns_get_last_error
+	spifns_get_version
+	spifns_getvar
+	spifns_getvarlist
+	spifns_init
+	spifns_sequence
+	spifns_set_debug_callback

@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "spilpt", "spilpt\spilpt.vcxproj", "{593C2D6B-D04B-40CF-91D1-8D333EFAFF79}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SpiLptHook", "SpiLptHook\SpiLptHook.vcxproj", "{72E8E8D0-C483-4188-86B5-94310E8DF7B5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{593C2D6B-D04B-40CF-91D1-8D333EFAFF79}.Debug|Win32.ActiveCfg = Debug|Win32
+		{593C2D6B-D04B-40CF-91D1-8D333EFAFF79}.Debug|Win32.Build.0 = Debug|Win32
+		{593C2D6B-D04B-40CF-91D1-8D333EFAFF79}.Release|Win32.ActiveCfg = Release|Win32
+		{593C2D6B-D04B-40CF-91D1-8D333EFAFF79}.Release|Win32.Build.0 = Release|Win32
+		{72E8E8D0-C483-4188-86B5-94310E8DF7B5}.Debug|Win32.ActiveCfg = Debug|Win32
+		{72E8E8D0-C483-4188-86B5-94310E8DF7B5}.Debug|Win32.Build.0 = Debug|Win32
+		{72E8E8D0-C483-4188-86B5-94310E8DF7B5}.Release|Win32.ActiveCfg = Release|Win32
+		{72E8E8D0-C483-4188-86B5-94310E8DF7B5}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
