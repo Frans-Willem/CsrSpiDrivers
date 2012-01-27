@@ -1,0 +1,3 @@
+Project overview:
+spilpt - Reimplementation of spilpt.dll or BlueLab4.1.
+SpiLptHook - Hook that intercepts LPT communication of spilpt.dll and passes it on to an Arduino.
