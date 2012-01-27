@@ -368,7 +368,7 @@ int spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsig
 	spifns_debugout_readwrite(nAddress,'w',nLength,pnInput);
 	if (!spifns_pre_transmit())
 		return 1;
-	if (!SPITransfer(g_nCmdWriteBits|2,8,0,0))
+	if (!SPITransfer((g_nCmdWriteBits&~3)|2,8,0,0))
 		return 1;
 	if (!SPITransfer(nAddress,16,0,0))
 		return 1;
@@ -462,7 +462,7 @@ int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue) {
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
 bool __cdecl spifns_sequence_read_start(unsigned short nAddress) {
-	unsigned char bReadCommand=g_nCmdReadBits|3;
+	unsigned char bReadCommand=(g_nCmdReadBits&~3)|3; //Filtering out the top two bits here is not strictle needed, but is nicer code-wise.
 	if (!SPITransfer(bReadCommand,8,0,0))
 		return false;
 	int nReturn;
