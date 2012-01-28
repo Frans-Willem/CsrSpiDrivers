@@ -12,8 +12,6 @@
  * Feel free to use this to write your own 
 */
 
-#pragma auto_inline(off) //Prevent inlining, to create code closer to the original (to check)
-
 #define VARLIST_SPISPORT 0
 #define VARLIST_SPIMUL 1
 #define VARLIST_SPISHIFTPERIOD 2
