@@ -153,7 +153,7 @@ const char* __cdecl spifns_command(const char *szCmd) {
 		_tprintf(TEXT("spifns_command(\"%hs\"); returned \"%hs\"\n"),szCmd?szCmd:"(null)",szRetval?szRetval:"(null)");
 	return szRetval;
 }
-unsigned int spifns_get_last_error(unsigned short *pnErrorAddress, const char **szErrorString) {
+unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **szErrorString) {
 	unsigned int nError=SPIERR_NO_ERROR;
 	if (forward_spifns_get_last_error)
 		nError=forward_spifns_get_last_error(pnErrorAddress,szErrorString);

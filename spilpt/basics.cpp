@@ -101,7 +101,7 @@ const char * __cdecl spifns_getvar(const char *szName) {
 	}
 }
 //RE Check: Completely identical
-unsigned int spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
+unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
 	if (pnErrorAddress)
 		*pnErrorAddress=g_nErrorAddress;
 	if (pszErrorString)
@@ -326,7 +326,7 @@ void __cdecl spifns_sequence_setvar_spishiftperiod(int nPeriod) {
 //RE Check: Opcodes functionally identical, slightly re-ordered (but no impact on result)
 //Original passes arguments through eax
 //Compiled takes argument on stack. Maybe change it to __fastcall ?
-bool spifns_sequence_setvar_spiport(int nPort) {
+bool __cdecl  spifns_sequence_setvar_spiport(int nPort) {
 	spifns_close_port();
 	if (INVALID_HANDLE_VALUE==(g_hDevice=spifns_open_port(nPort)))
 		return false;
@@ -362,7 +362,7 @@ void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation,
 	}
 }
 //RE Check: Functionally equivalent, register choice and initialization difference.
-int spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
+int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
 	spifns_debugout_readwrite(nAddress,'w',nLength,pnInput);
 	if (!spifns_pre_transmit())
 		return 1;
@@ -478,7 +478,7 @@ bool __cdecl spifns_sequence_read_start(unsigned short nAddress) {
 	return true;
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
-int spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsigned short *pnOutput) {
+int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsigned short *pnOutput) {
 	if (!spifns_pre_transmit())
 		return 1;
 	//loc_10001D10

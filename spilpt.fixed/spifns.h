@@ -45,7 +45,7 @@ int __cdecl spifns_get_version(); //Should return 259
 void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData);
 void __cdecl spifns_chip_select(unsigned int nUnknown);
 const char* __cdecl spifns_command(const char *szCmd); //Return 0 on no error, or string on error.
-unsigned int spifns_get_last_error(unsigned short *pnErrorAddress, const char **szErrorString); //Returns where the error occured, or 0x100 for none
+unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **szErrorString); //Returns where the error occured, or 0x100 for none
 int __cdecl spifns_bluecore_xap_stopped(); //Returns -1 on error, 0 on XAP running, 1 on stopped
 int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount); //Return 0 on no error
 void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback);
