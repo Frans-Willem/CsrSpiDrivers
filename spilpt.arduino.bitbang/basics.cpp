@@ -4,16 +4,6 @@
 #include "basics.h"
 #include <tchar.h>
 
-/*
- * README:
- * I attempted to reverse engineer spilpt.dll the best I could.
- * However, compiling it with visual studio 2010 did not allow me to yield an identical DLL, and I don't have VS 2005 (original was compiled with this) installed.
- * For now, I'll leave it at this :)
- * Feel free to use this to write your own 
-*/
-
-#pragma auto_inline(off) //Prevent inlining, to create code closer to the original (to check)
-
 #define VARLIST_SPISPORT 0
 #define VARLIST_SPIMUL 1
 #define VARLIST_SPISHIFTPERIOD 2
@@ -51,11 +41,11 @@ int g_nSpiMulConfig=0;
 unsigned short g_nErrorAddress=0;
 spifns_debug_callback g_pDebugCallback=0;
 
-#define BV_MOSI 0x40
-#define BV_CSB 0x01
-#define BV_MUL 0x02
-#define BV_CLK 0x80
-#define BV_MISO 0x40 //NOTE: Use status register instead of data
+#define BV_MOSI (1<<3) //Pin PB3, MOSI
+#define BV_CSB (1<<2) //Pin PB2, SS
+#define BV_MUL (1<<1) //Pin PB1, not sure what this pin does, but let's stick it there
+#define BV_CLK (1<<5) //Pin PB5, SCK
+#define BV_MISO (1<<4) //Pin PB3, MISO
 
 void __cdecl spifns_debugout(const char *szFormat, ...);
 void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData);
@@ -69,6 +59,7 @@ void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) 
 //Original uses 'add g_nRef, 1'
 //Compiler makes 'inc g_nRef'
 int __cdecl spifns_init() {
+	_tprintf(TEXT("spilpt.arduino.bitbang.dll enabled!\n"));
 	g_nRef+=1;
 	return 0;
 }
@@ -126,12 +117,20 @@ HANDLE __cdecl spifns_open_port(int nPort) {
 	GetVersionExA(&ovi);
 	if (ovi.dwPlatformId!=VER_PLATFORM_WIN32_NT)
 		return INVALID_HANDLE_VALUE;
-	sprintf(szFilename,"\\\\.\\LPTSPI%d",nPort);
+	sprintf(szFilename,"\\\\.\\COM%d",nPort);
 	HANDLE hDevice=CreateFileA(szFilename,GENERIC_READ|GENERIC_WRITE,0,0,OPEN_EXISTING,0,0);
 	if (hDevice==INVALID_HANDLE_VALUE)
 		return INVALID_HANDLE_VALUE;
-	DWORD nWritten;
-	if (!WriteFile(hDevice,pTestBuffer,sizeof(pTestBuffer),&nWritten,0)) {
+	DCB dcb;
+	if (!GetCommState(hDevice,&dcb)) {
+		CloseHandle(hDevice);
+		return INVALID_HANDLE_VALUE;
+	}
+	dcb.BaudRate=CBR_256000;
+    dcb.ByteSize=8;
+    dcb.StopBits=ONESTOPBIT;
+    dcb.Parity=NOPARITY;
+	if (!SetCommState(hDevice,&dcb)) {
 		CloseHandle(hDevice);
 		return INVALID_HANDLE_VALUE;
 	}
@@ -146,6 +145,20 @@ void __cdecl spifns_close_port() {
 	}
 }
 //RE Check: TODO
+#define ARDUINOBUFFER	64
+bool ArduinoTransfer(BYTE *pInput, BYTE *pOutput, DWORD nBytes) {
+	DWORD dwOut=0;
+	DWORD dwWritten;
+	DWORD dwRead;
+	while (dwOut<nBytes) {
+		if (!WriteFile(g_hDevice,&pInput[dwOut],min(ARDUINOBUFFER,nBytes-dwOut),&dwWritten,0) || dwWritten==0)
+			return false;
+		if (!ReadFile(g_hDevice,&pOutput[dwOut],dwWritten,&dwRead,0) || dwRead!=dwWritten)
+			return false;
+		dwOut+=dwWritten;
+	}
+	return true;
+}
 bool __cdecl SPITransfer(int nInput, int nBits, int *pnRetval, bool bEndTransmission) {
 	if (pnRetval)
 		*pnRetval=0;
@@ -222,7 +235,7 @@ bool __cdecl SPITransfer(int nInput, int nBits, int *pnRetval, bool bEndTransmis
 	}
 	//loc10001496
 	DWORD nBytesReturned;
-	if (!DeviceIoControl(g_hDevice,0,pDataInput,nDataWritten,pDataOutput,nDataWritten,&nBytesReturned,0)) {
+	if (!ArduinoTransfer(pDataInput,pDataOutput,nDataWritten)) {
 		static const char szError[]="IOCTL failed";
 		memcpy(g_szErrorString,szError,sizeof(szError));
 		g_nError=SPIERR_IOCTL_FAILED;
@@ -308,13 +321,11 @@ const char* __cdecl spifns_command(const char *szCmd) {
 //Compiler makes 'inc esi'
 void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
 	char szPortName[8];
-	sprintf(szPortName,"LPT1");
-	pCallback(g_nSpiPort,szPortName,pData);
-	for (int nPort=2; nPort<=16; nPort++) {
+	for (int nPort=1; nPort<=16; nPort++) {
 		HANDLE hDevice;
 		if ((hDevice=spifns_open_port(nPort))!=INVALID_HANDLE_VALUE) {
 			CloseHandle(hDevice);
-			sprintf(szPortName,"LPT%d",nPort);
+			sprintf(szPortName,"COM%d",nPort);
 			pCallback(nPort,szPortName,pData);
 		}
 	}
