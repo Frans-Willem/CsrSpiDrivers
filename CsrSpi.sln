@@ -16,6 +16,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "spilpt.arduino.bitbang", "s
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "spilpt.forwarder", "spilpt.forwarder\spilpt.forwarder.vcxproj", "{79B1AA0A-125D-47F0-B1F7-747C1128FC64}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "spilpt.arduino", "spilpt.arduino\spilpt.arduino.vcxproj", "{E1CF473A-3AC8-41FB-B600-455BEB7308F8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -42,6 +44,10 @@ Global
 		{79B1AA0A-125D-47F0-B1F7-747C1128FC64}.Debug|Win32.Build.0 = Debug|Win32
 		{79B1AA0A-125D-47F0-B1F7-747C1128FC64}.Release|Win32.ActiveCfg = Release|Win32
 		{79B1AA0A-125D-47F0-B1F7-747C1128FC64}.Release|Win32.Build.0 = Release|Win32
+		{E1CF473A-3AC8-41FB-B600-455BEB7308F8}.Debug|Win32.ActiveCfg = Debug|Win32
+		{E1CF473A-3AC8-41FB-B600-455BEB7308F8}.Debug|Win32.Build.0 = Debug|Win32
+		{E1CF473A-3AC8-41FB-B600-455BEB7308F8}.Release|Win32.ActiveCfg = Release|Win32
+		{E1CF473A-3AC8-41FB-B600-455BEB7308F8}.Release|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
