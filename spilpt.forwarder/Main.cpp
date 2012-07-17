@@ -196,7 +196,7 @@ int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 				if (pSequence[i].rw.pnData==NULL) {
 					_tprintf(TEXT("NULL}},\n"));
 				} else {
-					for (unsigned int j=0; j<pSequence[j].rw.nLength; j++) {
+					for (unsigned int j=0; j<pSequence[i].rw.nLength; j++) {
 						if ((j%8)==0)
 							_tprintf(TEXT("\n\t\t"));
 						_tprintf(TEXT("0x%04X "),pSequence[i].rw.pnData[j]);
