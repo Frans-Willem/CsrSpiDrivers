@@ -10,7 +10,7 @@
 #define BV_CSB  0x10//Pin 4 "DTR"
 #define BV_ALLOUT (BV_MOSI | BV_CLK | BV_MUL | BV_CSB)//These are all output pins
 
-char ftdi_device_descs[][] = {
+char *ftdi_device_descs[] = {
     "i:0x0403:0x6001",
     "i:0x0403:0x6010",
 };
@@ -23,9 +23,10 @@ WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 int spi_open()
 {
     int i;
+    char *device_desc;
 
     spi_nrefs++;
-    if (ftbb_refs > 1) {
+    if (spi_nrefs > 1) {
         return 0;
     }
     
@@ -73,14 +74,14 @@ int spi_open()
         goto init_err;
     }
     
-    set_bits(8, 0xb);
-    set_div(100000);
+    /*set_bits(8, 0xb);
+    set_div(100000);*/
         
     return 0;
 
 init_err:
     if (ftdicp != NULL) {
-        ftdi_close(ftdicp);
+        ftdi_free(ftdicp);
     }
 
     return -1; 
@@ -89,7 +90,7 @@ init_err:
 int spi_close()
 {       
     spi_nrefs--;
-    if (ftbb_refs == 0) {
+    if (spi_nrefs == 0) {
         if (ftdi_usb_close(ftdicp) < 0) {
             WARN("FTDI: close failed: %s\n",
                     ftdi_get_error_string(ftdicp));
