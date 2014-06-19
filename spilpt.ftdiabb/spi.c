@@ -1,14 +1,18 @@
 /*#include <stdio.h>*/
 #include <ftdi.h>
+#include <stdint.h>
+#include <assert.h>
 #include "wine/debug.h"
 
-#define FREQ    100000
-#define BV_MOSI 0x01//Pin 0 "TXD"
-#define BV_MISO 0x02//Pin 1 "RXD" - INPUT
-#define BV_CLK  0x04//Pin 2 "RTS"
-#define BV_MUL  0x08//Pin 3 "CTS"
-#define BV_CSB  0x10//Pin 4 "DTR"
-#define BV_ALLOUT (BV_MOSI | BV_CLK | BV_MUL | BV_CSB)//These are all output pins
+#define SPI_CLOCK_FREQ    100000
+#define PIN_MOSI    (1 << 0)   /* FT232RL pin 1, signal TXD AKA D0, output */
+#define PIN_MISO    (1 << 1)   /* FT232RL pin 5, signal RXD AKA D1, input */
+#define PIN_CLK     (1 << 2)   /* FT232RL pin 3, signal RTS AKA D2, output */
+#if 0
+#define PIN_MUL     (1 << 3)   /* FT232RL pin 11, signal CTS AKA D3, output */
+#endif
+#define PIN_CS     (1 << 4)   /* FT232RL pin 2, signal DTR AKA D4, output */
+#define PINS_OUTPUT (PIN_MOSI | PIN_CLK | /*PIN_MUL |*/ PIN_CS)
 
 char *ftdi_device_descs[] = {
     "i:0x0403:0x6001",
@@ -18,7 +22,215 @@ char *ftdi_device_descs[] = {
 static struct ftdi_context *ftdicp = NULL;
 static int spi_nrefs = 0;
 
+static uint8_t ftdi_pin_state = 0;
+
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
+
+/* XXX handle errors */
+int spi_set_pins(uint8_t byte)
+{
+    if (ftdi_write_data(ftdicp, &byte, sizeof(byte)) < 0) {
+        WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+    if (ftdi_read_data(ftdicp, &byte, sizeof(byte)) < 0) {
+        WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+
+    return 0;
+}
+
+int spi_init(void)
+{
+    /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low */
+    ftdi_pin_state = ~(PIN_MOSI | PIN_CLK) | PIN_CS | PIN_MISO;
+    return spi_set_pins(ftdi_pin_state);
+}
+
+int spi_xfer_start()
+{
+    uint8_t pin_states[6];
+    int i, rc;
+
+    i=0;
+
+    /* Reset sequence: set CS high, wait two clock cycles */
+
+    /* CS should be already high from previous end of transfer or from initialization */
+#if 0
+    ftdi_pin_state |= PIN_CS;
+    pin_states[i++] = ftdi_pin_state;
+#endif
+
+    ftdi_pin_state |= PIN_CLK;
+    pin_states[i++] = ftdi_pin_state;
+
+    ftdi_pin_state &= ~PIN_CLK;
+    pin_states[i++] = ftdi_pin_state;
+
+    ftdi_pin_state |= PIN_CLK;
+    pin_states[i++] = ftdi_pin_state;
+
+    ftdi_pin_state &= ~PIN_CLK;
+    pin_states[i++] = ftdi_pin_state;
+
+    /* Start transfer */
+
+    ftdi_pin_state &= ~PIN_CS;
+    pin_states[i++] = ftdi_pin_state;
+
+    rc = ftdi_write_data(ftdicp, pin_states, i);
+    if (rc < 0) {
+        WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+    if (rc != i) {
+        WARN("FTDI: short write: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+
+    /* In FTDI sync bitbang mode every write is preceded by a read to
+     * internal buffer. We need to slurp contents of that buffer and
+     * discard it. */
+    rc = ftdi_read_data(ftdicp, pin_states, i);
+    if (rc < 0) {
+        WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+    if (rc != i) {
+        WARN("FTDI: short read: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+}
+
+int spi_xfer_stop()
+{
+    ftdi_pin_state |= PIN_CS;
+    return spi_set_pins(ftdi_pin_state);
+}
+
+#define MAX_IO  512
+
+uint8_t spi_write(uint8_t *buf, int size)
+{
+    int i, n, b, rc;
+    uint8_t byte;
+    uint8_t pin_states[MAX_IO * 3];
+
+    assert(size < MAX_IO);
+
+    i=0;
+    for (n = 0; n < size; n++) {
+        byte = buf[n];
+        for (b = 0; b < 8; b++) {
+            /* Set output bit */
+            if (byte & 0x80)
+                ftdi_pin_state |= PIN_MOSI;
+            else
+                ftdi_pin_state &= ~PIN_MOSI;
+            byte <<= 1;
+            pin_states[i++] = ftdi_pin_state;
+
+            /* Clock high */
+            ftdi_pin_state |= PIN_CLK;
+            pin_states[i++] = ftdi_pin_state;
+
+            /* Clock low */
+            ftdi_pin_state &= ~PIN_CLK;
+            pin_states[i++] = ftdi_pin_state;
+        }
+    }
+
+    rc = ftdi_write_data(ftdicp, pin_states, i);
+    if (rc < 0) {
+        WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+    if (rc != i) {
+        WARN("FTDI: short write: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+
+    /* In FTDI sync bitbang mode every write is preceded by a read to
+     * internal buffer. We need to slurp contents of that buffer and
+     * discard it. */
+    rc = ftdi_read_data(ftdicp, pin_states, i);
+    if (rc < 0) {
+        WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+    if (rc != i) {
+        WARN("FTDI: short read: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+
+    return 0;
+}
+
+int spi_read(uint8_t *buf, int size)
+{
+    int i, n, b, rc;
+    uint8_t byte;
+    uint8_t pin_states[MAX_IO * 2];
+
+    assert(size < MAX_IO);
+
+    /* In FTDI sync bitbang mode we need to write something to device
+     * to toggle a read. */
+
+    /* Output series of clock signals for reads. Data is read to internal
+     * buffer. */
+
+    i = 0;
+    for (n = 0; n < size; n++) {
+        /* Clock high */
+        ftdi_pin_state |= PIN_CLK;
+        pin_states[i++] = ftdi_pin_state;
+
+        /* Clock low */
+        ftdi_pin_state &= ~PIN_CLK;
+        pin_states[i++] = ftdi_pin_state;
+    }
+
+    rc = ftdi_write_data(ftdicp, pin_states, i);
+    if (rc < 0) {
+        WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+    if (rc != i) {
+        WARN("FTDI: short write: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+
+    /* Get data from read buffer */
+    rc = ftdi_read_data(ftdicp, pin_states, i);
+    if (rc < 0) {
+        WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+    if (rc != i) {
+        WARN("FTDI: short read: %s\n", ftdi_get_error_string(ftdicp));
+        return -1;
+    }
+
+    i=0;
+    for (n = 0; n < size; n++) {
+        byte = 0;
+        for (b = 0; b < 8; b++) {
+            byte <<= 1;
+            /* Input bit */
+            /* XXX: on which edge of the CLK data should be read? */
+            i++;
+            if (pin_states[i] & PIN_MISO)
+                byte |= 1;
+            i++;
+        }
+        buf[n] = byte;
+    }
+
+    return 0;
+}
 
 int spi_open()
 {
@@ -59,7 +271,7 @@ int spi_open()
         goto init_err;
     }       
     
-    if (ftdi_set_baudrate(ftdicp, FREQ / 16) < 0) {
+    if (ftdi_set_baudrate(ftdicp, SPI_CLOCK_FREQ / 16) < 0) {
         WARN("FTDI: purge buffers failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
@@ -69,17 +281,15 @@ int spi_open()
         goto init_err;
     }
     
-    if (ftdi_set_bitmode(ftdicp, BV_ALLOUT, BITMODE_BITBANG) < 0) {
+    if (ftdi_set_bitmode(ftdicp, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
         WARN("FTDI: set asynchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp)); 
         goto init_err;
     }
     
-    /*set_bits(8, 0xb);
-    set_div(100000);*/
-        
     return 0;
 
 init_err:
+    /* XXX close */
     if (ftdicp != NULL) {
         ftdi_free(ftdicp);
     }
