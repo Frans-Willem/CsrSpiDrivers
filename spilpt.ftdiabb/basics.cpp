@@ -276,15 +276,17 @@ DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char c
 			"%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X %04X ...\n"
 		};
 		unsigned short bCopy[8];
+#define _MIN(x, y)  ( ((x) < (y)) ? (x) : (y) )
 		if (pnData)
-			memcpy(bCopy,pnData,sizeof(unsigned short)*((nLength<8)?nLength:8));
+			memcpy(bCopy,pnData,sizeof(unsigned short)*_MIN(nLength,8));
 		else
 			memset(bCopy,0,sizeof(bCopy));
 		if (nLength<2) {
 			spifns_debugout(pszTable[nLength],nAddress,cOperation,bCopy[0]);
 		} else {
-			spifns_debugout(pszTable[((nLength<9)?nLength:9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
+			spifns_debugout(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
 		}
+#undef _MIN
 	}
 }
 //RE Check: Functionally equivalent, register choice and initialization difference.
