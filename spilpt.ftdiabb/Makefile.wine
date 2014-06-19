@@ -1,0 +1,20 @@
+CC=	winegcc
+CXX=	wineg++
+CFLAGS=	-fPIC -DPIC -D__WINESRC__ -I/usr/include/wine/windows
+LD=	winegcc
+LDFLAGS=	-shared
+LIBS=	-lftdi -lusb -lstdc++
+
+all: spilpt.dll.so
+
+spilpt.dll.so: wine_main.o basics.o spi.o spilpt.spec
+	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+
+.c.o: 
+	$(CC) -c $(CFLAGS) -o $@ $<
+
+.cpp.o:
+	$(CXX) -c $(CFLAGS) -o $@ $<
+
+clean:
+	rm -f *.o spilpt.dll.so

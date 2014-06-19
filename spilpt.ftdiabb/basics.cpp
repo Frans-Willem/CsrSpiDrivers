@@ -1,8 +1,14 @@
 #include "spifns.h"
-#include <Windows.h>
+#include <windows.h>
 #include <stdio.h>
 #include "basics.h"
-#include <tchar.h>
+#include <stdlib.h>
+
+#ifdef __WINE__
+# define _snprintf snprintf
+# define stricmp strcasecmp
+# define _stricmp strcasecmp
+#endif
 
 /*
  * README:
@@ -55,23 +61,23 @@ spifns_debug_callback g_pDebugCallback=0;
 #define BV_CLK 0x80
 #define BV_MISO 0x40 //NOTE: Use status register instead of data
 
-void __cdecl spifns_debugout(const char *szFormat, ...);
-void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData);
+DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...);
+DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData);
 
 //RE Check: Completely identical.
-void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
+DLLEXPORT void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
 	*ppList=g_pVarList;
 	*pnCount=sizeof(g_pVarList)/sizeof(*g_pVarList);
 }
 //RE Check: Opcodes functionally identical
 //Original uses 'add g_nRef, 1'
 //Compiler makes 'inc g_nRef'
-int __cdecl spifns_init() {
+DLLEXPORT int __cdecl spifns_init() {
 	g_nRef+=1;
 	return 0;
 }
 //RE Check: Completely identical (one opcode off, jns should be jge, but shouldn't matter. Probably unsigned/signed issues)
-const char * __cdecl spifns_getvar(const char *szName) {
+DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
 	if (!szName) {
 		return "";
 	} else if (_stricmp(szName,"SPIPORT")==0) {
@@ -99,7 +105,7 @@ const char * __cdecl spifns_getvar(const char *szName) {
 	}
 }
 //RE Check: Completely identical
-unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
+DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
 	if (pnErrorAddress)
 		*pnErrorAddress=g_nErrorAddress;
 	if (pszErrorString)
@@ -107,15 +113,15 @@ unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const
 	return g_nError;
 }
 //RE Check: Completely identical
-void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback) {
+DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback) {
 	g_pDebugCallback=pCallback;
 }
 //RE Check: Completely identical
-int __cdecl spifns_get_version() {
+DLLEXPORT int __cdecl spifns_get_version() {
 	return SPIFNS_VERSION;
 }
 //RE Check: Completely identical
-HANDLE __cdecl spifns_open_port(int nPort) {
+DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
 	OSVERSIONINFOA ovi;
 	char szFilename[20];
 
@@ -171,7 +177,7 @@ HANDLE __cdecl spifns_open_port(int nPort) {
 	return hDevice;
 }
 //RE Check: Fully identical
-void __cdecl spifns_close_port() {
+DLLEXPORT void __cdecl spifns_close_port() {
 	if (g_hDevice) {
 		CloseHandle(g_hDevice);
 		g_hDevice=0;
@@ -179,7 +185,7 @@ void __cdecl spifns_close_port() {
 	}
 }
 //RE Check: Completely identical
-void __cdecl spifns_debugout(const char *szFormat, ...) {
+DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
 	if (g_pDebugCallback) {
 		static char szDebugOutput[256];
 		va_list args;
@@ -192,13 +198,13 @@ void __cdecl spifns_debugout(const char *szFormat, ...) {
 //RE Check: Opcodes functionally identical
 //Original uses 'sub g_nRef, 1'
 //Compiler makes 'dec g_nRef'
-void __cdecl spifns_close() {
+DLLEXPORT void __cdecl spifns_close() {
 	g_nRef--;
 	if (g_nRef==0)
 		spifns_close_port();
 }
 //RE Check: Completely identical
-void __cdecl spifns_chip_select(int nChip) {
+DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
 	/*g_bCurrentOutput=g_bCurrentOutput&0xD3|0x10;
 	g_nSpiMul=0;
 	g_nSpiMulConfig=nChip;
@@ -211,7 +217,7 @@ void __cdecl spifns_chip_select(int nChip) {
 		nChip);*/
 }
 //RE Check: Completely identical
-const char* __cdecl spifns_command(const char *szCmd) {
+DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
 	if (stricmp(szCmd,"SPISLOWER")==0) {
 		//TODO!
 		/*if (g_nSpiShiftPeriod<40) {
@@ -224,7 +230,7 @@ const char* __cdecl spifns_command(const char *szCmd) {
 //RE Check: Opcodes functionally identical
 //Original uses 'add esi, 1
 //Compiler makes 'inc esi'
-void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
+DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
 	char szPortName[8];
 	for (int nPort=2; nPort<=16; nPort++) {
 		HANDLE hDevice;
@@ -238,14 +244,14 @@ void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, v
 //RE Check: Opcodes functionally identical
 //Original passes arguments through eax
 //Compiled takes argument on stack. Maybe change it to __fastcall ?
-void __cdecl spifns_sequence_setvar_spishiftperiod(int nPeriod) {
+DLLEXPORT void __cdecl spifns_sequence_setvar_spishiftperiod(int nPeriod) {
 	//TODO
 	spifns_debugout("Delays set to %d\n",g_nSpiShiftPeriod=nPeriod);
 }
 //RE Check: Opcodes functionally identical, slightly re-ordered (but no impact on result)
 //Original passes arguments through eax
 //Compiled takes argument on stack. Maybe change it to __fastcall ?
-bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
+DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
 	spifns_close_port();
 	if (INVALID_HANDLE_VALUE==(g_hDevice=spifns_open_port(nPort)))
 		return false;
@@ -255,7 +261,7 @@ bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
 	return true;
 }
 //RE Check: Functionally equivalent, but completely different ASM code 
-void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
+DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
 	if (g_pDebugCallback) {
 		static const char * const pszTable[]={
 			"%04X     %c ????\n",
@@ -282,7 +288,7 @@ void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation,
 	}
 }
 //RE Check: Functionally equivalent, register choice and initialization difference.
-int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
+DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
 	if (!g_hDevice) {
 		static const char szError[]="No COM port selected";
 		memcpy(g_szErrorString,szError,sizeof(szError));
@@ -328,7 +334,7 @@ int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned short nLengt
 	return 0;
 }
 //RE Check: Functionally identical, register choice, calling convention, and some ordering changes.
-void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
+DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
 /*	BYTE bNewOutput=g_bCurrentOutput&~BV_CLK;
 	if ((g_nSpiMulChipNum=nMul)<=16) {
 		//Left side
@@ -358,7 +364,7 @@ void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
 	spifns_debugout("MulitplexSelect: %04x mul:%d config:%d chip_num:%d\n",g_bCurrentOutput,g_nSpiMul,g_nSpiMulConfig,g_nSpiMulChipNum);*/
 }
 //RE Check: Functionally identical, register choice, calling convention, stack size, and some ordering changes.
-int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue) {
+DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue) {
 	if (szName==0)
 		return 1;
 	if (szValue==0)
@@ -409,7 +415,7 @@ int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue) {
 	return 0;
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
-int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsigned short *pnOutput) {
+DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsigned short *pnOutput) {
 	if (!g_hDevice) {
 		static const char szError[]="No COM port selected";
 		memcpy(g_szErrorString,szError,sizeof(szError));
@@ -456,7 +462,7 @@ int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned short nLength
 	return 0;
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
-int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
+DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	int nRetval=0;
 	while (nCount--) {
 		switch (pSequence->nType) {
@@ -479,7 +485,7 @@ int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	return nRetval;
 }
 //RE Check: Mostly identical, only registers don't match because of calling convention changes on called functions.
-int __cdecl spifns_bluecore_xap_stopped() {
+DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
 	if (!g_hDevice)
 		return -1;
 	BYTE bData[1]={0x03};
