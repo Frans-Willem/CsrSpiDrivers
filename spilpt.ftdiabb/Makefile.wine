@@ -1,6 +1,6 @@
 CC=	winegcc
 CXX=	wineg++
-CFLAGS=	-fPIC -DPIC -D__WINESRC__ -I/usr/include/wine/windows
+CFLAGS=	-Wall -fPIC -DPIC -D__WINESRC__ -I/usr/include/wine/windows
 LD=	winegcc
 LDFLAGS=	-shared
 LIBS=	-lftdi -lusb -lstdc++

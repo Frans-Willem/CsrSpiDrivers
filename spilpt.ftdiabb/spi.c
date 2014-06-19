@@ -102,6 +102,8 @@ int spi_xfer_start()
         WARN("FTDI: short read: %s\n", ftdi_get_error_string(ftdicp));
         return -1;
     }
+
+    return 0;
 }
 
 int spi_xfer_stop()
@@ -114,7 +116,7 @@ int spi_xfer_stop()
 
 uint8_t spi_write(uint8_t *buf, int size)
 {
-    int i, n, b, rc;
+    int i, n, bit, rc;
     uint8_t byte;
     uint8_t pin_states[MAX_IO * 3];
 
@@ -123,13 +125,12 @@ uint8_t spi_write(uint8_t *buf, int size)
     i=0;
     for (n = 0; n < size; n++) {
         byte = buf[n];
-        for (b = 0; b < 8; b++) {
+        for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
             /* Set output bit */
-            if (byte & 0x80)
+            if (byte & bit)
                 ftdi_pin_state |= PIN_MOSI;
             else
                 ftdi_pin_state &= ~PIN_MOSI;
-            byte <<= 1;
             pin_states[i++] = ftdi_pin_state;
 
             /* Clock high */
@@ -165,12 +166,12 @@ uint8_t spi_write(uint8_t *buf, int size)
         return -1;
     }
 
-    return 0;
+    return i;
 }
 
 int spi_read(uint8_t *buf, int size)
 {
-    int i, n, b, rc;
+    int i, n, bit, rc;
     uint8_t byte;
     uint8_t pin_states[MAX_IO * 2];
 
@@ -182,8 +183,7 @@ int spi_read(uint8_t *buf, int size)
     /* Output series of clock signals for reads. Data is read to internal
      * buffer. */
 
-    i = 0;
-    for (n = 0; n < size; n++) {
+    for (i = 0; i < size * 8; ) {
         /* Clock high */
         ftdi_pin_state |= PIN_CLK;
         pin_states[i++] = ftdi_pin_state;
@@ -217,19 +217,19 @@ int spi_read(uint8_t *buf, int size)
     i=0;
     for (n = 0; n < size; n++) {
         byte = 0;
-        for (b = 0; b < 8; b++) {
+        for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
             byte <<= 1;
             /* Input bit */
             /* XXX: on which edge of the CLK data should be read? */
             i++;
             if (pin_states[i] & PIN_MISO)
-                byte |= 1;
+                byte |= bit;
             i++;
         }
         buf[n] = byte;
     }
 
-    return 0;
+    return i;
 }
 
 int spi_open()
