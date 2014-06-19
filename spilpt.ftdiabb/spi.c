@@ -26,7 +26,6 @@ static uint8_t ftdi_pin_state = 0;
 
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 
-/* XXX handle errors */
 int spi_set_pins(uint8_t byte)
 {
     if (ftdi_write_data(ftdicp, &byte, sizeof(byte)) < 0) {
@@ -34,7 +33,7 @@ int spi_set_pins(uint8_t byte)
         return -1;
     }
     if (ftdi_read_data(ftdicp, &byte, sizeof(byte)) < 0) {
-        WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
         return -1;
     }
 
@@ -44,11 +43,11 @@ int spi_set_pins(uint8_t byte)
 int spi_init(void)
 {
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low */
-    ftdi_pin_state = ~(PIN_MOSI | PIN_CLK) | PIN_CS | PIN_MISO;
+    ftdi_pin_state = ~(PIN_MOSI | PIN_CLK) & (PIN_CS | PIN_MISO);
     return spi_set_pins(ftdi_pin_state);
 }
 
-int spi_xfer_start()
+int spi_xfer_begin(void)
 {
     uint8_t pin_states[6];
     int i, rc;
@@ -106,7 +105,7 @@ int spi_xfer_start()
     return 0;
 }
 
-int spi_xfer_stop()
+int spi_xfer_end(void)
 {
     ftdi_pin_state |= PIN_CS;
     return spi_set_pins(ftdi_pin_state);
@@ -183,6 +182,8 @@ int spi_read(uint8_t *buf, int size)
     /* Output series of clock signals for reads. Data is read to internal
      * buffer. */
 
+    ftdi_pin_state &= ~PIN_MOSI;
+
     for (i = 0; i < size * 8; ) {
         /* Clock high */
         ftdi_pin_state |= PIN_CLK;
@@ -241,15 +242,15 @@ int spi_open()
     if (spi_nrefs > 1) {
         return 0;
     }
-    
+
     ftdicp = ftdi_new();
     if (ftdicp == NULL) {
         WARN("FTDI: init failed\n");
         goto init_err;
     }
-    
+
     ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
-        
+
     for (i = 0; i < sizeof(ftdi_device_descs); i++) {
         device_desc = ftdi_device_descs[i];
         if (ftdi_usb_open_string(ftdicp, device_desc)) {
@@ -259,33 +260,33 @@ int spi_open()
             WARN("FTDI: can't find FTDI device\n");
             goto init_err;
         }
-    }   
-            
+    }
+
     if (ftdi_usb_reset(ftdicp) < 0) {
         WARN("FTDI: reset failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
-    }       
+    }
 
     if (ftdi_usb_purge_buffers(ftdicp) < 0) {
         WARN("FTDI: purge buffers failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
-    }       
-    
+    }
+
     if (ftdi_set_baudrate(ftdicp, SPI_CLOCK_FREQ / 16) < 0) {
         WARN("FTDI: purge buffers failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
-    
+
     if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
         WARN("FTDI: reset bitmode failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
-    
+
     if (ftdi_set_bitmode(ftdicp, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
-        WARN("FTDI: set asynchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp)); 
+        WARN("FTDI: set asynchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
-    
+
     return 0;
 
 init_err:
@@ -294,11 +295,11 @@ init_err:
         ftdi_free(ftdicp);
     }
 
-    return -1; 
-}       
+    return -1;
+}
 
-int spi_close()
-{       
+int spi_close(void)
+{
     spi_nrefs--;
     if (spi_nrefs == 0) {
         if (ftdi_usb_close(ftdicp) < 0) {
