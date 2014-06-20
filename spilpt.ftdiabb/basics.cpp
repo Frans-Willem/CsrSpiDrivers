@@ -1,8 +1,11 @@
-#include "spifns.h"
 #include <windows.h>
 #include <stdio.h>
-#include "basics.h"
 #include <stdlib.h>
+#include <stdint.h>
+
+#include "spifns.h"
+#include "basics.h"
+#include "spi.h"
 
 #ifdef __WINE__
 # define _snprintf snprintf
@@ -120,69 +123,18 @@ DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback
 DLLEXPORT int __cdecl spifns_get_version() {
 	return SPIFNS_VERSION;
 }
+//
 //RE Check: Completely identical
 DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
-	OSVERSIONINFOA ovi;
-	char szFilename[20];
-
-	ovi.dwOSVersionInfoSize=sizeof(ovi);
-	GetVersionExA(&ovi);
-	if (ovi.dwPlatformId!=VER_PLATFORM_WIN32_NT)
-		return INVALID_HANDLE_VALUE;
-	sprintf(szFilename,"\\\\.\\COM%d",nPort);
-	HANDLE hDevice=CreateFileA(szFilename,GENERIC_READ|GENERIC_WRITE,0,0,OPEN_EXISTING,0,0);
-	if (hDevice==INVALID_HANDLE_VALUE)
-		return INVALID_HANDLE_VALUE;
-	DCB dcb={0};
-	dcb.BaudRate=CBR_256000;
-	dcb.DCBlength=sizeof(dcb);
-	dcb.fBinary=FALSE;
-	dcb.fParity=FALSE;
-	dcb.fOutxCtsFlow=FALSE;
-	dcb.fOutxDsrFlow=FALSE;
-	dcb.fDtrControl=DTR_CONTROL_DISABLE;
-	dcb.fDsrSensitivity=FALSE;
-	dcb.fTXContinueOnXoff=FALSE;
-	dcb.fOutX=FALSE;
-	dcb.fInX=FALSE;
-	dcb.fErrorChar=FALSE;
-	dcb.fNull=FALSE;
-	dcb.fRtsControl=RTS_CONTROL_DISABLE;
-	dcb.fAbortOnError=FALSE;
-	dcb.fDummy2=FALSE;
-	dcb.wReserved=0;
-	dcb.XonLim=dcb.XoffLim=0;
-	dcb.ByteSize=8;
-	dcb.Parity=NOPARITY;
-	dcb.StopBits=ONESTOPBIT;
-	dcb.XonChar=dcb.XoffChar=0;
-	dcb.ErrorChar=0;
-	dcb.EofChar=0;
-	dcb.EvtChar=0;
-	dcb.wReserved1=0;
-	if (!SetCommState(hDevice,&dcb)) {
-		CloseHandle(hDevice);
-		return INVALID_HANDLE_VALUE;
-	}
-  EscapeCommFunction(hDevice,CLRDTR);
-  Sleep(10);
-  EscapeCommFunction(hDevice,SETDTR);
-  BYTE bExpected[]={'C','S','R','S','P','I','1'};
-  BYTE bTemp[10];
-	DWORD nWritten;
-  if (!ReadFile(hDevice,bTemp,sizeof(bExpected),&nWritten,0) || nWritten!=sizeof(bExpected) || memcmp(bExpected,bTemp,sizeof(bExpected))!=0) {
-		CloseHandle(hDevice);
-		return INVALID_HANDLE_VALUE;
-	}
-	return hDevice;
+    if (spi_open() < 0)
+        return INVALID_HANDLE_VALUE;
+    return (HANDLE)1;
 }
+
 //RE Check: Fully identical
 DLLEXPORT void __cdecl spifns_close_port() {
-	if (g_hDevice) {
-		CloseHandle(g_hDevice);
-		g_hDevice=0;
-		g_nSpiPort=0;
-	}
+    if (spi_isopen())
+        spi_close();
 }
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
@@ -289,52 +241,79 @@ DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char c
 #undef _MIN
 	}
 }
-//RE Check: Functionally equivalent, register choice and initialization difference.
+
+/* Reimplemented using our SPI impl. */
 DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
-	if (!g_hDevice) {
-		static const char szError[]="No COM port selected";
+    uint8_t outbuf1[] = {
+        0x02,                       /* Command: write */
+        (uint8_t)(nAddress >> 8),   /* Address high byte */
+        (uint8_t)(nAddress & 0xff), /* Address low byte */
+    };
+    uint8_t *outbuf2;
+
+    /* IO is done in two byte words */
+    outbuf2 = (uint8_t *)malloc(nLength * sizeof(unsigned short));
+    if (outbuf2 == NULL) {
+		static const char szError[]="Allocate buffer failed";
+		memcpy(g_szErrorString,szError,sizeof(szError));
+		g_nError=SPIERR_MALLOC_FAILED;
+		return 1;
+	}
+
+    if (!spi_isopen()) {
+		static const char szError[]="No FTDI device selected";
 		memcpy(g_szErrorString,szError,sizeof(szError));
 		g_nError=SPIERR_NO_LPT_PORT_SELECTED;
 		return 1;
 	}
-	BYTE bStart[]={0x02,nAddress>>8,nAddress&0xFF};
-	DWORD dwWritten;
-	if (!WriteFile(g_hDevice,bStart,sizeof(bStart),&dwWritten,0) || dwWritten!=sizeof(bStart)) {
-		const char szError[]="Unable to start writing";
+
+    if (spi_xfer_begin() < 0) {
+		spifns_debugout_readwrite(nAddress,'r',0,0);
+		const char szError[]="Unable to begin transfer";
 		memcpy(g_szErrorString,szError,sizeof(szError));
 		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_IOCTL_FAILED;
+		g_nError=SPIERR_READ_FAILED;
 		return 1;
 	}
-	BYTE bBlockLength=0;
-	BYTE bBuffer[256];
-	while (true) {
-		if (!ReadFile(g_hDevice,&bBlockLength,1,&dwWritten,0) || dwWritten!=1)
-			break;
-		if (bBlockLength>nLength)
-      bBlockLength=nLength;
-    if (!WriteFile(g_hDevice,&bBlockLength,1,&dwWritten,0) || dwWritten!=1)
-      break;
-    if (bBlockLength==0)
-      break;
-		for (unsigned int i=0; i<bBlockLength; i++) {
-			bBuffer[(i*2)]=(*pnInput)>>8;
-			bBuffer[(i*2)+1]=(*pnInput)&0xFF;
-			pnInput++;
-			nLength--;
-		}
-		if (!WriteFile(g_hDevice,bBuffer,bBlockLength*2,&dwWritten,0) || dwWritten!=bBlockLength*2)
-			break;
-	}
-	if (nLength!=0) {
-		const char szError[]="Not all data written";
+
+    if (spi_write(outbuf1, sizeof(outbuf1)) < 0) {
+		spifns_debugout_readwrite(nAddress,'r',0,0);
+		const char szError[]="Unable to start write";
 		memcpy(g_szErrorString,szError,sizeof(szError));
 		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_IOCTL_FAILED;
+		g_nError=SPIERR_READ_FAILED;
 		return 1;
 	}
-	return 0;
+
+    for (unsigned int i=0; i < nLength; i++) {
+        outbuf2[i * 2] = *pnInput >> 8;
+        outbuf2[i * 2 + 1] = *pnInput & 0xff;
+        pnInput++;
+    }
+
+    if (spi_write(outbuf2, nLength * sizeof(unsigned short)) < 0) {
+        spifns_debugout_readwrite(nAddress,'r',0,0);
+        const char szError[]="Unable to write (writing buffer)";
+        memcpy(g_szErrorString,szError,sizeof(szError));
+        g_nErrorAddress=nAddress;
+        g_nError=SPIERR_READ_FAILED;
+        return 1;
+    }
+
+    free(outbuf2);
+
+    if (spi_xfer_end() < 0) {
+		spifns_debugout_readwrite(nAddress,'r',0,0);
+		const char szError[]="Unable to end transfer";
+		memcpy(g_szErrorString,szError,sizeof(szError));
+		g_nErrorAddress=nAddress;
+		g_nError=SPIERR_READ_FAILED;
+		return 1;
+	}
+
+    return 0;
 }
+
 //RE Check: Functionally identical, register choice, calling convention, and some ordering changes.
 DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
 /*	BYTE bNewOutput=g_bCurrentOutput&~BV_CLK;
@@ -416,51 +395,86 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
 	}
 	return 0;
 }
-//RE Check: Functionally identical, can't get the ASM code to match.
+
+/* Reimplemented using our SPI impl. */
 DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsigned short *pnOutput) {
-	if (!g_hDevice) {
-		static const char szError[]="No COM port selected";
+    uint8_t outbuf[] = {
+        3,                          /* Command: read */
+        (uint8_t)(nAddress >> 8),   /* Address high byte */
+        (uint8_t)(nAddress & 0xff), /* Address low byte */
+    };
+    uint8_t *inbuf;
+    int inbufsize;
+
+    /* IO is done in two byte words */
+    inbufsize = nLength * sizeof(unsigned short);
+    if (inbufsize < 2)
+        inbufsize = 2;
+    inbuf = (uint8_t *)malloc(inbufsize);
+    if (inbuf == NULL) {
+		static const char szError[]="Allocate buffer failed";
+		memcpy(g_szErrorString,szError,sizeof(szError));
+		g_nError=SPIERR_MALLOC_FAILED;
+		return 1;
+	}
+
+    if (!spi_isopen()) {
+		static const char szError[]="No FTDI device selected";
 		memcpy(g_szErrorString,szError,sizeof(szError));
 		g_nError=SPIERR_NO_LPT_PORT_SELECTED;
 		return 1;
 	}
-	BYTE bStart[]={0x01,nAddress>>8,nAddress&0xFF};
-	DWORD dwWritten;
-	if (!WriteFile(g_hDevice,bStart,sizeof(bStart),&dwWritten,0) || dwWritten!=sizeof(bStart) || !ReadFile(g_hDevice,bStart,1,&dwWritten,0) || dwWritten!=1 || bStart[0]!=0) {
+
+    if (spi_xfer_begin() < 0) {
 		spifns_debugout_readwrite(nAddress,'r',0,0);
-		const char szError[]="Unable to read";
+		const char szError[]="Unable to begin transfer";
 		memcpy(g_szErrorString,szError,sizeof(szError));
 		g_nErrorAddress=nAddress;
 		g_nError=SPIERR_READ_FAILED;
 		return 1;
 	}
-	BYTE bBlockLength;
-	BYTE bBuffer[256];
-	while (true) {
-		bBlockLength=min(nLength,64);
-		nLength-=bBlockLength;
-		if (!WriteFile(g_hDevice,&bBlockLength,1,&dwWritten,0) || dwWritten!=1) {
-			spifns_debugout_readwrite(nAddress,'r',0,0);
-			const char szError[]="Unable to read (requesting buffer)";
-			memcpy(g_szErrorString,szError,sizeof(szError));
-			g_nErrorAddress=nAddress;
-			g_nError=SPIERR_READ_FAILED;
-			return 1;
-		}
-		//Break when all data is received
-		if (bBlockLength==0)
-			break;
-		if (!ReadFile(g_hDevice,bBuffer,bBlockLength*sizeof(short),&dwWritten,0) || dwWritten!=bBlockLength*2) {
-			spifns_debugout_readwrite(nAddress,'r',0,0);
-			const char szError[]="Unable to read (reading buffer)";
-			memcpy(g_szErrorString,szError,sizeof(szError));
-			g_nErrorAddress=nAddress;
-			g_nError=SPIERR_READ_FAILED;
-			return 1;
-		}
-		for (unsigned int i=0; i<bBlockLength; i++)
-			*(pnOutput++)=(bBuffer[(i*2)]<<8)|bBuffer[(i*2)+1];
+
+    if (spi_write(outbuf, sizeof(outbuf)) < 0) {
+		spifns_debugout_readwrite(nAddress,'r',0,0);
+		const char szError[]="Unable to start read";
+		memcpy(g_szErrorString,szError,sizeof(szError));
+		g_nErrorAddress=nAddress;
+		g_nError=SPIERR_READ_FAILED;
+		return 1;
 	}
+
+    if (spi_read(inbuf, 2) < 0 || inbuf[0] != outbuf[0] || inbuf[1] != outbuf[1]) {
+        spifns_debugout_readwrite(nAddress,'r',0,0);
+        const char szError[]="Unable to start read (getting control data)";
+        memcpy(g_szErrorString,szError,sizeof(szError));
+        g_nErrorAddress=nAddress;
+        g_nError=SPIERR_READ_FAILED;
+        return 1;
+    }
+
+    if (spi_read(inbuf, nLength * sizeof(unsigned short)) < 0) {
+        spifns_debugout_readwrite(nAddress,'r',0,0);
+        const char szError[]="Unable to read (reading buffer)";
+        memcpy(g_szErrorString,szError,sizeof(szError));
+        g_nErrorAddress=nAddress;
+        g_nError=SPIERR_READ_FAILED;
+        return 1;
+    }
+
+    for (unsigned int i=0; i<nLength; i++)
+        *(pnOutput++)=(inbuf[(i*2)]<<8)|inbuf[(i*2)+1];
+
+    free(inbuf);
+
+    if (spi_xfer_end() < 0) {
+		spifns_debugout_readwrite(nAddress,'r',0,0);
+		const char szError[]="Unable to end transfer";
+		memcpy(g_szErrorString,szError,sizeof(szError));
+		g_nErrorAddress=nAddress;
+		g_nError=SPIERR_READ_FAILED;
+		return 1;
+	}
+
 	return 0;
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
@@ -486,15 +500,33 @@ DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	}
 	return nRetval;
 }
-//RE Check: Mostly identical, only registers don't match because of calling convention changes on called functions.
+
+/* Reimplemented using our own SPI driver */
 DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
-	if (!g_hDevice)
-		return -1;
-	BYTE bData[1]={0x03};
-	DWORD dwWritten;
-	if (!WriteFile(g_hDevice,bData,1,&dwWritten,0) || dwWritten!=1 || !ReadFile(g_hDevice,bData,1,&dwWritten,0) || dwWritten!=1)
-		return -1;
-	if (bData[0]==0 || bData[0]==1)
-		return bData[0];
-	return -1;
+    /* XXX: describe what is going on */
+    uint8_t xferbuf[] = {
+        3,      /* Command: read */
+        0xff,   /* Address high byte */
+        0x9a,   /* Address low byte */
+    };
+    uint8_t inbuf[2];
+
+    if (spi_xfer_begin() < 0)
+        return -1;
+    if (spi_xfer(xferbuf, sizeof(xferbuf)) < 0)
+        return -1;
+    if (spi_read(inbuf, sizeof(inbuf)) < 0)
+        return -1;
+    if (spi_xfer_end() < 0)
+        return -1;
+
+    if (inbuf[0] != 3 || inbuf[1] != 0xff) {
+        /* No chip present or not responding correctly, no way to find out. */
+        return -1;
+    }
+
+    /* Check the response to read command */
+    if (xferbuf[0])
+        return 1;
+    return 0;
 }
