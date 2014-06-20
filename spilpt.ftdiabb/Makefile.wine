@@ -7,6 +7,9 @@ LIBS=	-lftdi -lusb -lstdc++
 
 all: spilpt.dll.so
 
+basics.o: spi.h basics.h spifns.h
+spi.o: spi.h
+
 spilpt.dll.so: wine_main.o basics.o spi.o spilpt.spec
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
