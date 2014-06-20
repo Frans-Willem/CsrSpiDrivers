@@ -113,7 +113,7 @@ int spi_xfer_end(void)
 
 #define MAX_IO  512
 
-uint8_t spi_write(uint8_t *buf, int size)
+int spi_write(uint8_t *buf, int size)
 {
     int i, n, bit, rc;
     uint8_t byte;
@@ -233,7 +233,7 @@ int spi_read(uint8_t *buf, int size)
     return i;
 }
 
-int spi_open()
+int spi_open(void)
 {
     int i;
     char *device_desc;
