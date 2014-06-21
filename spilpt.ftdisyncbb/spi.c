@@ -7,13 +7,17 @@
 #include "spi.h"
 
 #define SPI_CLOCK_FREQ    100000
+/* This pinout is done so, that popular FT232R cables (like one from sparkfun
+ * https://www.sparkfun.com/products/9717) can be used. Change at will. Beware,
+ * there are cables providing 5V output, but CSR chips require 3V3 or 1V8 */
 #define PIN_MOSI    (1 << 0)   /* FT232RL pin 1, signal TXD AKA D0, output */
 #define PIN_MISO    (1 << 1)   /* FT232RL pin 5, signal RXD AKA D1, input */
 #define PIN_CLK     (1 << 2)   /* FT232RL pin 3, signal RTS AKA D2, output */
+#define PIN_CS      (1 << 3)   /* FT232RL pin 11, signal CTS AKA D3, output */
 #if 0
-#define PIN_MUL     (1 << 3)   /* FT232RL pin 11, signal CTS AKA D3, output */
+/* Multiplexing is not implemented. */
+#define PIN_MUL     (1 << 4)   /* FT232RL pin 2, signal DTR AKA D4, output */
 #endif
-#define PIN_CS      (1 << 4)   /* FT232RL pin 2, signal DTR AKA D4, output */
 #define PINS_OUTPUT (PIN_MOSI | PIN_CLK | /*PIN_MUL |*/ PIN_CS)
 
 char *ftdi_device_descs[] = {
