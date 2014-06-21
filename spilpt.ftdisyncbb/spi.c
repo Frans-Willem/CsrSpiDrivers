@@ -378,7 +378,7 @@ int spi_open(void)
     }
 
     if (ftdi_set_bitmode(ftdicp, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
-        WARN("FTDI: set asynchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp));
+        WARN("FTDI: set synchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
