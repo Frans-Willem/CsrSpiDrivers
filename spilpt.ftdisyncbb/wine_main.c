@@ -1,5 +1,4 @@
-#include "windef.h"
-#include "winbase.h"
+#include <windows.h>
 /*#include "wine/debug.h"*/
 
 /*WINE_DEFAULT_DEBUG_CHANNEL(spilpt);*/
