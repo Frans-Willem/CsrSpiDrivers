@@ -1,16 +1,18 @@
 CC=	winegcc
 CXX=	wineg++
-CFLAGS=	-Wall -fPIC -DPIC -D__WINESRC__
-LD=	wineg++
-LDFLAGS=	-shared
+CFLAGS=	-Wall -m32 -fPIC -DPIC -D__WINESRC__
+LD=	winegcc
+LDFLAGS=	-shared -m32
 LIBS=	-lftdi -lusb
+# A bug in GCC: it cannot find 32 bit GCC libraries on 64 bit system
+LIBS+= /usr/lib/gcc/i686-linux-gnu/4.7/libstdc++.a
 
 all: spilpt.dll.so
 
 basics.o: spi.h basics.h spifns.h
 spi.o: spi.h
 
-spilpt.dll.so: wine_main.o basics.o spi.o spilpt.spec
+spilpt.dll.so: wine_main.o basics.o spi.o hexdump.o spilpt.spec
 	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 .c.o: 
@@ -21,3 +23,6 @@ spilpt.dll.so: wine_main.o basics.o spi.o spilpt.spec
 
 clean:
 	rm -f *.o spilpt.dll.so
+
+install:
+	install -m 0644 -o root -g root spilpt.dll.so /usr/lib/i386-linux-gnu/wine/spilpt.dll.so

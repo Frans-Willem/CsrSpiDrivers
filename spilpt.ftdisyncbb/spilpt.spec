@@ -20,3 +20,17 @@
 @ cdecl spifns_sequence_read(long long ptr)
 @ cdecl spifns_sequence(ptr long)
 @ cdecl spifns_bluecore_xap_stopped()
+@ cdecl spifns_clear_last_error()
+@ stub spifns_count_streams
+@ stub spifns_get_last_error32
+@ stub spifns_stream_bluecore_xap_stopped
+@ stub spifns_stream_chip_select
+@ stub spifns_stream_close
+@ stub spifns_stream_command
+@ stub spifns_stream_get_device_id
+@ stub spifns_stream_getvar
+@ stub spifns_stream_init
+@ stub spifns_stream_lock
+@ stub spifns_stream_sequence
+@ stub spifns_stream_set_debug_callback
+@ stub spifns_stream_unlock

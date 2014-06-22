@@ -13,7 +13,7 @@ adapters providing 5V output, but CSR chips require 3V3 or 1V8.
 
 ## Building on Debian/Ubuntu Linux for wine
 
-    sudo apt-get install -y wine-dev libftdi-dev libusb-dev
+    sudo apt-get install -y wine:i386 build-essential wine-dev:i386 libc6-dev-i386 libstdc++-dev:i386 libftdi-dev:i386
     make -f Makefile.wine all
 
 ## TODO

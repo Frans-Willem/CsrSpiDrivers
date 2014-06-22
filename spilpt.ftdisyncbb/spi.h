@@ -20,6 +20,10 @@
 /* One bit SPI simultaneous read/write requires 3 bytes of buffer space. */
 #define SPI_MAX_XFER_BYTES      (FTDI_READ_BUF_SIZE / 8 / 3)
 
+#define SPI_LED_OFF     (0)
+#define SPI_LED_READ    (1 << 0)
+#define SPI_LED_WRITE   (1 << 1)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,10 +33,15 @@ int spi_isopen(void);
 int spi_close(void);
 
 int spi_xfer_begin(void);
-int spi_xfer(uint8_t *buf, int size);
-int spi_write(const uint8_t *buf, int size);
-int spi_read(uint8_t *buf, int size);
+int spi_xfer_8(uint8_t *buf, int size);
+int spi_write_8(const uint8_t *buf, int size);
+int spi_read_8(uint8_t *buf, int size);
+int spi_xfer_16(uint16_t *buf, int size);
+int spi_write_16(const uint16_t *buf, int size);
+int spi_read_16(uint16_t *buf, int size);
 int spi_xfer_end(void);
+
+void spi_led(int led);
 
 #ifdef __cplusplus
 } /* extern "C" */

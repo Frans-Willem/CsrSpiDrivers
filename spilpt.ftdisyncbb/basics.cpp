@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "wine/debug.h"
 
 #include "spifns.h"
 #include "basics.h"
@@ -20,6 +21,8 @@
  * For now, I'll leave it at this 
  * Feel free to use this to write your own 
 */
+
+WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 
 #define VARLIST_SPISPORT 0
 #define VARLIST_SPIMUL 1
@@ -69,6 +72,8 @@ DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char c
 
 //RE Check: Completely identical.
 DLLEXPORT void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
+    WINE_TRACE("\n");
+
 	*ppList=g_pVarList;
 	*pnCount=sizeof(g_pVarList)/sizeof(*g_pVarList);
 }
@@ -76,11 +81,13 @@ DLLEXPORT void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int 
 //Original uses 'add g_nRef, 1'
 //Compiler makes 'inc g_nRef'
 DLLEXPORT int __cdecl spifns_init() {
+    WINE_TRACE("\n");
 	g_nRef+=1;
 	return 0;
 }
 //RE Check: Completely identical (one opcode off, jns should be jge, but shouldn't matter. Probably unsigned/signed issues)
 DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
+    WINE_TRACE("(%s)\n", szName);
 	if (!szName) {
 		return "";
 	} else if (_stricmp(szName,"SPIPORT")==0) {
@@ -109,35 +116,59 @@ DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
 }
 //RE Check: Completely identical
 DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
+    WINE_TRACE("\n");
 	if (pnErrorAddress)
 		*pnErrorAddress=g_nErrorAddress;
 	if (pszErrorString)
 		*pszErrorString=g_szErrorString;
 	return g_nError;
 }
+
+DLLEXPORT void spifns_clear_last_error(void)
+{
+    WINE_TRACE("\n");
+	static const char szError[]="No error";
+	memcpy(g_szErrorString,szError,sizeof(szError));
+    g_nErrorAddress=0;
+    g_nError=SPIERR_NO_ERROR;
+}
+
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback) {
+    WINE_TRACE("\n");
 	g_pDebugCallback=pCallback;
 }
 //RE Check: Completely identical
 DLLEXPORT int __cdecl spifns_get_version() {
+    WINE_TRACE("return: 0x%02x\n", SPIFNS_VERSION);
 	return SPIFNS_VERSION;
 }
 //
 //RE Check: Completely identical
 DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
+    int rc;
+
+    WINE_TRACE("(%d)\n", nPort);
+
+    rc = spi_open();
+
+    WINE_TRACE("spi_open() returns %d\n", rc);
     if (spi_open() < 0)
         return INVALID_HANDLE_VALUE;
-    return (HANDLE)1;
+    return (HANDLE)&spifns_open_port;
 }
 
 //RE Check: Fully identical
 DLLEXPORT void __cdecl spifns_close_port() {
-    if (spi_isopen())
+    WINE_TRACE("\n");
+    if (spi_isopen()) {
+        spi_led(SPI_LED_OFF);
         spi_close();
+    }
 }
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
+    WINE_TRACE("\n");
 	if (g_pDebugCallback) {
 		static char szDebugOutput[256];
 		va_list args;
@@ -151,12 +182,14 @@ DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
 //Original uses 'sub g_nRef, 1'
 //Compiler makes 'dec g_nRef'
 DLLEXPORT void __cdecl spifns_close() {
+    WINE_TRACE("\n");
 	g_nRef--;
 	if (g_nRef==0)
 		spifns_close_port();
 }
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
+    WINE_TRACE("(%d)\n", nChip);
 	/*g_bCurrentOutput=g_bCurrentOutput&0xD3|0x10;
 	g_nSpiMul=0;
 	g_nSpiMulConfig=nChip;
@@ -170,6 +203,7 @@ DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
 }
 //RE Check: Completely identical
 DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
+    WINE_TRACE("(%s)\n", szCmd);
 	if (stricmp(szCmd,"SPISLOWER")==0) {
 		//TODO!
 		/*if (g_nSpiShiftPeriod<40) {
@@ -183,6 +217,7 @@ DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
 //Original uses 'add esi, 1
 //Compiler makes 'inc esi'
 DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
+    WINE_TRACE("\n");
 	char szPortName[8];
 	for (int nPort=2; nPort<=16; nPort++) {
 		HANDLE hDevice;
@@ -197,6 +232,7 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
 //Original passes arguments through eax
 //Compiled takes argument on stack. Maybe change it to __fastcall ?
 DLLEXPORT void __cdecl spifns_sequence_setvar_spishiftperiod(int nPeriod) {
+    WINE_TRACE("(%d)\n", nPeriod);
 	//TODO
 	spifns_debugout("Delays set to %d\n",g_nSpiShiftPeriod=nPeriod);
 }
@@ -204,6 +240,7 @@ DLLEXPORT void __cdecl spifns_sequence_setvar_spishiftperiod(int nPeriod) {
 //Original passes arguments through eax
 //Compiled takes argument on stack. Maybe change it to __fastcall ?
 DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
+    WINE_TRACE("(%d)\n", nPort);
 	spifns_close_port();
 	if (INVALID_HANDLE_VALUE==(g_hDevice=spifns_open_port(nPort)))
 		return false;
@@ -214,6 +251,7 @@ DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
 }
 //RE Check: Functionally equivalent, but completely different ASM code 
 DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
+    WINE_TRACE("(0x%04x, '%c', %d, buf)\n", nAddress, cOperation, nLength);
 	if (g_pDebugCallback) {
 		static const char * const pszTable[]={
 			"%04X     %c ????\n",
@@ -234,8 +272,10 @@ DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char c
 		else
 			memset(bCopy,0,sizeof(bCopy));
 		if (nLength<2) {
+            WINE_TRACE(pszTable[nLength],nAddress,cOperation,bCopy[0]);
 			spifns_debugout(pszTable[nLength],nAddress,cOperation,bCopy[0]);
 		} else {
+            WINE_TRACE(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
 			spifns_debugout(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
 		}
 #undef _MIN
@@ -249,73 +289,64 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
         (uint8_t)(nAddress >> 8),   /* Address high byte */
         (uint8_t)(nAddress & 0xff), /* Address low byte */
     };
-    uint8_t *outbuf2;
+    uint16_t *outbuf2;
+
+    WINE_TRACE("(0x%04x, %d, 0x%04x ...)\n", nAddress, nLength, *pnInput);
+
+#define _ERR_RETURN(n, s) do { \
+        g_nError = (n); \
+        lstrcpynA(g_szErrorString, (s), sizeof(g_szErrorString)); \
+        goto error; \
+    } while (0)
+
+    outbuf2 = NULL;
+
+    spi_led(SPI_LED_WRITE);
+
+    if (!spi_isopen())
+        _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
 
     /* IO is done in two byte words */
-    outbuf2 = (uint8_t *)malloc(nLength * sizeof(unsigned short));
-    if (outbuf2 == NULL) {
-		static const char szError[]="Allocate buffer failed";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nError=SPIERR_MALLOC_FAILED;
-		return 1;
-	}
+    outbuf2 = (uint16_t *)malloc(nLength * sizeof(uint16_t));
+    if (outbuf2 == NULL)
+        _ERR_RETURN(SPIERR_MALLOC_FAILED, "Allocate buffer failed");
 
-    if (!spi_isopen()) {
-		static const char szError[]="No FTDI device selected";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nError=SPIERR_NO_LPT_PORT_SELECTED;
-		return 1;
-	}
+    memcpy(outbuf2, pnInput, nLength * sizeof(unsigned short));
 
-    if (spi_xfer_begin() < 0) {
-		spifns_debugout_readwrite(nAddress,'r',0,0);
-		const char szError[]="Unable to begin transfer";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_READ_FAILED;
-		return 1;
-	}
+    if (spi_xfer_begin() < 0)
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
 
-    if (spi_write(outbuf1, sizeof(outbuf1)) < 0) {
-		spifns_debugout_readwrite(nAddress,'r',0,0);
-		const char szError[]="Unable to start write";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_READ_FAILED;
-		return 1;
-	}
+    if (spi_write_8(outbuf1, 3) < 0)
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to start write");
 
-    for (unsigned int i=0; i < nLength; i++) {
-        outbuf2[i * 2] = *pnInput >> 8;
-        outbuf2[i * 2 + 1] = *pnInput & 0xff;
-        pnInput++;
+    if (spi_write_16(outbuf2, nLength) < 0) {
+        spifns_debugout_readwrite(nAddress,'w',nLength, outbuf2);
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to write (writing buffer)");
     }
 
-    if (spi_write(outbuf2, nLength * sizeof(unsigned short)) < 0) {
-        spifns_debugout_readwrite(nAddress,'r',0,0);
-        const char szError[]="Unable to write (writing buffer)";
-        memcpy(g_szErrorString,szError,sizeof(szError));
-        g_nErrorAddress=nAddress;
-        g_nError=SPIERR_READ_FAILED;
-        return 1;
-    }
+    if (spi_xfer_end() < 0)
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to end transfer");
 
     free(outbuf2);
-
-    if (spi_xfer_end() < 0) {
-		spifns_debugout_readwrite(nAddress,'r',0,0);
-		const char szError[]="Unable to end transfer";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_READ_FAILED;
-		return 1;
-	}
+    outbuf2 = NULL;
 
     return 0;
+
+#undef _ERR_RETURN
+
+error:
+    if (outbuf2)
+        free(outbuf2);
+    if (g_nError != SPIERR_NO_ERROR) {
+        g_nErrorAddress=nAddress;
+        WINE_WARN("%s\n", g_szErrorString);
+    }
+    return 1;
 }
 
 //RE Check: Functionally identical, register choice, calling convention, and some ordering changes.
 DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
+    WINE_TRACE("(%d)\n", nMul);
 /*	BYTE bNewOutput=g_bCurrentOutput&~BV_CLK;
 	if ((g_nSpiMulChipNum=nMul)<=16) {
 		//Left side
@@ -346,6 +377,7 @@ DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
 }
 //RE Check: Functionally identical, register choice, calling convention, stack size, and some ordering changes.
 DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue) {
+    WINE_TRACE("(%s, %s)\n", szName, szValue);
 	if (szName==0)
 		return 1;
 	if (szValue==0)
@@ -403,83 +435,77 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
         (uint8_t)(nAddress >> 8),   /* Address high byte */
         (uint8_t)(nAddress & 0xff), /* Address low byte */
     };
-    uint8_t *inbuf;
-    int inbufsize;
+    uint8_t inbuf1[2];
+    uint16_t *inbuf2;
+
+    WINE_TRACE("(0x%02x, %d, %p)\n", nAddress, nLength, pnOutput);
+
+#define _ERR_RETURN(n, s) do { \
+        g_nError = (n); \
+        lstrcpynA(g_szErrorString, (s), sizeof(g_szErrorString)); \
+        goto error; \
+    } while (0)
+
+    inbuf2 = NULL;
+
+    spi_led(SPI_LED_READ);
+
+    if (!spi_isopen())
+        _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
 
     /* IO is done in two byte words */
-    inbufsize = nLength * sizeof(unsigned short);
-    if (inbufsize < 2)
-        inbufsize = 2;
-    inbuf = (uint8_t *)malloc(inbufsize);
-    if (inbuf == NULL) {
-		static const char szError[]="Allocate buffer failed";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nError=SPIERR_MALLOC_FAILED;
-		return 1;
-	}
+    inbuf2 = (uint16_t *)malloc(nLength * sizeof(uint16_t));
+    if (inbuf2 == NULL)
+        _ERR_RETURN(SPIERR_MALLOC_FAILED, "Allocate buffer failed");
 
-    if (!spi_isopen()) {
-		static const char szError[]="No FTDI device selected";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nError=SPIERR_NO_LPT_PORT_SELECTED;
-		return 1;
-	}
+    if (spi_xfer_begin() < 0)
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
 
-    if (spi_xfer_begin() < 0) {
-		spifns_debugout_readwrite(nAddress,'r',0,0);
-		const char szError[]="Unable to begin transfer";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_READ_FAILED;
-		return 1;
-	}
+    if (spi_write_8(outbuf, 3) < 0)
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to start read");
 
-    if (spi_write(outbuf, sizeof(outbuf)) < 0) {
-		spifns_debugout_readwrite(nAddress,'r',0,0);
-		const char szError[]="Unable to start read";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_READ_FAILED;
-		return 1;
-	}
-
-    if (spi_read(inbuf, 2) < 0 || inbuf[0] != outbuf[0] || inbuf[1] != outbuf[1]) {
-        spifns_debugout_readwrite(nAddress,'r',0,0);
-        const char szError[]="Unable to start read (getting control data)";
-        memcpy(g_szErrorString,szError,sizeof(szError));
-        g_nErrorAddress=nAddress;
-        g_nError=SPIERR_READ_FAILED;
-        return 1;
+    if (spi_read_8(inbuf1, 2) < 0) {
+        _ERR_RETURN(SPIERR_READ_FAILED,
+                "Unable to start read (getting control data)");
     }
 
-    if (spi_read(inbuf, nLength * sizeof(unsigned short)) < 0) {
-        spifns_debugout_readwrite(nAddress,'r',0,0);
-        const char szError[]="Unable to read (reading buffer)";
-        memcpy(g_szErrorString,szError,sizeof(szError));
-        g_nErrorAddress=nAddress;
-        g_nError=SPIERR_READ_FAILED;
-        return 1;
+    if (inbuf1[0] != 3 || inbuf1[1] != (nAddress >> 8)) {
+        _ERR_RETURN(SPIERR_READ_FAILED,
+                "Unable to start read (invalid control data)");
     }
 
-    for (unsigned int i=0; i<nLength; i++)
-        *(pnOutput++)=(inbuf[(i*2)]<<8)|inbuf[(i*2)+1];
+    if (spi_read_16(inbuf2, nLength) < 0) {
+        spifns_debugout_readwrite(nAddress,'r', nLength, inbuf2);
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to read (reading buffer)");
+    }
 
-    free(inbuf);
+    if (spi_xfer_end() < 0)
+        _ERR_RETURN(SPIERR_READ_FAILED, "Unable to end transfer");
 
-    if (spi_xfer_end() < 0) {
-		spifns_debugout_readwrite(nAddress,'r',0,0);
-		const char szError[]="Unable to end transfer";
-		memcpy(g_szErrorString,szError,sizeof(szError));
-		g_nErrorAddress=nAddress;
-		g_nError=SPIERR_READ_FAILED;
-		return 1;
-	}
+    memcpy(pnOutput, inbuf2, nLength * sizeof(unsigned short));
+
+    free(inbuf2);
+    inbuf2 = NULL;
 
 	return 0;
+
+#undef _ERR_RETURN
+
+error:
+    if (inbuf2)
+        free(inbuf2);
+    if (g_nError != SPIERR_NO_ERROR) {
+        g_nErrorAddress=nAddress;
+        WINE_WARN("%s\n", g_szErrorString);
+    }
+    return 1;
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
 DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	int nRetval=0;
+
+    WINE_TRACE("(seq, %d)\n", nCount);
+
 	while (nCount--) {
 		switch (pSequence->nType) {
 		case SPISEQ::TYPE_READ:{
@@ -503,30 +529,32 @@ DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 
 /* Reimplemented using our own SPI driver */
 DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
-    /* XXX: describe what is going on */
+    /* Read chip version */
     uint8_t xferbuf[] = {
         3,      /* Command: read */
-        0xff,   /* Address high byte */
-        0x9a,   /* Address low byte */
+        GBL_CHIP_VERSION_GEN1_ADDR >> 8,   /* Address high byte */
+        GBL_CHIP_VERSION_GEN1_ADDR & 0xff,   /* Address low byte */
     };
     uint8_t inbuf[2];
 
+    WINE_TRACE("\n");
+
     if (spi_xfer_begin() < 0)
-        return -1;
-    if (spi_xfer(xferbuf, sizeof(xferbuf)) < 0)
-        return -1;
-    if (spi_read(inbuf, sizeof(inbuf)) < 0)
-        return -1;
+        return SPIFNS_XAP_NO_REPLY;
+    if (spi_xfer_8(xferbuf, 3) < 0)
+        return SPIFNS_XAP_NO_REPLY;
+    if (spi_read_8(inbuf, 2) < 0)
+        return SPIFNS_XAP_NO_REPLY;
     if (spi_xfer_end() < 0)
-        return -1;
+        return SPIFNS_XAP_NO_REPLY;
 
     if (inbuf[0] != 3 || inbuf[1] != 0xff) {
         /* No chip present or not responding correctly, no way to find out. */
-        return -1;
+        return SPIFNS_XAP_NO_REPLY;
     }
 
     /* Check the response to read command */
     if (xferbuf[0])
-        return 1;
-    return 0;
+        return SPIFNS_XAP_STOPPED;
+    return SPIFNS_XAP_RUNNING;
 }
