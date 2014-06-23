@@ -152,7 +152,7 @@ int spi_xfer_begin(void)
 
     state_offset = 0;
 
-    /* Reset sequence: set CS high, wait two clock cycles */
+    /* Reset sequence: deassert CS, wait two clock cycles */
 
     ftdi_pin_state |= PIN_nCS;
     pin_states[state_offset++] = ftdi_pin_state;
