@@ -7,7 +7,7 @@
 #include "spi.h"
 #include "hexdump.h"
 
-#define SPI_CLOCK_FREQ    2000000
+#define SPI_CLOCK_FREQ    4000000
 /* This pinout is done so, that popular FT232R adapters could be used. Change
  * it at will. Beware, there are adapters providing 5V output, but CSR chips
  * require 3V3 or 1V8 */
