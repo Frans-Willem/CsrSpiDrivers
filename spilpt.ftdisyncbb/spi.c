@@ -7,7 +7,7 @@
 #include "spi.h"
 #include "hexdump.h"
 
-#define SPI_CLOCK_FREQ    100000
+#define SPI_CLOCK_FREQ    2000000
 /* This pinout is done so, that popular FT232R adapters could be used. Change
  * it at will. Beware, there are adapters providing 5V output, but CSR chips
  * require 3V3 or 1V8 */
@@ -34,7 +34,7 @@ static int spi_nrefs = 0;
 
 static uint8_t ftdi_pin_state = 0;
 
-#define SPI_LED_CLK_PERIOD  (SPI_CLOCK_FREQ / 30)
+#define SPI_LED_FREQ  4   /* Hz */
 static long long spi_led_counter = 0;
 static int spi_led_state = 0;
 
@@ -72,7 +72,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
             return -1;
         }
         if (rc == 0)
-            usleep(5000);
+            usleep(1000);
         len -= rc;
         bufp += rc;
     }
@@ -108,7 +108,7 @@ static int spi_led_tick(int ticks)
                 return -1;
         }
     } else {
-        if (spi_led_counter > SPI_LED_CLK_PERIOD)
+        if (spi_led_counter > (SPI_CLOCK_FREQ / SPI_LED_FREQ))
             spi_led_counter = 0;
 
         if (spi_led_counter == 0) {
