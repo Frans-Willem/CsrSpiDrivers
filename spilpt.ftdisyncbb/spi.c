@@ -195,8 +195,7 @@ int spi_xfer_8(uint8_t *buf, int size)
     uint8_t bit, byte, *bufp;
     uint8_t pin_states[SPI_MAX_XFER_BYTES * 8 * 3];
 
-    WINE_TRACE("(%p, %d). input buf dump:\n", buf, size);
-    hexdump(buf, size);
+    WINE_TRACE("(%p, %d)\n", buf, size);
 
     spi_led_tick(size * 8 * 3);
 
@@ -250,9 +249,6 @@ int spi_xfer_8(uint8_t *buf, int size)
         bufp += block_size;
     } while (bytes_left > 0);
 
-    WINE_TRACE("(buf, %d). output buf dump:\n", size);
-    hexdump(buf, size);
-
     return size;
 }
 
@@ -263,8 +259,7 @@ int spi_write_8(const uint8_t *buf, int size)
     const uint8_t *bufp;
     uint8_t pin_states[SPI_MAX_WRITE_BYTES * 8 * 3];
 
-    WINE_TRACE("(%p, %d). input buf dump:\n", buf, size);
-    hexdump(buf, size);
+    WINE_TRACE("(%p, %d)\n", buf, size);
 
     spi_led_tick(size * 8 * 3);
 
@@ -365,8 +360,7 @@ int spi_read_8(uint8_t *buf, int size)
         bufp += block_size;
     } while (bytes_left > 0);
 
-    WINE_TRACE("(%p, %d). output buf dump:\n", buf, size);
-    hexdump(buf, size);
+    WINE_TRACE("(%p, %d)\n", buf, size);
 
     return size;
 }
@@ -377,8 +371,7 @@ int spi_xfer_16(uint16_t *buf, int size)
     uint16_t word, bit, *bufp;
     uint8_t pin_states[SPI_MAX_XFER_BYTES * 8 * 3];
 
-    WINE_TRACE("(%p, %d). input buf dump:\n", buf, size);
-    hexdump((void *)buf, size * 2);
+    WINE_TRACE("(%p, %d)\n", buf, size);
 
     spi_led_tick(size * 16 * 3);
 
@@ -432,8 +425,7 @@ int spi_xfer_16(uint16_t *buf, int size)
         bufp += block_size;
     } while (words_left > 0);
 
-    WINE_TRACE("(%p, %d). output buf dump:\n", buf, size);
-    hexdump((void *)buf, size * 2);
+    WINE_TRACE("(%p, %d)\n", buf, size);
 
     return size;
 }
@@ -445,8 +437,7 @@ int spi_write_16(const uint16_t *buf, int size)
     const uint16_t *bufp;
     uint8_t pin_states[SPI_MAX_WRITE_BYTES * 8 * 3];
 
-    WINE_TRACE("(%p, %d). input buf dump:\n", buf, size);
-    hexdump((void *)buf, size * 2);
+    WINE_TRACE("(%p, %d)\n", buf, size);
 
     spi_led_tick(size * 16 * 3);
 
@@ -547,8 +538,7 @@ int spi_read_16(uint16_t *buf, int size)
         bufp += block_size;
     } while (words_left > 0);
 
-    WINE_TRACE("(%p, %d). output buf dump:\n", buf, size);
-    hexdump((void *)buf, size * 2);
+    WINE_TRACE("(%p, %d)\n", buf, size);
 
     return size;
 }
