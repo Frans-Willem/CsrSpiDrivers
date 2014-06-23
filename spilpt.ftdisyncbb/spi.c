@@ -40,16 +40,50 @@ static int spi_led_state = 0;
 
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 
-static int spi_set_pins(uint8_t byte)
+static int spi_ftdi_xfer(uint8_t *buf, int len)
 {
-    if (ftdi_write_data(ftdicp, &byte, sizeof(byte)) < 0) {
+    int rc;
+    uint8_t *bufp;
+
+    bufp = buf;
+
+    if (ftdicp == NULL) {
+        WINE_WARN("FTDI: no port open\n");
+        return -1;
+    }
+
+    rc = ftdi_write_data(ftdicp, bufp, len);
+    if (rc < 0) {
         WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
         return -1;
     }
-    if (ftdi_read_data(ftdicp, &byte, sizeof(byte)) < 0) {
-        WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
+    if (rc != len) {
+        WINE_WARN("FTDI: short write: need %d, got %d\n", len, rc);
         return -1;
     }
+
+    /* In FTDI sync bitbang mode every write is preceded by a read to internal
+     * buffer. We need to slurp contents of that buffer and discard it. */
+    while (len > 0) {
+        rc = ftdi_read_data(ftdicp, bufp, len);
+
+        if (rc < 0) {
+            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
+            return -1;
+        }
+        if (rc == 0)
+            usleep(5000);
+        len -= rc;
+        bufp += rc;
+    }
+
+    return 0;
+}
+
+static int spi_set_pins(uint8_t byte)
+{
+    if (spi_ftdi_xfer(&byte, 1) < 0)
+        return -1;
 
     return 0;
 }
@@ -112,7 +146,7 @@ static int spi_init(void)
 int spi_xfer_begin(void)
 {
     uint8_t pin_states[6];
-    int state_offset, rc;
+    int state_offset;
 
     WINE_TRACE("\n");
 
@@ -140,28 +174,8 @@ int spi_xfer_begin(void)
     ftdi_pin_state &= ~PIN_nCS;
     pin_states[state_offset++] = ftdi_pin_state;
 
-    rc = ftdi_write_data(ftdicp, pin_states, state_offset);
-    if (rc < 0) {
-        WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+    if (spi_ftdi_xfer(pin_states, state_offset) < 0)
         return -1;
-    }
-    if (rc != state_offset) {
-        WINE_WARN("FTDI: short write: need %d, got %d\n", state_offset, rc);
-        return -1;
-    }
-
-    /* In FTDI sync bitbang mode every write is preceded by a read to
-     * internal buffer. We need to slurp contents of that buffer and
-     * discard it. */
-    rc = ftdi_read_data(ftdicp, pin_states, state_offset);
-    if (rc < 0) {
-        WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
-        return -1;
-    }
-    if (rc != state_offset) {
-        WINE_WARN("FTDI: short read: need %d, got %d\n", state_offset, rc);
-        return -1;
-    }
 
     return 0;
 }
@@ -177,8 +191,7 @@ int spi_xfer_end(void)
 
 int spi_xfer_8(uint8_t *buf, int size)
 {
-    int bytes_left, block_offset, block_size;
-    int state_offset, rc;
+    int bytes_left, block_offset, block_size, state_offset;
     uint8_t bit, byte, *bufp;
     uint8_t pin_states[SPI_MAX_XFER_BYTES * 8 * 3];
 
@@ -215,28 +228,8 @@ int spi_xfer_8(uint8_t *buf, int size)
             }
         }
 
-        rc = ftdi_write_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short write: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
-
-        /* In FTDI sync bitbang mode every write is preceded by a read to
-         * internal buffer. We need to slurp contents of that buffer and
-         * discard it. */
-        rc = ftdi_read_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
-            return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short read: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
@@ -265,8 +258,7 @@ int spi_xfer_8(uint8_t *buf, int size)
 
 int spi_write_8(const uint8_t *buf, int size)
 {
-    int bytes_left, block_offset, block_size;
-    int state_offset, rc;
+    int bytes_left, block_offset, block_size, state_offset;
     uint8_t byte, bit;
     const uint8_t *bufp;
     uint8_t pin_states[SPI_MAX_WRITE_BYTES * 8 * 3];
@@ -304,28 +296,8 @@ int spi_write_8(const uint8_t *buf, int size)
             }
         }
 
-        rc = ftdi_write_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short write: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
-
-        /* In FTDI sync bitbang mode every write is preceded by a read to
-         * internal buffer. We need to slurp contents of that buffer and
-         * discard it. */
-        rc = ftdi_read_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
-            return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short read: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
 
         bytes_left -= block_size;
         bufp += block_size;
@@ -336,8 +308,7 @@ int spi_write_8(const uint8_t *buf, int size)
 
 int spi_read_8(uint8_t *buf, int size)
 {
-    int bytes_left, block_offset, block_size;
-    int state_offset, rc;
+    int bytes_left, block_offset, block_size, state_offset;
     uint8_t byte, bit, *bufp;
     uint8_t pin_states[SPI_MAX_READ_BYTES * 8 * 2];
 
@@ -345,8 +316,8 @@ int spi_read_8(uint8_t *buf, int size)
 
     spi_led_tick(size * 8 * 2);
 
-    /*ftdi_pin_state &= ~PIN_MOSI;
-     */
+    /* Write 0 during a read */
+    ftdi_pin_state &= ~PIN_MOSI;
 
     bytes_left = size;
     bufp = buf;
@@ -371,26 +342,8 @@ int spi_read_8(uint8_t *buf, int size)
             pin_states[state_offset++] = ftdi_pin_state;
         }
 
-        rc = ftdi_write_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short write: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
-
-        /* Get data from read buffer */
-        rc = ftdi_read_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
-            return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short read: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
@@ -420,8 +373,7 @@ int spi_read_8(uint8_t *buf, int size)
 
 int spi_xfer_16(uint16_t *buf, int size)
 {
-    int words_left, block_offset, block_size;
-    int state_offset, rc;
+    int words_left, block_offset, block_size, state_offset;
     uint16_t word, bit, *bufp;
     uint8_t pin_states[SPI_MAX_XFER_BYTES * 8 * 3];
 
@@ -458,28 +410,8 @@ int spi_xfer_16(uint16_t *buf, int size)
             }
         }
 
-        rc = ftdi_write_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short write: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
-
-        /* In FTDI sync bitbang mode every write is preceded by a read to
-         * internal buffer. We need to slurp contents of that buffer and
-         * discard it. */
-        rc = ftdi_read_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
-            return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short read: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
@@ -508,8 +440,7 @@ int spi_xfer_16(uint16_t *buf, int size)
 
 int spi_write_16(const uint16_t *buf, int size)
 {
-    int words_left, block_offset, block_size;
-    int state_offset, rc;
+    int words_left, block_offset, block_size, state_offset;
     uint16_t word, bit;
     const uint16_t *bufp;
     uint8_t pin_states[SPI_MAX_WRITE_BYTES * 8 * 3];
@@ -547,28 +478,8 @@ int spi_write_16(const uint16_t *buf, int size)
             }
         }
 
-        rc = ftdi_write_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short write: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
-
-        /* In FTDI sync bitbang mode every write is preceded by a read to
-         * internal buffer. We need to slurp contents of that buffer and
-         * discard it. */
-        rc = ftdi_read_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
-            return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short read: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
 
         words_left -= block_size;
         bufp += block_size;
@@ -579,8 +490,7 @@ int spi_write_16(const uint16_t *buf, int size)
 
 int spi_read_16(uint16_t *buf, int size)
 {
-    int words_left, block_offset, block_size;
-    int state_offset, rc;
+    int words_left, block_offset, block_size, state_offset;
     uint16_t word, bit, *bufp;
     uint8_t pin_states[SPI_MAX_READ_BYTES * 8 * 2];
 
@@ -588,6 +498,7 @@ int spi_read_16(uint16_t *buf, int size)
 
     spi_led_tick(size * 16 * 2);
 
+    /* Write 0 during a read */
     ftdi_pin_state &= ~PIN_MOSI;
 
     words_left = size;
@@ -613,26 +524,8 @@ int spi_read_16(uint16_t *buf, int size)
             pin_states[state_offset++] = ftdi_pin_state;
         }
 
-        rc = ftdi_write_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short write: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
-
-        /* Get data from read buffer */
-        rc = ftdi_read_data(ftdicp, pin_states, state_offset);
-        if (rc < 0) {
-            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
-            return -1;
-        }
-        if (rc != state_offset) {
-            WINE_WARN("FTDI: short read: need %d, got %d\n", state_offset, rc);
-            return -1;
-        }
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
