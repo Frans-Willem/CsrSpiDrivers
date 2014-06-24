@@ -17,9 +17,9 @@
 #define SPI_CLOCK_FREQ    8000000
 #define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
 
-/* This pinout is done so, that popular FT232R adapters could be used. Change
- * it at will. Beware, there are adapters providing 5V output, but CSR chips
- * require 3V3 or 1V8 */
+/* Pinout. Change it at will. Beware that FTDI adapters provide 5V or 3V3 I/O
+ * levels, but CSR chips require 3V3 or 1V8 I/O level. Use logic level
+ * converter if levels doesn't match. */
 #define PIN_MOSI    (1 << 0)    /* FT232RL pin 1, signal TXD AKA D0, output */
 #define PIN_MISO    (1 << 1)    /* FT232RL pin 5, signal RXD AKA D1, input */
 #define PIN_CLK     (1 << 2)    /* FT232RL pin 3, signal RTS AKA D2, output */
