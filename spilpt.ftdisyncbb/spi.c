@@ -23,11 +23,6 @@
 #define PIN_nLED_RD  (1 << 5)    /* FT232RL pin 9, signal DSR AKA D5, output */
 #define PINS_OUTPUT (PIN_MOSI | PIN_CLK | /*PIN_MUL |*/ PIN_nCS | PIN_nLED_WR | PIN_nLED_RD)
 
-char *ftdi_device_descs[] = {
-    "i:0x0403:0x6001",
-    "i:0x0403:0x6010",
-};
-
 static struct ftdi_context *ftdicp = NULL;
 static int spi_dev_open = 0;
 static int spi_nrefs = 0;
@@ -545,10 +540,13 @@ int spi_read_16(uint16_t *buf, int size)
 
 int spi_open(void)
 {
-    int i, rc;
-    char *device_desc;
+    int rc;
+    struct ftdi_device_list *pdevlist;
+    char manuf[128], desc[128], serial[32];
 
     WINE_TRACE("spi_open\n");
+
+    pdevlist = NULL;
 
     spi_nrefs++;
 
@@ -566,26 +564,34 @@ int spi_open(void)
         ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
     }
 
-#if 0
-    for (i = 0; i < sizeof(ftdi_device_descs); i++) {
-        device_desc = ftdi_device_descs[i];
-        if (ftdi_usb_open_string(ftdicp, device_desc) == 0) {
-            WINE_TRACE("spi_open: found device: %s\n", device_desc);
-            break;
-        }
-        if (i == sizeof(ftdi_device_descs)) {
-            WINE_WARN("FTDI: can't find FTDI device\n");
-            goto init_err;
-        }
-    }
-#endif
-
-    rc = ftdi_usb_open(ftdicp, 0x0403, 0x6001);
+    rc = ftdi_usb_find_all(ftdicp, &pdevlist, 0, 0);
     if (rc < 0) {
-        WINE_WARN("ftdi_usb_open(): can't open USB device: %d\n", rc);
+        WINE_WARN("FTDI: find all FTDI devices failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
-    WINE_TRACE("opened 0x0403:0x6001\n");
+    if (rc == 0) {
+        WINE_WARN("FTDI: no FTDI devices found\n");
+        goto init_err;
+    }
+
+    /* Open first found device */
+    rc = ftdi_usb_open_dev(ftdicp, pdevlist->dev);
+    if (rc < 0) {
+        WINE_WARN("FTDI: can't open FTDI device: %s\n", ftdi_get_error_string(ftdicp));
+        goto init_err;
+    }
+
+    rc = ftdi_usb_get_strings(&ftdic, pdevlist->dev, manuf, sizeof(manuf), desc, sizeof(desc), serial, sizeof(serial));
+    if (rc < 0) {
+        WINE_WARN("FTDI: can't get device description: %s\n", ftdi_get_error_string(ftdicp));
+        goto init_err;
+    }
+
+    WINE_TRACE("Opened FTDI device: Manuf=\"%s\", Desc=\"%s\", Serial#=\"%s\"\n",
+            manuf, desc, serial);
+
+    ftdi_list_free(&pdevlist);
+    pdevlist = NULL;
 
     spi_dev_open++;
 
@@ -629,6 +635,11 @@ init_err:
         ftdicp = NULL;
     }
 
+    if (pdevlist) {
+        ftdi_list_free(&pdevlist);
+        pdevlist = NULL;
+    }
+
     return -1;
 }
 
@@ -659,7 +670,7 @@ int spi_close(void)
         }
     }
     if (spi_nrefs < 0) {
-        WINE_WARN("spi_close(): spi_nrefs < 0\n");
+        WINE_WARN("spi_nrefs < 0\n");
         spi_nrefs = 0;
     }
     return 0;
