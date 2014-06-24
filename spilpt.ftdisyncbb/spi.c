@@ -600,7 +600,7 @@ int spi_open(void)
     }
 
     if (ftdi_set_baudrate(ftdicp, SPI_CLOCK_FREQ / 16) < 0) {
-        WINE_WARN("FTDI: purge buffers failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_WARN("FTDI: set baudrate failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
@@ -642,6 +642,12 @@ int spi_close(void)
             if (spi_dev_open == 0) {
                 spi_led(SPI_LED_OFF);
                 spi_led_tick(0);
+
+                if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
+                    WINE_WARN("FTDI: reset bitmode failed: %s\n", ftdi_get_error_string(ftdicp));
+                    goto init_err;
+                }
+
                 if (ftdi_usb_close(ftdicp) < 0) {
                     WINE_WARN("FTDI: close failed: %s\n",
                             ftdi_get_error_string(ftdicp));
