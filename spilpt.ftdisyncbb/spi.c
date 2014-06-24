@@ -43,17 +43,17 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
     bufp = buf;
 
     if (ftdicp == NULL) {
-        WINE_WARN("FTDI: no port open\n");
+        WINE_ERR("FTDI: no port open\n");
         return -1;
     }
 
     rc = ftdi_write_data(ftdicp, bufp, len);
     if (rc < 0) {
-        WINE_WARN("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
         return -1;
     }
     if (rc != len) {
-        WINE_WARN("FTDI: short write: need %d, got %d\n", len, rc);
+        WINE_ERR("FTDI: short write: need %d, got %d\n", len, rc);
         return -1;
     }
 
@@ -63,7 +63,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
         rc = ftdi_read_data(ftdicp, bufp, len);
 
         if (rc < 0) {
-            WINE_WARN("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
+            WINE_ERR("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
             return -1;
         }
         if (rc == 0)
@@ -557,7 +557,7 @@ int spi_open(void)
     if (ftdicp == NULL) {
         ftdicp = ftdi_new();
         if (ftdicp == NULL) {
-            WINE_WARN("FTDI: init failed\n");
+            WINE_ERR("FTDI: init failed\n");
             goto init_err;
         }
 
@@ -566,24 +566,24 @@ int spi_open(void)
 
     rc = ftdi_usb_find_all(ftdicp, &pdevlist, 0, 0);
     if (rc < 0) {
-        WINE_WARN("FTDI: find all FTDI devices failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: find all FTDI devices failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
     if (rc == 0) {
-        WINE_WARN("FTDI: no FTDI devices found\n");
+        WINE_ERR("FTDI: no FTDI devices found\n");
         goto init_err;
     }
 
     /* Open first found device */
     if (ftdi_usb_open_dev(ftdicp, pdevlist->dev) < 0) {
-        WINE_WARN("FTDI: can't open FTDI device: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: can't open FTDI device: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_usb_get_strings(ftdicp, pdevlist->dev,
                 manuf, sizeof(manuf), desc, sizeof(desc),
                 serial, sizeof(serial)) < 0) {
-        WINE_WARN("FTDI: can't get device description: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: can't get device description: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
@@ -596,27 +596,27 @@ int spi_open(void)
     spi_dev_open++;
 
     if (ftdi_usb_reset(ftdicp) < 0) {
-        WINE_WARN("FTDI: reset failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: reset failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_usb_purge_buffers(ftdicp) < 0) {
-        WINE_WARN("FTDI: purge buffers failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: purge buffers failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_set_baudrate(ftdicp, SPI_CLOCK_FREQ / 16) < 0) {
-        WINE_WARN("FTDI: set baudrate failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: set baudrate failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
-        WINE_WARN("FTDI: reset bitmode failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: reset bitmode failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_set_bitmode(ftdicp, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
-        WINE_WARN("FTDI: set synchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp));
+        WINE_ERR("FTDI: set synchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
@@ -645,7 +645,7 @@ init_err:
 
 int spi_close(void)
 {
-    WINE_TRACE("close");
+    WINE_TRACE("\n");
     spi_nrefs--;
     if (spi_nrefs == 0) {
         if (ftdicp != NULL) {
@@ -655,13 +655,13 @@ int spi_close(void)
                 spi_led_tick(0);
 
                 if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
-                    WINE_WARN("FTDI: reset bitmode failed: %s\n",
+                    WINE_ERR("FTDI: reset bitmode failed: %s\n",
                             ftdi_get_error_string(ftdicp));
                     return -1;
                 }
 
                 if (ftdi_usb_close(ftdicp) < 0) {
-                    WINE_WARN("FTDI: close failed: %s\n",
+                    WINE_ERR("FTDI: close failed: %s\n",
                             ftdi_get_error_string(ftdicp));
                     return -1;
                 }
