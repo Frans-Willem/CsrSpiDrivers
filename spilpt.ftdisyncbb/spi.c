@@ -691,10 +691,11 @@ int spi_open(void)
     for (dev_descp = ftdi_device_descs; *dev_descp; dev_descp++)  {
         if (ftdi_usb_open_string(ftdicp, *dev_descp) == 0)
             break;
-        if (!dev_descp) {
-            WINE_WARN("FTDI: can't find FTDI device\n");
-            goto init_err;
-        }
+    }
+
+    if (!*dev_descp) {
+        WINE_ERR("FTDI: can't find FTDI device\n");
+        goto init_err;
     }
 
     WINE_TRACE("FTDI: using FTDI device: %s\n", *dev_descp);
