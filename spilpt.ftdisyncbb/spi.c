@@ -2,12 +2,19 @@
 #include <ftdi.h>
 #include <stdint.h>
 #include <assert.h>
+#ifdef SPI_STATS
+#include <errno.h>
+#include <string.h>
+#include <sys/time.h>
+#endif
 #include "wine/debug.h"
 
 #include "spi.h"
 #include "hexdump.h"
 
 #define SPI_CLOCK_FREQ    4000000
+#define WAIT_READ_uS   1000
+
 /* This pinout is done so, that popular FT232R adapters could be used. Change
  * it at will. Beware, there are adapters providing 5V output, but CSR chips
  * require 3V3 or 1V8 */
@@ -33,12 +40,29 @@ static uint8_t ftdi_pin_state = 0;
 static long long spi_led_counter = 0;
 static int spi_led_state = 0;
 
+#ifdef SPI_STATS
+static struct spi_stats {
+    long long trans_usb;
+    long long reads, writes;
+    long long read_bytes, write_bytes;
+    long long read_ticks, write_ticks, misc_ticks;
+    long long read_waits;
+    struct timeval tv_xfer_begin, tv_xfer;
+    struct timeval tv_open_begin, tv_open;
+    struct timeval tv_wait_read;
+} spi_stats;
+#endif
+
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 
 static int spi_ftdi_xfer(uint8_t *buf, int len)
 {
     int rc;
     uint8_t *bufp;
+#ifdef SPI_STATS
+    struct timeval tv;
+    int num_waits = 0;
+#endif
 
     bufp = buf;
 
@@ -57,6 +81,10 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
         return -1;
     }
 
+#ifdef SPI_STATS
+    spi_stats.trans_usb++;
+#endif
+
     /* In FTDI sync bitbang mode every write is preceded by a read to internal
      * buffer. We need to slurp contents of that buffer and discard it. */
     while (len > 0) {
@@ -66,10 +94,29 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
             WINE_ERR("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
             return -1;
         }
-        if (rc == 0)
-            usleep(1000);
-        len -= rc;
-        bufp += rc;
+        if (rc == 0) {
+            usleep(WAIT_READ_uS);
+#ifdef SPI_STATS
+            num_waits++;
+#endif
+        } else {
+            len -= rc;
+            bufp += rc;
+
+#ifdef SPI_STATS
+            spi_stats.trans_usb++;
+
+            if (num_waits) {
+                tv.tv_sec = (num_waits * WAIT_READ_uS) / 1000000;
+                tv.tv_usec = (num_waits * WAIT_READ_uS) % 1000000;
+                timeradd(&spi_stats.tv_wait_read, &tv, &spi_stats.tv_wait_read);
+
+                spi_stats.read_waits++;
+
+                num_waits = 0;
+            }
+#endif
+        }
     }
 
     return 0;
@@ -99,6 +146,9 @@ static int spi_led_tick(int ticks)
             /* LEDs off */
             ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
             spi_led_counter = 0;
+#ifdef SPI_STATS
+            spi_stats.misc_ticks++;
+#endif
             if (spi_set_pins(ftdi_pin_state) < 0)
                 return -1;
         }
@@ -111,6 +161,9 @@ static int spi_led_tick(int ticks)
             ftdi_pin_state ^= spi_led_state;
             /* Turn off the other LED */
             ftdi_pin_state |= ((PIN_nLED_RD | PIN_nLED_WR) & ~spi_led_state);
+#ifdef SPI_STATS
+            spi_stats.misc_ticks++;
+#endif
             if (spi_set_pins(ftdi_pin_state) < 0) {
                 ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
                 spi_led_counter = 0;
@@ -135,6 +188,9 @@ static int spi_init(void)
 {
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
     ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
+#ifdef SPI_STATS
+    spi_stats.misc_ticks++;
+#endif
     return spi_set_pins(ftdi_pin_state);
 }
 
@@ -144,6 +200,11 @@ int spi_xfer_begin(void)
     int state_offset;
 
     WINE_TRACE("\n");
+
+#ifdef SPI_STATS
+    if (gettimeofday(&spi_stats.tv_xfer_begin, NULL) < 0)
+        WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+#endif
 
     state_offset = 0;
 
@@ -172,6 +233,10 @@ int spi_xfer_begin(void)
     if (spi_ftdi_xfer(pin_states, state_offset) < 0)
         return -1;
 
+#ifdef SPI_STATS
+    spi_stats.misc_ticks += state_offset;
+#endif
+
     return 0;
 }
 
@@ -181,7 +246,23 @@ int spi_xfer_end(void)
     spi_led(SPI_LED_OFF);
     spi_led_tick(0);
     ftdi_pin_state |= PIN_nCS;
-    return spi_set_pins(ftdi_pin_state);
+    if (spi_set_pins(ftdi_pin_state) < 0)
+        return -1;
+
+#ifdef SPI_STATS
+    spi_stats.misc_ticks++;
+
+    {
+        struct timeval tv;
+
+        if (gettimeofday(&tv, NULL) < 0)
+            WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+        timersub(&tv, &spi_stats.tv_xfer_begin, &tv);
+        timeradd(&spi_stats.tv_xfer, &tv, &spi_stats.tv_xfer);
+    }
+#endif
+
+    return 0;
 }
 
 int spi_xfer_8(uint8_t *buf, int size)
@@ -224,6 +305,12 @@ int spi_xfer_8(uint8_t *buf, int size)
 
         if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
+
+#ifdef SPI_STATS
+        spi_stats.write_ticks += state_offset;
+        spi_stats.writes++;
+        spi_stats.write_bytes += block_size;
+#endif
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
@@ -289,6 +376,12 @@ int spi_write_8(const uint8_t *buf, int size)
         if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
 
+#ifdef SPI_STATS
+        spi_stats.write_ticks += state_offset;
+        spi_stats.writes++;
+        spi_stats.write_bytes += block_size;
+#endif
+
         bytes_left -= block_size;
         bufp += block_size;
     } while (bytes_left > 0);
@@ -335,6 +428,11 @@ int spi_read_8(uint8_t *buf, int size)
         if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
 
+#ifdef SPI_STATS
+        spi_stats.read_ticks += state_offset;
+        spi_stats.reads++;
+        spi_stats.read_bytes += block_size;
+#endif
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             byte = 0;
@@ -400,6 +498,12 @@ int spi_xfer_16(uint16_t *buf, int size)
 
         if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
+
+#ifdef SPI_STATS
+        spi_stats.write_ticks += state_offset;
+        spi_stats.writes++;
+        spi_stats.write_bytes += block_size * 2;
+#endif
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
@@ -467,6 +571,12 @@ int spi_write_16(const uint16_t *buf, int size)
         if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
 
+#ifdef SPI_STATS
+        spi_stats.write_ticks += state_offset;
+        spi_stats.writes++;
+        spi_stats.write_bytes += block_size * 2;
+#endif
+
         words_left -= block_size;
         bufp += block_size;
     } while (words_left > 0);
@@ -512,6 +622,12 @@ int spi_read_16(uint16_t *buf, int size)
 
         if (spi_ftdi_xfer(pin_states, state_offset) < 0)
             return -1;
+
+#ifdef SPI_STATS
+        spi_stats.read_ticks += state_offset;
+        spi_stats.reads++;
+        spi_stats.read_bytes += block_size * 2;
+#endif
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
@@ -563,6 +679,12 @@ int spi_open(void)
 
         ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
     }
+
+#ifdef SPI_STATS
+    memset(&spi_stats, 0, sizeof(spi_stats));
+    if (gettimeofday(&spi_stats.tv_open_begin, NULL) < 0)
+        WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+#endif
 
     rc = ftdi_usb_find_all(ftdicp, &pdevlist, 0, 0);
     if (rc < 0) {
@@ -643,6 +765,50 @@ init_err:
     return -1;
 }
 
+#ifdef SPI_STATS
+void spi_output_stats(void)
+{
+    double xfer_pct, wait_pct;
+    double avg_read, avg_write, avg_wait;
+
+    xfer_pct = (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
+    xfer_pct *= 100;
+    xfer_pct /= (spi_stats.tv_open.tv_sec * 1000 + spi_stats.tv_open.tv_usec / 1000);
+
+    wait_pct = (spi_stats.tv_wait_read.tv_sec * 1000 + spi_stats.tv_wait_read.tv_usec / 1000);
+    wait_pct *= 100;
+    wait_pct /= (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
+
+    avg_wait = (spi_stats.tv_wait_read.tv_sec * 1000 + spi_stats.tv_wait_read.tv_usec / 1000);
+    avg_wait /= spi_stats.read_waits;
+
+    avg_read = spi_stats.read_bytes;
+    avg_read /= spi_stats.reads;
+
+    avg_write = spi_stats.write_bytes;
+    avg_write /= spi_stats.writes;
+
+    WINE_ERR(
+            "Statistics:\n"
+            "Time open: %ld.%03ld\n"
+            "Time in xfer: %ld.%03ld (%.2f%% of open time)\n"
+            "Time waiting for data: %ld.%03ld (%.2f%% of xfer time, %.0f ms avg wait time)\n"
+            "USB transactions: %lld\n"
+            "Reads: %lld (%lld bytes, %.2f avg read size, %lld ticks)\n"
+            "Writes: %lld (%lld bytes, %.2f avg write size,  %lld ticks)\n"
+            "Misc ticks: %lld\n",
+            spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
+            spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
+            spi_stats.tv_wait_read.tv_sec, spi_stats.tv_wait_read.tv_usec / 1000,
+                wait_pct, avg_wait,
+            spi_stats.trans_usb,
+            spi_stats.reads, spi_stats.read_bytes, avg_read, spi_stats.read_ticks,
+            spi_stats.writes, spi_stats.write_bytes, avg_write, spi_stats.write_ticks,
+            spi_stats.misc_ticks
+    );
+}
+#endif
+
 int spi_close(void)
 {
     WINE_TRACE("\n");
@@ -665,6 +831,18 @@ int spi_close(void)
                             ftdi_get_error_string(ftdicp));
                     return -1;
                 }
+#ifdef SPI_STATS
+                {
+                    struct timeval tv;
+
+                    if (gettimeofday(&tv, NULL) < 0)
+                        WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+                    timersub(&tv, &spi_stats.tv_open_begin, &tv);
+                    timeradd(&spi_stats.tv_open, &tv, &spi_stats.tv_open);
+                }
+
+                spi_output_stats();
+#endif
                 ftdi_free(ftdicp);
                 ftdicp = NULL;
             }
