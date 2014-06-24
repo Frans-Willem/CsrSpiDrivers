@@ -53,6 +53,15 @@ static struct spi_stats {
 } spi_stats;
 #endif
 
+char *ftdi_device_descs[] = {
+    "i:0x0403:0x6001",
+    "i:0x0403:0x6010",
+    "i:0x0403:0x6011",
+    "i:0x0403:0x6014",
+    NULL
+};
+
+
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 
 static int spi_ftdi_xfer(uint8_t *buf, int len)
@@ -648,13 +657,9 @@ int spi_read_16(uint16_t *buf, int size)
 
 int spi_open(void)
 {
-    int rc;
-    struct ftdi_device_list *pdevlist;
-    char manuf[128], desc[128], serial[32];
+    char **dev_descp;
 
     WINE_TRACE("spi_open\n");
-
-    pdevlist = NULL;
 
     spi_nrefs++;
 
@@ -678,34 +683,16 @@ int spi_open(void)
         WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
 #endif
 
-    rc = ftdi_usb_find_all(ftdicp, &pdevlist, 0, 0);
-    if (rc < 0) {
-        WINE_ERR("FTDI: find all FTDI devices failed: %s\n", ftdi_get_error_string(ftdicp));
-        goto init_err;
-    }
-    if (rc == 0) {
-        WINE_ERR("FTDI: no FTDI devices found\n");
-        goto init_err;
-    }
-
-    /* Open first found device */
-    if (ftdi_usb_open_dev(ftdicp, pdevlist->dev) < 0) {
-        WINE_ERR("FTDI: can't open FTDI device: %s\n", ftdi_get_error_string(ftdicp));
-        goto init_err;
+    for (dev_descp = ftdi_device_descs; *dev_descp; dev_descp++)  {
+        if (ftdi_usb_open_string(ftdicp, *dev_descp) == 0)
+            break;
+        if (!dev_descp) {
+            WINE_WARN("FTDI: can't find FTDI device\n");
+            goto init_err;
+        }
     }
 
-    if (ftdi_usb_get_strings(ftdicp, pdevlist->dev,
-                manuf, sizeof(manuf), desc, sizeof(desc),
-                serial, sizeof(serial)) < 0) {
-        WINE_ERR("FTDI: can't get device description: %s\n", ftdi_get_error_string(ftdicp));
-        goto init_err;
-    }
-
-    WINE_TRACE("Opened FTDI device: Manuf=\"%s\", Desc=\"%s\", Serial#=\"%s\"\n",
-            manuf, desc, serial);
-
-    ftdi_list_free(&pdevlist);
-    pdevlist = NULL;
+    WINE_TRACE("FTDI: using FTDI device: %s\n", *dev_descp);
 
     spi_dev_open++;
 
@@ -747,11 +734,6 @@ init_err:
 
         ftdi_free(ftdicp);
         ftdicp = NULL;
-    }
-
-    if (pdevlist) {
-        ftdi_list_free(&pdevlist);
-        pdevlist = NULL;
     }
 
     return -1;
