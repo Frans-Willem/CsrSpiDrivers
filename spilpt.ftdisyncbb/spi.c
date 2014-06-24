@@ -575,14 +575,14 @@ int spi_open(void)
     }
 
     /* Open first found device */
-    rc = ftdi_usb_open_dev(ftdicp, pdevlist->dev);
-    if (rc < 0) {
+    if (ftdi_usb_open_dev(ftdicp, pdevlist->dev) < 0) {
         WINE_WARN("FTDI: can't open FTDI device: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
-    rc = ftdi_usb_get_strings(&ftdic, pdevlist->dev, manuf, sizeof(manuf), desc, sizeof(desc), serial, sizeof(serial));
-    if (rc < 0) {
+    if (ftdi_usb_get_strings(ftdicp, pdevlist->dev,
+                manuf, sizeof(manuf), desc, sizeof(desc),
+                serial, sizeof(serial)) < 0) {
         WINE_WARN("FTDI: can't get device description: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
@@ -655,8 +655,9 @@ int spi_close(void)
                 spi_led_tick(0);
 
                 if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
-                    WINE_WARN("FTDI: reset bitmode failed: %s\n", ftdi_get_error_string(ftdicp));
-                    goto init_err;
+                    WINE_WARN("FTDI: reset bitmode failed: %s\n",
+                            ftdi_get_error_string(ftdicp));
+                    return -1;
                 }
 
                 if (ftdi_usb_close(ftdicp) < 0) {
