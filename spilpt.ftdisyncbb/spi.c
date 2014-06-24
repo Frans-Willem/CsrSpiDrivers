@@ -785,9 +785,11 @@ void spi_output_stats(void)
 
 int spi_close(void)
 {
-    WINE_TRACE("\n");
+    WINE_TRACE("spi_nrefs=%d, spi_dev_open=%d\n", spi_nrefs, spi_dev_open);
     spi_nrefs--;
-    if (spi_nrefs == 0) {
+    /* pttransport opens us twice, but closes only once. */
+    /*if (spi_nrefs == 0) {*/
+    if (1) {
         if (ftdicp != NULL) {
             spi_dev_open--;
             if (spi_dev_open == 0) {
