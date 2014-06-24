@@ -316,7 +316,6 @@ int spi_xfer_8(uint8_t *buf, int size)
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             byte = 0;
             for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                /* XXX: on which cycle data should be read from MISO? */
                 /* Input bit */
                 if (pin_states[state_offset] & PIN_MISO)
                     byte |= bit;
@@ -437,9 +436,6 @@ int spi_read_8(uint8_t *buf, int size)
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             byte = 0;
             for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                /* XXX: on which edge of the CLK data should be read? */
-                /* Looks like we need to read MISO on next cycle after raising
-                 * the clock */
                 /* Input bit */
                 if (pin_states[state_offset] & PIN_MISO)
                     byte |= bit;
@@ -509,7 +505,6 @@ int spi_xfer_16(uint16_t *buf, int size)
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             word = 0;
             for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
-                /* XXX: on which cycle data should be read from MISO? */
                 /* Input bit */
                 if (pin_states[state_offset] & PIN_MISO)
                     word |= bit;
@@ -633,9 +628,6 @@ int spi_read_16(uint16_t *buf, int size)
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             word = 0;
             for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
-                /* XXX: on which edge of the CLK data should be read? */
-                /* Looks like we need to read MISO on next cycle after raising
-                 * the clock */
                 /* Input bit */
                 if (pin_states[state_offset] & PIN_MISO)
                     word |= bit;
