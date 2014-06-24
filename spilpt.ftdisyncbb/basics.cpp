@@ -339,7 +339,7 @@ error:
         free(outbuf2);
     if (g_nError != SPIERR_NO_ERROR) {
         g_nErrorAddress=nAddress;
-        WINE_WARN("%s\n", g_szErrorString);
+        WINE_ERR("%s\n", g_szErrorString);
     }
     return 1;
 }
@@ -496,7 +496,7 @@ error:
         free(inbuf2);
     if (g_nError != SPIERR_NO_ERROR) {
         g_nErrorAddress=nAddress;
-        WINE_WARN("%s\n", g_szErrorString);
+        WINE_ERR("%s\n", g_szErrorString);
     }
     return 1;
 }
