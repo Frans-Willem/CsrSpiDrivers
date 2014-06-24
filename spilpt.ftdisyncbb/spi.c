@@ -753,7 +753,7 @@ void spi_output_stats(void)
     wait_pct *= 100;
     wait_pct /= (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
 
-    avg_wait = (spi_stats.tv_wait_read.tv_sec * 1000 + spi_stats.tv_wait_read.tv_usec / 1000);
+    avg_wait = (spi_stats.tv_wait_read.tv_sec * 1000000 + spi_stats.tv_wait_read.tv_usec);
     avg_wait /= spi_stats.read_waits;
 
     avg_read = spi_stats.read_bytes;
@@ -764,17 +764,17 @@ void spi_output_stats(void)
 
     WINE_ERR(
             "Statistics:\n"
-            "Time open: %ld.%03ld\n"
-            "Time in xfer: %ld.%03ld (%.2f%% of open time)\n"
-            "Time waiting for data: %ld.%03ld (%.2f%% of xfer time, %.0f ms avg wait time)\n"
+            "Time open: %ld.%03ld s\n"
+            "Time in xfer: %ld.%03ld s (%.2f%% of open time)\n"
+            "Time waiting for data: %ld.%03ld s (%.2f%% of xfer time, %lld waits, %.0f us avg wait time)\n"
             "USB transactions: %lld\n"
-            "Reads: %lld (%lld bytes, %.2f avg read size, %lld ticks)\n"
-            "Writes: %lld (%lld bytes, %.2f avg write size,  %lld ticks)\n"
+            "Reads: %lld (%lld bytes, %.2f bytes avg read size, %lld ticks)\n"
+            "Writes: %lld (%lld bytes, %.2f bytes avg write size,  %lld ticks)\n"
             "Misc ticks: %lld\n",
             spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
             spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
             spi_stats.tv_wait_read.tv_sec, spi_stats.tv_wait_read.tv_usec / 1000,
-                wait_pct, avg_wait,
+                wait_pct, spi_stats.read_waits, avg_wait,
             spi_stats.trans_usb,
             spi_stats.reads, spi_stats.read_bytes, avg_read, spi_stats.read_ticks,
             spi_stats.writes, spi_stats.write_bytes, avg_write, spi_stats.write_ticks,
