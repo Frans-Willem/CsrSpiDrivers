@@ -12,8 +12,10 @@
 #include "spi.h"
 #include "hexdump.h"
 
-#define SPI_CLOCK_FREQ    4000000
-#define WAIT_READ_uS   1000
+/* SPI clock frequency. At maximum I got 12KB/s reads at 8 MHz SPI clock. At
+ * 12MHz SPI clock it doesn't work. */
+#define SPI_CLOCK_FREQ    8000000
+#define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
 
 /* This pinout is done so, that popular FT232R adapters could be used. Change
  * it at will. Beware, there are adapters providing 5V output, but CSR chips
@@ -104,7 +106,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
             return -1;
         }
         if (rc == 0) {
-            usleep(WAIT_READ_uS);
+            usleep(SPI_READ_WAIT_INTVL_us);
 #ifdef SPI_STATS
             num_waits++;
 #endif
@@ -116,8 +118,8 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
             spi_stats.trans_usb++;
 
             if (num_waits) {
-                tv.tv_sec = (num_waits * WAIT_READ_uS) / 1000000;
-                tv.tv_usec = (num_waits * WAIT_READ_uS) % 1000000;
+                tv.tv_sec = (num_waits * SPI_READ_WAIT_INTVL_us) / 1000000;
+                tv.tv_usec = (num_waits * SPI_READ_WAIT_INTVL_us) % 1000000;
                 timeradd(&spi_stats.tv_wait_read, &tv, &spi_stats.tv_wait_read);
 
                 spi_stats.read_waits++;
@@ -162,7 +164,7 @@ static int spi_led_tick(int ticks)
                 return -1;
         }
     } else {
-        if (spi_led_counter > (SPI_CLOCK_FREQ / SPI_LED_FREQ))
+        if (spi_led_counter > ((SPI_CLOCK_FREQ * 2) / SPI_LED_FREQ))
             spi_led_counter = 0;
 
         if (spi_led_counter == 0) {
@@ -278,16 +280,16 @@ int spi_xfer_8(uint8_t *buf, int size)
 {
     int bytes_left, block_offset, block_size, state_offset;
     uint8_t bit, byte, *bufp;
-    uint8_t pin_states[SPI_MAX_XFER_BYTES * 8 * 3];
+    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
     WINE_TRACE("(%p, %d)\n", buf, size);
 
-    spi_led_tick(size * 8 * 3);
+    spi_led_tick(size * 8 * 2);
 
     bytes_left = size;
     bufp = buf;
     do {
-        block_size = SPI_MAX_XFER_BYTES;
+        block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
         if (block_size > bytes_left)
             block_size = bytes_left;
 
@@ -300,7 +302,8 @@ int spi_xfer_8(uint8_t *buf, int size)
                     ftdi_pin_state |= PIN_MOSI;
                 else
                     ftdi_pin_state &= ~PIN_MOSI;
-                pin_states[state_offset++] = ftdi_pin_state;
+                /* Speed optimization: skip this cycle. */
+                /*pin_states[state_offset++] = ftdi_pin_state;*/
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
@@ -330,7 +333,7 @@ int spi_xfer_8(uint8_t *buf, int size)
                     byte |= bit;
                 state_offset++;
                 state_offset++;
-                state_offset++;
+                /*state_offset++;*/
             }
             bufp[block_offset] = byte;
         }
@@ -347,16 +350,16 @@ int spi_write_8(const uint8_t *buf, int size)
     int bytes_left, block_offset, block_size, state_offset;
     uint8_t byte, bit;
     const uint8_t *bufp;
-    uint8_t pin_states[SPI_MAX_WRITE_BYTES * 8 * 3];
+    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
     WINE_TRACE("(%p, %d)\n", buf, size);
 
-    spi_led_tick(size * 8 * 3);
+    spi_led_tick(size * 8 * 2);
 
     bytes_left = size;
     bufp = buf;
     do {
-        block_size = SPI_MAX_WRITE_BYTES;
+        block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
         if (block_size > bytes_left)
             block_size = bytes_left;
 
@@ -369,7 +372,8 @@ int spi_write_8(const uint8_t *buf, int size)
                     ftdi_pin_state |= PIN_MOSI;
                 else
                     ftdi_pin_state &= ~PIN_MOSI;
-                pin_states[state_offset++] = ftdi_pin_state;
+                /* Speed optimization: skip this cycle. */
+                /*pin_states[state_offset++] = ftdi_pin_state;*/
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
@@ -401,7 +405,7 @@ int spi_read_8(uint8_t *buf, int size)
 {
     int bytes_left, block_offset, block_size, state_offset;
     uint8_t byte, bit, *bufp;
-    uint8_t pin_states[SPI_MAX_READ_BYTES * 8 * 2];
+    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
     WINE_TRACE("(%p, %d)\n", buf, size);
 
@@ -413,7 +417,7 @@ int spi_read_8(uint8_t *buf, int size)
     bytes_left = size;
     bufp = buf;
     do {
-        block_size = SPI_MAX_READ_BYTES;
+        block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
         if (block_size > bytes_left)
             block_size = bytes_left;
 
@@ -467,16 +471,16 @@ int spi_xfer_16(uint16_t *buf, int size)
 {
     int words_left, block_offset, block_size, state_offset;
     uint16_t word, bit, *bufp;
-    uint8_t pin_states[SPI_MAX_XFER_BYTES * 8 * 3];
+    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
     WINE_TRACE("(%p, %d)\n", buf, size);
 
-    spi_led_tick(size * 16 * 3);
+    spi_led_tick(size * 16 * 2);
 
     words_left = size;
     bufp = buf;
     do {
-        block_size = SPI_MAX_XFER_BYTES / 2;
+        block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
         if (block_size > words_left)
             block_size = words_left;
 
@@ -489,7 +493,7 @@ int spi_xfer_16(uint16_t *buf, int size)
                     ftdi_pin_state |= PIN_MOSI;
                 else
                     ftdi_pin_state &= ~PIN_MOSI;
-                pin_states[state_offset++] = ftdi_pin_state;
+                /*pin_states[state_offset++] = ftdi_pin_state;*/
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
@@ -519,7 +523,7 @@ int spi_xfer_16(uint16_t *buf, int size)
                     word |= bit;
                 state_offset++;
                 state_offset++;
-                state_offset++;
+                /*state_offset++;*/
             }
             bufp[block_offset] = word;
         }
@@ -538,16 +542,16 @@ int spi_write_16(const uint16_t *buf, int size)
     int words_left, block_offset, block_size, state_offset;
     uint16_t word, bit;
     const uint16_t *bufp;
-    uint8_t pin_states[SPI_MAX_WRITE_BYTES * 8 * 3];
+    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
     WINE_TRACE("(%p, %d)\n", buf, size);
 
-    spi_led_tick(size * 16 * 3);
+    spi_led_tick(size * 16 * 2);
 
     words_left = size;
     bufp = buf;
     do {
-        block_size = SPI_MAX_WRITE_BYTES / 2;
+        block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
         if (block_size > words_left)
             block_size = words_left;
 
@@ -560,7 +564,8 @@ int spi_write_16(const uint16_t *buf, int size)
                     ftdi_pin_state |= PIN_MOSI;
                 else
                     ftdi_pin_state &= ~PIN_MOSI;
-                pin_states[state_offset++] = ftdi_pin_state;
+                /* Speed optimization: skip this cycle. */
+                /*pin_states[state_offset++] = ftdi_pin_state;*/
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
@@ -592,7 +597,7 @@ int spi_read_16(uint16_t *buf, int size)
 {
     int words_left, block_offset, block_size, state_offset;
     uint16_t word, bit, *bufp;
-    uint8_t pin_states[SPI_MAX_READ_BYTES * 8 * 2];
+    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
     WINE_TRACE("(%p, %d)\n", buf, size);
 
@@ -604,7 +609,7 @@ int spi_read_16(uint16_t *buf, int size)
     words_left = size;
     bufp = buf;
     do {
-        block_size = SPI_MAX_READ_BYTES / 2;
+        block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
         if (block_size > words_left)
             block_size = words_left;
 
@@ -706,7 +711,9 @@ int spi_open(void)
         goto init_err;
     }
 
-    if (ftdi_set_baudrate(ftdicp, SPI_CLOCK_FREQ / 16) < 0) {
+    /* See FT232R datasheet, section "Baud Rate Generator" and AppNote
+     * AN_232R-01, section "Synchronous Bit Bang Mode" */
+    if (ftdi_set_baudrate(ftdicp, (SPI_CLOCK_FREQ * 2) / 16) < 0) {
         WINE_ERR("FTDI: set baudrate failed: %s\n", ftdi_get_error_string(ftdicp));
         goto init_err;
     }

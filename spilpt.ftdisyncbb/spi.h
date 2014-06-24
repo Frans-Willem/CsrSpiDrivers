@@ -12,13 +12,7 @@
 
 #define FTDI_READ_BUF_SIZE      128
 #define FTDI_WRITE_BUF_SIZE     256
-
-/* One bit SPI read requires 2 bytes of buffer space. */
-#define SPI_MAX_READ_BYTES      (FTDI_READ_BUF_SIZE / 8 / 2)
-/* One bit SPI write requires 3 bytes of buffer space. */
-#define SPI_MAX_WRITE_BYTES     ((FTDI_READ_BUF_SIZE + FTDI_WRITE_BUF_SIZE) / 8 / 3)
-/* One bit SPI simultaneous read/write requires 3 bytes of buffer space. */
-#define SPI_MAX_XFER_BYTES      (FTDI_READ_BUF_SIZE / 8 / 3)
+#define FTDI_MAX_XFER_SIZE      (FTDI_READ_BUF_SIZE + FTDI_WRITE_BUF_SIZE)
 
 #define SPI_LED_OFF     (0)
 #define SPI_LED_READ    (1 << 0)
