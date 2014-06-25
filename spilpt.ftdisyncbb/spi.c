@@ -97,7 +97,11 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
 #endif
 
     /* In FTDI sync bitbang mode every write is preceded by a read to internal
-     * buffer. We need to slurp contents of that buffer and discard it. */
+     * buffer. We need to issue read for every write.
+     *
+     * The data in the read buffer may not be immediately available. Wait for
+     * it if needed. */
+
     while (len > 0) {
         rc = ftdi_read_data(ftdicp, bufp, len);
 
@@ -133,12 +137,9 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
     return 0;
 }
 
-static int spi_set_pins(uint8_t byte)
+static inline int spi_set_pins(uint8_t byte)
 {
-    if (spi_ftdi_xfer(&byte, 1) < 0)
-        return -1;
-
-    return 0;
+    return spi_ftdi_xfer(&byte, 1);
 }
 
 void spi_led(int led) 
