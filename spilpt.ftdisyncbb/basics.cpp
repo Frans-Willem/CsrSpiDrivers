@@ -1,8 +1,9 @@
-#include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#ifdef __WINE__
 #include "wine/debug.h"
+#endif
 
 #include "spifns.h"
 #include "basics.h"
@@ -22,7 +23,13 @@
  * Feel free to use this to write your own 
 */
 
+#ifdef __WINE__
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
+#else
+#define WINE_TRACE(args...)     do { } while(0)
+#define WINE_WARN(args...)      do { } while(0)
+#define WINE_ERR(args...)       do { } while(0)
+#endif
 
 #define VARLIST_SPISPORT 0
 #define VARLIST_SPIMUL 1
@@ -137,6 +144,7 @@ DLLEXPORT void spifns_clear_last_error(void)
 DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback) {
     WINE_TRACE("\n");
 	g_pDebugCallback=pCallback;
+    spi_set_error_cb((spi_error_cb)pCallback);
 }
 //RE Check: Completely identical
 DLLEXPORT int __cdecl spifns_get_version() {
