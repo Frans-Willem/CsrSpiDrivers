@@ -1,13 +1,16 @@
-/*#include <stdio.h>*/
 #include <ftdi.h>
 #include <stdint.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <assert.h>
 #ifdef SPI_STATS
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
 #endif
+#ifdef __WINE__
 #include "wine/debug.h"
+#endif
 
 #include "spi.h"
 #include "hexdump.h"
@@ -32,10 +35,11 @@
 #define PIN_nLED_RD  (1 << 5)    /* FT232RL pin 9, signal DSR AKA D5, output */
 #define PINS_OUTPUT (PIN_MOSI | PIN_CLK | /*PIN_MUL |*/ PIN_nCS | PIN_nLED_WR | PIN_nLED_RD)
 
-static struct ftdi_context *ftdicp = NULL;
 static int spi_dev_open = 0;
 static int spi_nrefs = 0;
+static spi_error_cb spi_err_cb = NULL;
 
+static struct ftdi_context *ftdicp = NULL;
 static uint8_t ftdi_pin_state = 0;
 
 #define SPI_LED_FREQ  4   /* Hz */
@@ -64,7 +68,30 @@ char *ftdi_device_descs[] = {
 };
 
 
+#ifdef __WINE__
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
+#else
+#define WINE_TRACE(args...)     do { } while(0)
+#define WINE_WARN(args...)      do { } while(0)
+#define WINE_ERR(args...)       do { } while(0)
+#endif
+
+void spi_set_error_cb(spi_error_cb err_cb)
+{
+    spi_err_cb = err_cb;
+}
+
+static void spi_err(const char *fmt, ...) {
+    static char buf[256];
+    va_list args;
+
+    va_start(args, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, args);
+	if (spi_err_cb)
+        spi_err_cb(buf);
+    WINE_ERR("%s\n", buf);
+    va_end(args);
+}
 
 static int spi_ftdi_xfer(uint8_t *buf, int len)
 {
@@ -78,17 +105,17 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
     bufp = buf;
 
     if (ftdicp == NULL) {
-        WINE_ERR("FTDI: no port open\n");
+        spi_err("FTDI: no port open");
         return -1;
     }
 
     rc = ftdi_write_data(ftdicp, bufp, len);
     if (rc < 0) {
-        WINE_ERR("FTDI: write data failed: %s\n", ftdi_get_error_string(ftdicp));
+        spi_err("FTDI: write data failed: %s", ftdi_get_error_string(ftdicp));
         return -1;
     }
     if (rc != len) {
-        WINE_ERR("FTDI: short write: need %d, got %d\n", len, rc);
+        spi_err("FTDI: short write: need %d, got %d", len, rc);
         return -1;
     }
 
@@ -106,7 +133,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
         rc = ftdi_read_data(ftdicp, bufp, len);
 
         if (rc < 0) {
-            WINE_ERR("FTDI: read data failed: %s\n", ftdi_get_error_string(ftdicp));
+            spi_err("FTDI: read data failed: %s", ftdi_get_error_string(ftdicp));
             return -1;
         }
         if (rc == 0) {
@@ -665,7 +692,7 @@ int spi_open(void)
 {
     char **dev_descp;
 
-    WINE_TRACE("spi_open\n");
+    WINE_TRACE("\n");
 
     spi_nrefs++;
 
@@ -676,7 +703,7 @@ int spi_open(void)
     if (ftdicp == NULL) {
         ftdicp = ftdi_new();
         if (ftdicp == NULL) {
-            WINE_ERR("FTDI: init failed\n");
+            spi_err("FTDI: init failed");
             goto init_err;
         }
 
@@ -703,29 +730,29 @@ int spi_open(void)
     spi_dev_open++;
 
     if (ftdi_usb_reset(ftdicp) < 0) {
-        WINE_ERR("FTDI: reset failed: %s\n", ftdi_get_error_string(ftdicp));
+        spi_err("FTDI: reset failed: %s", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_usb_purge_buffers(ftdicp) < 0) {
-        WINE_ERR("FTDI: purge buffers failed: %s\n", ftdi_get_error_string(ftdicp));
+        spi_err("FTDI: purge buffers failed: %s", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     /* See FT232R datasheet, section "Baud Rate Generator" and AppNote
      * AN_232R-01, section "Synchronous Bit Bang Mode" */
     if (ftdi_set_baudrate(ftdicp, (SPI_CLOCK_FREQ * 2) / 16) < 0) {
-        WINE_ERR("FTDI: set baudrate failed: %s\n", ftdi_get_error_string(ftdicp));
+        spi_err("FTDI: set baudrate failed: %s", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
-        WINE_ERR("FTDI: reset bitmode failed: %s\n", ftdi_get_error_string(ftdicp));
+        spi_err("FTDI: reset bitmode failed: %s", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
     if (ftdi_set_bitmode(ftdicp, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
-        WINE_ERR("FTDI: set synchronous bitbang mode failed: %s\n", ftdi_get_error_string(ftdicp));
+        spi_err("FTDI: set synchronous bitbang mode failed: %s", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
@@ -770,24 +797,26 @@ void spi_output_stats(void)
     avg_write = spi_stats.write_bytes;
     avg_write /= spi_stats.writes;
 
-    WINE_ERR(
-            "Statistics:\n"
-            "Time open: %ld.%03ld s\n"
-            "Time in xfer: %ld.%03ld s (%.2f%% of open time)\n"
-            "Time waiting for data: %ld.%03ld s (%.2f%% of xfer time, %lld waits, %.0f us avg wait time)\n"
-            "USB transactions: %lld\n"
-            "Reads: %lld (%lld bytes, %.2f bytes avg read size, %lld ticks)\n"
-            "Writes: %lld (%lld bytes, %.2f bytes avg write size,  %lld ticks)\n"
-            "Misc ticks: %lld\n",
-            spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
-            spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
-            spi_stats.tv_wait_read.tv_sec, spi_stats.tv_wait_read.tv_usec / 1000,
-                wait_pct, spi_stats.read_waits, avg_wait,
-            spi_stats.trans_usb,
-            spi_stats.reads, spi_stats.read_bytes, avg_read, spi_stats.read_ticks,
-            spi_stats.writes, spi_stats.write_bytes, avg_write, spi_stats.write_ticks,
-            spi_stats.misc_ticks
-    );
+    if (stderr) {
+        fprintf(stderr,
+                "Statistics:\n"
+                "Time open: %ld.%03ld s\n"
+                "Time in xfer: %ld.%03ld s (%.2f%% of open time)\n"
+                "Time waiting for data: %ld.%03ld s (%.2f%% of xfer time, %lld waits, %.0f us avg wait time)\n"
+                "USB transactions: %lld\n"
+                "Reads: %lld (%lld bytes, %.2f bytes avg read size, %lld ticks)\n"
+                "Writes: %lld (%lld bytes, %.2f bytes avg write size,  %lld ticks)\n"
+                "Misc ticks: %lld\n",
+                spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
+                spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
+                spi_stats.tv_wait_read.tv_sec, spi_stats.tv_wait_read.tv_usec / 1000,
+                    wait_pct, spi_stats.read_waits, avg_wait,
+                spi_stats.trans_usb,
+                spi_stats.reads, spi_stats.read_bytes, avg_read, spi_stats.read_ticks,
+                spi_stats.writes, spi_stats.write_bytes, avg_write, spi_stats.write_ticks,
+                spi_stats.misc_ticks
+        );
+    }
 }
 #endif
 
@@ -805,13 +834,13 @@ int spi_close(void)
                 spi_led_tick(0);
 
                 if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
-                    WINE_ERR("FTDI: reset bitmode failed: %s\n",
+                    spi_err("FTDI: reset bitmode failed: %s",
                             ftdi_get_error_string(ftdicp));
                     return -1;
                 }
 
                 if (ftdi_usb_close(ftdicp) < 0) {
-                    WINE_ERR("FTDI: close failed: %s\n",
+                    spi_err("FTDI: close failed: %s",
                             ftdi_get_error_string(ftdicp));
                     return -1;
                 }

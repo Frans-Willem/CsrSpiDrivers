@@ -15,6 +15,8 @@
 #define SPI_LED_READ    (1 << 0)
 #define SPI_LED_WRITE   (1 << 1)
 
+typedef void (*spi_error_cb)(const char *errstr);
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +35,7 @@ int spi_read_16(uint16_t *buf, int size);
 int spi_xfer_end(void);
 
 void spi_led(int led);
+void spi_set_error_cb(spi_error_cb errcb);
 
 #ifdef __cplusplus
 } /* extern "C" */
