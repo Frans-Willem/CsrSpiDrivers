@@ -15,7 +15,7 @@
 #include "spi.h"
 #include "hexdump.h"
 
-/* SPI clock frequency. At maximum I got 12KB/s reads at 8 MHz SPI clock. At
+/* SPI clock frequency. At maximum I got 15KB/s reads at 8 MHz SPI clock. At
  * 12MHz SPI clock it doesn't work. */
 #define SPI_CLOCK_FREQ    8000000
 #define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
