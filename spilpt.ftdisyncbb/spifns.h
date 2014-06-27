@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-#define SPIFNS_VERSION 259
+#define SPIFNS_VERSION 0x103
 
 /* From BlueSuiteSource_V2_5.zip/CSRSource/result/include/spi/spi_common.h */
 
