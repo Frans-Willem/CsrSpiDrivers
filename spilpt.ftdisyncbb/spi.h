@@ -16,7 +16,7 @@
 #define SPI_LED_WRITE   (1 << 1)
 
 #define SPI_XFER_READ   (1 << 0)
-#define SPI_XFER_WRITE  (1 << 0)
+#define SPI_XFER_WRITE  (1 << 1)
 
 typedef void (*spi_error_cb)(const char *errstr);
 
