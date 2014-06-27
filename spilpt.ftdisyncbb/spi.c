@@ -355,9 +355,15 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
             return -1;
 
 #ifdef SPI_STATS
-        spi_stats.write_ticks += state_offset;
-        spi_stats.writes++;
-        spi_stats.write_bytes += block_size;
+        if (cmd & SPI_XFER_READ) {
+            spi_stats.read_ticks += state_offset;
+            spi_stats.reads++;
+            spi_stats.read_bytes += block_size;
+        } else {
+            spi_stats.write_ticks += state_offset;
+            spi_stats.writes++;
+            spi_stats.write_bytes += block_size;
+        }
 #endif
 
         if (cmd & SPI_XFER_READ) {
@@ -429,9 +435,15 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
             return -1;
 
 #ifdef SPI_STATS
-        spi_stats.write_ticks += state_offset;
-        spi_stats.writes++;
-        spi_stats.write_bytes += block_size * 2;
+        if (cmd & SPI_XFER_READ) {
+            spi_stats.read_ticks += state_offset;
+            spi_stats.reads++;
+            spi_stats.read_bytes += block_size * 2;
+        } else {
+            spi_stats.write_ticks += state_offset;
+            spi_stats.writes++;
+            spi_stats.write_bytes += block_size * 2;
+        }
 #endif
 
         if (cmd & SPI_XFER_READ) {
