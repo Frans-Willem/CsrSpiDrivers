@@ -29,8 +29,7 @@ int spi_isopen(void);
 int spi_close(void);
 
 int spi_xfer_begin(void);
-int spi_xfer_8(int cmd, uint8_t *buf, int size);
-int spi_xfer_16(int cmd, uint16_t *buf, int size);
+int spi_xfer_buf(int cmd, int usize, void *buf, int size);
 int spi_xfer_end(void);
 
 void spi_led(int led);

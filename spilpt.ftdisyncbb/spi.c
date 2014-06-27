@@ -304,112 +304,38 @@ int spi_xfer_end(void)
     return 0;
 }
 
-int spi_xfer_8(int cmd, uint8_t *buf, int size)
-{
-    int bytes_left, block_offset, block_size, state_offset;
-    uint8_t bit, byte, *bufp;
-    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
-
-    WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
-
-    spi_led_tick(size * 8 * 2);
-
-    bytes_left = size;
-    bufp = buf;
-    do {
-        block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
-        if (block_size > bytes_left)
-            block_size = bytes_left;
-
-        /* In FTDI sync bitbang mode we need to write something to device to
-         * toggle a read. */
-
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            byte = bufp[block_offset];
-            for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                if (cmd & SPI_XFER_WRITE) {
-                    /* Set output bit */
-                    if (byte & bit)
-                        ftdi_pin_state |= PIN_MOSI;
-                    else
-                        ftdi_pin_state &= ~PIN_MOSI;
-                    /* Speed optimization: skip this cycle during write. */
-                    /*pin_states[state_offset++] = ftdi_pin_state;*/
-                } else {
-                    /* Write 0 during a read */
-                    ftdi_pin_state &= ~PIN_MOSI;
-                }
-
-                /* Clock high */
-                ftdi_pin_state |= PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-
-                /* Clock low */
-                ftdi_pin_state &= ~PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-            }
-        }
-
-        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-            return -1;
-
-#ifdef SPI_STATS
-        if (cmd & SPI_XFER_READ) {
-            spi_stats.read_ticks += state_offset;
-            spi_stats.reads++;
-            spi_stats.read_bytes += block_size;
-        } else {
-            spi_stats.write_ticks += state_offset;
-            spi_stats.writes++;
-            spi_stats.write_bytes += block_size;
-        }
-#endif
-
-        if (cmd & SPI_XFER_READ) {
-            state_offset = 0;
-            for (block_offset = 0; block_offset < block_size; block_offset++) {
-                byte = 0;
-                for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                    /* Input bit */
-                    if (pin_states[state_offset] & PIN_MISO)
-                        byte |= bit;
-                    state_offset++;
-                    state_offset++;
-                    /*state_offset++;*/
-                }
-                bufp[block_offset] = byte;
-            }
-        }
-
-        bytes_left -= block_size;
-        bufp += block_size;
-    } while (bytes_left > 0);
-
-    return size;
-}
-
-int spi_xfer_16(int cmd, uint16_t *buf, int size)
+/* usize should be 1 or 2 */
+int spi_xfer_buf(int cmd, int usize, void *buf, int len)
 {
     int words_left, block_offset, block_size, state_offset;
-    uint16_t word, bit, *bufp;
+    uint32_t word, bit;
+    uint8_t *bufp;
     uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
-    WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
+    WINE_TRACE("(%d, %d, %p, %d)\n", cmd, usize, buf, len);
 
-    spi_led_tick(size * 16 * 2);
+    if (usize != 1 && usize !=2) {
+        spi_err("Invalid unit size specified");
+        return -1;
+    }
 
-    words_left = size;
-    bufp = buf;
+    spi_led_tick(len * 8 * usize * 2);
+
+    words_left = len;
+    bufp = (uint8_t *)buf;
     do {
-        block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
+        /* Transferring a bit requires 2 bytes of FTDI buffer */
+        block_size = FTDI_MAX_XFER_SIZE / 8 / usize / 2;
         if (block_size > words_left)
             block_size = words_left;
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
-            word = bufp[block_offset];
-            for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
+            if (usize == 1)
+                word = ((uint8_t *)bufp)[block_offset];
+            else
+                word = ((uint16_t *)bufp)[block_offset];
+            for (bit = (1 << (usize * 8 - 1)); bit != 0; bit >>= 1) {  /* MSB first */
                 if (cmd & SPI_XFER_WRITE) {
                     /* Set output bit */
                     if (word & bit)
@@ -438,11 +364,11 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
         if (cmd & SPI_XFER_READ) {
             spi_stats.read_ticks += state_offset;
             spi_stats.reads++;
-            spi_stats.read_bytes += block_size * 2;
+            spi_stats.read_bytes += block_size * usize;
         } else {
             spi_stats.write_ticks += state_offset;
             spi_stats.writes++;
-            spi_stats.write_bytes += block_size * 2;
+            spi_stats.write_bytes += block_size * usize;
         }
 #endif
 
@@ -450,7 +376,7 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
             state_offset = 0;
             for (block_offset = 0; block_offset < block_size; block_offset++) {
                 word = 0;
-                for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
+                for (bit = (1 << (usize * 8 - 1)); bit != 0; bit >>= 1) {  /* MSB first */
                     /* Input bit */
                     if (pin_states[state_offset] & PIN_MISO)
                         word |= bit;
@@ -458,15 +384,18 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
                     state_offset++;
                     /*state_offset++;*/
                 }
-                bufp[block_offset] = word;
+                if (usize == 1)
+                    ((uint8_t *)bufp)[block_offset] = (uint8_t)word;
+                else
+                    ((uint16_t *)bufp)[block_offset] = (uint16_t)word;
             }
         }
 
         words_left -= block_size;
-        bufp += block_size;
+        bufp += block_size * usize;
     } while (words_left > 0);
 
-    return size;
+    return len;
 }
 
 int spi_open(void)
