@@ -304,13 +304,13 @@ int spi_xfer_end(void)
     return 0;
 }
 
-int spi_xfer_8(uint8_t *buf, int size)
+int spi_xfer_8(int cmd, uint8_t *buf, int size)
 {
     int bytes_left, block_offset, block_size, state_offset;
     uint8_t bit, byte, *bufp;
     uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
-    WINE_TRACE("(%p, %d)\n", buf, size);
+    WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
 
     spi_led_tick(size * 8 * 2);
 
@@ -321,17 +321,25 @@ int spi_xfer_8(uint8_t *buf, int size)
         if (block_size > bytes_left)
             block_size = bytes_left;
 
+        /* In FTDI sync bitbang mode we need to write something to device to
+         * toggle a read. */
+
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             byte = bufp[block_offset];
             for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Set output bit */
-                if (byte & bit)
-                    ftdi_pin_state |= PIN_MOSI;
-                else
+                if (cmd & SPI_XFER_WRITE) {
+                    /* Set output bit */
+                    if (byte & bit)
+                        ftdi_pin_state |= PIN_MOSI;
+                    else
+                        ftdi_pin_state &= ~PIN_MOSI;
+                    /* Speed optimization: skip this cycle during write. */
+                    /*pin_states[state_offset++] = ftdi_pin_state;*/
+                } else {
+                    /* Write 0 during a read */
                     ftdi_pin_state &= ~PIN_MOSI;
-                /* Speed optimization: skip this cycle. */
-                /*pin_states[state_offset++] = ftdi_pin_state;*/
+                }
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
@@ -352,18 +360,20 @@ int spi_xfer_8(uint8_t *buf, int size)
         spi_stats.write_bytes += block_size;
 #endif
 
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            byte = 0;
-            for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Input bit */
-                if (pin_states[state_offset] & PIN_MISO)
-                    byte |= bit;
-                state_offset++;
-                state_offset++;
-                /*state_offset++;*/
+        if (cmd & SPI_XFER_READ) {
+            state_offset = 0;
+            for (block_offset = 0; block_offset < block_size; block_offset++) {
+                byte = 0;
+                for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
+                    /* Input bit */
+                    if (pin_states[state_offset] & PIN_MISO)
+                        byte |= bit;
+                    state_offset++;
+                    state_offset++;
+                    /*state_offset++;*/
+                }
+                bufp[block_offset] = byte;
             }
-            bufp[block_offset] = byte;
         }
 
         bytes_left -= block_size;
@@ -373,135 +383,13 @@ int spi_xfer_8(uint8_t *buf, int size)
     return size;
 }
 
-int spi_write_8(const uint8_t *buf, int size)
-{
-    int bytes_left, block_offset, block_size, state_offset;
-    uint8_t byte, bit;
-    const uint8_t *bufp;
-    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
-
-    WINE_TRACE("(%p, %d)\n", buf, size);
-
-    spi_led_tick(size * 8 * 2);
-
-    bytes_left = size;
-    bufp = buf;
-    do {
-        block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
-        if (block_size > bytes_left)
-            block_size = bytes_left;
-
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            byte = bufp[block_offset];
-            for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Set output bit */
-                if (byte & bit)
-                    ftdi_pin_state |= PIN_MOSI;
-                else
-                    ftdi_pin_state &= ~PIN_MOSI;
-                /* Speed optimization: skip this cycle. */
-                /*pin_states[state_offset++] = ftdi_pin_state;*/
-
-                /* Clock high */
-                ftdi_pin_state |= PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-
-                /* Clock low */
-                ftdi_pin_state &= ~PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-            }
-        }
-
-        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-            return -1;
-
-#ifdef SPI_STATS
-        spi_stats.write_ticks += state_offset;
-        spi_stats.writes++;
-        spi_stats.write_bytes += block_size;
-#endif
-
-        bytes_left -= block_size;
-        bufp += block_size;
-    } while (bytes_left > 0);
-
-    return size;
-}
-
-int spi_read_8(uint8_t *buf, int size)
-{
-    int bytes_left, block_offset, block_size, state_offset;
-    uint8_t byte, bit, *bufp;
-    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
-
-    WINE_TRACE("(%p, %d)\n", buf, size);
-
-    spi_led_tick(size * 8 * 2);
-
-    /* Write 0 during a read */
-    ftdi_pin_state &= ~PIN_MOSI;
-
-    bytes_left = size;
-    bufp = buf;
-    do {
-        block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
-        if (block_size > bytes_left)
-            block_size = bytes_left;
-
-        /* In FTDI sync bitbang mode we need to write something to device
-         * to toggle a read. */
-
-        /* Output series of clock signals for reads. Data is read to internal
-         * buffer. */
-
-        for (state_offset = 0; state_offset < block_size * 8 * 2; ) {
-            /* Clock high */
-            ftdi_pin_state |= PIN_CLK;
-            pin_states[state_offset++] = ftdi_pin_state;
-
-            /* Clock low */
-            ftdi_pin_state &= ~PIN_CLK;
-            pin_states[state_offset++] = ftdi_pin_state;
-        }
-
-        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-            return -1;
-
-#ifdef SPI_STATS
-        spi_stats.read_ticks += state_offset;
-        spi_stats.reads++;
-        spi_stats.read_bytes += block_size;
-#endif
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            byte = 0;
-            for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Input bit */
-                if (pin_states[state_offset] & PIN_MISO)
-                    byte |= bit;
-                state_offset++;
-                state_offset++;
-            }
-            bufp[block_offset] = byte;
-        }
-
-        bytes_left -= block_size;
-        bufp += block_size;
-    } while (bytes_left > 0);
-
-    WINE_TRACE("(%p, %d)\n", buf, size);
-
-    return size;
-}
-
-int spi_xfer_16(uint16_t *buf, int size)
+int spi_xfer_16(int cmd, uint16_t *buf, int size)
 {
     int words_left, block_offset, block_size, state_offset;
     uint16_t word, bit, *bufp;
     uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
-    WINE_TRACE("(%p, %d)\n", buf, size);
+    WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
 
     spi_led_tick(size * 16 * 2);
 
@@ -516,12 +404,16 @@ int spi_xfer_16(uint16_t *buf, int size)
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             word = bufp[block_offset];
             for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Set output bit */
-                if (word & bit)
-                    ftdi_pin_state |= PIN_MOSI;
-                else
+                if (cmd & SPI_XFER_WRITE) {
+                    /* Set output bit */
+                    if (word & bit)
+                        ftdi_pin_state |= PIN_MOSI;
+                    else
+                        ftdi_pin_state &= ~PIN_MOSI;
+                    /*pin_states[state_offset++] = ftdi_pin_state;*/
+                } else {
                     ftdi_pin_state &= ~PIN_MOSI;
-                /*pin_states[state_offset++] = ftdi_pin_state;*/
+                }
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
@@ -542,148 +434,25 @@ int spi_xfer_16(uint16_t *buf, int size)
         spi_stats.write_bytes += block_size * 2;
 #endif
 
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            word = 0;
-            for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Input bit */
-                if (pin_states[state_offset] & PIN_MISO)
-                    word |= bit;
-                state_offset++;
-                state_offset++;
-                /*state_offset++;*/
+        if (cmd & SPI_XFER_READ) {
+            state_offset = 0;
+            for (block_offset = 0; block_offset < block_size; block_offset++) {
+                word = 0;
+                for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
+                    /* Input bit */
+                    if (pin_states[state_offset] & PIN_MISO)
+                        word |= bit;
+                    state_offset++;
+                    state_offset++;
+                    /*state_offset++;*/
+                }
+                bufp[block_offset] = word;
             }
-            bufp[block_offset] = word;
         }
 
         words_left -= block_size;
         bufp += block_size;
     } while (words_left > 0);
-
-    WINE_TRACE("(%p, %d)\n", buf, size);
-
-    return size;
-}
-
-int spi_write_16(const uint16_t *buf, int size)
-{
-    int words_left, block_offset, block_size, state_offset;
-    uint16_t word, bit;
-    const uint16_t *bufp;
-    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
-
-    WINE_TRACE("(%p, %d)\n", buf, size);
-
-    spi_led_tick(size * 16 * 2);
-
-    words_left = size;
-    bufp = buf;
-    do {
-        block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
-        if (block_size > words_left)
-            block_size = words_left;
-
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            word = bufp[block_offset];
-            for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Set output bit */
-                if (word & bit)
-                    ftdi_pin_state |= PIN_MOSI;
-                else
-                    ftdi_pin_state &= ~PIN_MOSI;
-                /* Speed optimization: skip this cycle. */
-                /*pin_states[state_offset++] = ftdi_pin_state;*/
-
-                /* Clock high */
-                ftdi_pin_state |= PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-
-                /* Clock low */
-                ftdi_pin_state &= ~PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-            }
-        }
-
-        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-            return -1;
-
-#ifdef SPI_STATS
-        spi_stats.write_ticks += state_offset;
-        spi_stats.writes++;
-        spi_stats.write_bytes += block_size * 2;
-#endif
-
-        words_left -= block_size;
-        bufp += block_size;
-    } while (words_left > 0);
-
-    return size;
-}
-
-int spi_read_16(uint16_t *buf, int size)
-{
-    int words_left, block_offset, block_size, state_offset;
-    uint16_t word, bit, *bufp;
-    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
-
-    WINE_TRACE("(%p, %d)\n", buf, size);
-
-    spi_led_tick(size * 16 * 2);
-
-    /* Write 0 during a read */
-    ftdi_pin_state &= ~PIN_MOSI;
-
-    words_left = size;
-    bufp = buf;
-    do {
-        block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
-        if (block_size > words_left)
-            block_size = words_left;
-
-        /* In FTDI sync bitbang mode we need to write something to device
-         * to toggle a read. */
-
-        /* Output series of clock signals for reads. Data is read to internal
-         * buffer. */
-
-        for (state_offset = 0; state_offset < block_size * 16 * 2; ) {
-            /* Clock high */
-            ftdi_pin_state |= PIN_CLK;
-            pin_states[state_offset++] = ftdi_pin_state;
-
-            /* Clock low */
-            ftdi_pin_state &= ~PIN_CLK;
-            pin_states[state_offset++] = ftdi_pin_state;
-        }
-
-        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-            return -1;
-
-#ifdef SPI_STATS
-        spi_stats.read_ticks += state_offset;
-        spi_stats.reads++;
-        spi_stats.read_bytes += block_size * 2;
-#endif
-
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            word = 0;
-            for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
-                /* Input bit */
-                if (pin_states[state_offset] & PIN_MISO)
-                    word |= bit;
-                state_offset++;
-                state_offset++;
-            }
-            bufp[block_offset] = word;
-        }
-
-        words_left -= block_size;
-        bufp += block_size;
-    } while (words_left > 0);
-
-    WINE_TRACE("(%p, %d)\n", buf, size);
 
     return size;
 }

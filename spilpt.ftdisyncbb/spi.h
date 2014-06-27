@@ -15,6 +15,9 @@
 #define SPI_LED_READ    (1 << 0)
 #define SPI_LED_WRITE   (1 << 1)
 
+#define SPI_XFER_READ   (1 << 0)
+#define SPI_XFER_WRITE  (1 << 0)
+
 typedef void (*spi_error_cb)(const char *errstr);
 
 #ifdef __cplusplus
@@ -26,12 +29,8 @@ int spi_isopen(void);
 int spi_close(void);
 
 int spi_xfer_begin(void);
-int spi_xfer_8(uint8_t *buf, int size);
-int spi_write_8(const uint8_t *buf, int size);
-int spi_read_8(uint8_t *buf, int size);
-int spi_xfer_16(uint16_t *buf, int size);
-int spi_write_16(const uint16_t *buf, int size);
-int spi_read_16(uint16_t *buf, int size);
+int spi_xfer_8(int cmd, uint8_t *buf, int size);
+int spi_xfer_16(int cmd, uint16_t *buf, int size);
 int spi_xfer_end(void);
 
 void spi_led(int led);
