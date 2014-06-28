@@ -299,7 +299,7 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
     };
     uint16_t *outbuf2;
 
-    WINE_TRACE("(0x%04x, %d, 0x%04x ...)\n", nAddress, nLength, *pnInput);
+    WINE_TRACE("(0x%04x, %d, %p)\n", nAddress, nLength, pnInput);
 
 #define _ERR_RETURN(n, s) do { \
         g_nError = (n); \
@@ -512,7 +512,7 @@ error:
 DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	int nRetval=0;
 
-    WINE_TRACE("(seq, %d)\n", nCount);
+    WINE_TRACE("(%p, %d) type=%d\n", pSequence, nCount, pSequence->nType);
 
 	while (nCount--) {
 		switch (pSequence->nType) {
@@ -566,3 +566,129 @@ DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
         return SPIFNS_XAP_STOPPED;
     return SPIFNS_XAP_RUNNING;
 }
+
+#ifdef SPIFNS_API_1_4
+/* This is a limited implementation of CSR SPI API 1.4. It supports only 1
+ * stream and does not support all of the features. */
+
+DLLEXPORT int __cdecl spifns_stream_init(spifns_stream_t *p_stream)
+{
+    WINE_TRACE("(%p)\n", p_stream);
+    int rc;
+    
+    rc = spifns_init();
+    if (rc == 0)
+        *p_stream = (spifns_stream_t)0;
+    
+    return rc;
+}
+
+DLLEXPORT void __cdecl spifns_stream_close(spifns_stream_t stream)
+{
+    WINE_TRACE("(%d)\n", stream);
+    spifns_close();
+}
+
+DLLEXPORT unsigned int __cdecl spifns_count_streams(void)
+{
+    WINE_TRACE("()\n");
+    return g_nRef ? 1 : 0;
+}
+
+DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount)
+{
+	int nRetval=0;
+
+    WINE_TRACE("(%d, %p, %d) type=%d\n", stream, pSequence, nCount, pSequence->nType);
+
+	while (nCount--) {
+		switch (pSequence->nType) {
+		case SPISEQ_1_4::TYPE_READ:
+			if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
+				nRetval=1;
+			break;
+		case SPISEQ_1_4::TYPE_WRITE:
+			if (spifns_sequence_write(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
+				nRetval=1;
+			break;
+		case SPISEQ_1_4::TYPE_SETVAR:
+			if (spifns_sequence_setvar(pSequence->setvar.szName,pSequence->setvar.szValue)==1)
+				nRetval=1;
+			break;
+        default:
+            g_nError = SPIFNS_ERROR_INVALID_PARAMETER;
+            snprintf(g_szErrorString, sizeof(g_szErrorString),
+                    "sequence command %d not implemented", pSequence->nType);
+            nRetval = 1;
+		}
+		pSequence++;
+	}
+	return nRetval;
+}
+
+DLLEXPORT const char* __cdecl spifns_stream_command(spifns_stream_t stream, const char *command)
+{
+    WINE_TRACE("(%d, %s)\n", stream, command);
+    return spifns_command(command);
+}
+
+DLLEXPORT const char* __cdecl spifns_stream_getvar(spifns_stream_t stream, const char *var)
+{
+    WINE_TRACE("(%d, %s)\n", stream, var);
+    return spifns_getvar(var);
+}
+
+DLLEXPORT void __cdecl spifns_stream_chip_select(spifns_stream_t stream, int which)
+{
+    WINE_TRACE("(%d, %d)\n", stream, which);
+    spifns_chip_select(which);
+}
+
+DLLEXPORT int __cdecl spifns_stream_bluecore_xap_stopped(spifns_stream_t stream)
+{
+    WINE_TRACE("(%d)\n", stream);
+    return spifns_bluecore_xap_stopped();
+}
+
+/* returns the last error code, and if a pointer is passed in, the problematic
+ * address.*/
+/* get_last_error and clear_last_error both deal with the error that occurred
+ * in the current thread */
+DLLEXPORT int __cdecl spifns_get_last_error32(uint32_t *addr, const char ** buf)
+{
+    unsigned short saddr;
+    int rc;
+
+    WINE_TRACE("(%p, %p)\n", addr, buf);
+
+    rc = spifns_get_last_error(&saddr, buf);
+    if (addr)
+        *addr = saddr;
+    return rc;
+}
+
+DLLEXPORT void __cdecl spifns_stream_set_debug_callback(spifns_stream_t stream, spifns_debug_callback fn, void *pvcontext)
+{
+    WINE_TRACE("(%d, %p, %p)\n", stream, fn, pvcontext);
+    spifns_set_debug_callback(fn);
+}
+
+DLLEXPORT int __cdecl spifns_stream_get_device_id(spifns_stream_t stream, char *buf, size_t length)
+{
+    WINE_TRACE("(%d, %p, %u)\n", stream, buf, length);
+    snprintf(buf, length, "FTDISyncBB");
+    return 0;
+}
+
+DLLEXPORT int __cdecl spifns_stream_lock(spifns_stream_t stream, uint32_t timeout)
+{
+    WINE_TRACE("(%d, %u)\n", stream, timeout);
+    return 0;
+}
+
+DLLEXPORT void __cdecl spifns_stream_unlock(spifns_stream_t stream)
+{
+    WINE_TRACE("(%d)\n", stream);
+}
+
+#endif /* SPIFNS_API_1_4 */

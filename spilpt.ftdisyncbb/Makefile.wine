@@ -1,7 +1,7 @@
 CC=	winegcc
 CXX=	wineg++
 LD=	winegcc
-CFLAGS=	-Wall -m32 -fPIC -DPIC -D__WINESRC__ -DSPI_STATS
+CFLAGS=	-Wall -m32 -fPIC -DPIC -D__WINESRC__ -DSPI_STATS -DSPIFNS_API_1_4
 LDFLAGS=	-shared -m32
 #LIBS=	-lftdi -lusb -lstdc++
 # Build with static versions of libraries
