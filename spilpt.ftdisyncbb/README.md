@@ -31,9 +31,9 @@ Install build tools
 
     sudo apt-get install -y build-essential gcc-multilib g++-multilib
 
-Install 32 bit stuff. Note that wine:i386 replaces 64 bit wine.
+Install 32 bit stuff.
 
-    sudo apt-get install -y wine:i386 wine-dev:i386 libc6-dev-i386 libstdc++-dev:i386 libftdi-dev:i386
+    sudo apt-get install -y wine-dev:i386 libc6-dev-i386 libstdc++-dev:i386 libftdi-dev:i386
 
 If You want to build for SPI API version 1.3 instead of 1.4, comment out this
 line in Makefile.wine:
@@ -43,10 +43,6 @@ line in Makefile.wine:
 Build with command:
 
     make -f Makefile.wine all
-
-After building the DLL You can reinstall 64 bit wine:
-
-    sudo apt-get install -y wine
 
 
 ## Installing

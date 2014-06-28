@@ -4,6 +4,9 @@ LD=	winegcc
 CFLAGS=	-Wall -m32 -fPIC -DPIC -D__WINESRC__ -DSPI_STATS
 CFLAGS+=	-DSPIFNS_API_1_4
 LDFLAGS=	-shared -m32
+# By default 64 bit winegcc tries to libk with 64 bit wine libs even if -m32 is
+# specified. Direct it to the 32bit libraries.
+LDFLAGS+=	-L/usr/lib/i386-linux-gnu/wine
 #LIBS=	-lftdi -lusb -lstdc++
 # Build with static versions of libraries
 LIBS+=	/usr/lib/i386-linux-gnu/libftdi.a
