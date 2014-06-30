@@ -1,19 +1,21 @@
+WINE_LIB=	/usr/lib/i386-linux-gnu/wine
+I386_LIB=	/usr/lib/i386-linux-gnu
+STDCXX_LIB=	/usr/lib/gcc/i686-linux-gnu/4.7
+
 CC=	winegcc
 CXX=	wineg++
-LD=	winegcc
-CFLAGS=	-Wall -m32 -fPIC -DPIC -D__WINESRC__ -DSPI_STATS
-CFLAGS+=	-DSPIFNS_API_1_4
+LD=	wineg++
+CFLAGS=	-Wall -m32 -fPIC -DPIC
+CPPFLAGS+=	-D__WINESRC__
+CPPFLAGS+=	-DSPI_STATS
+CPPFLAGS+=	-DSPIFNS_API_1_4
 LDFLAGS=	-shared -m32
-# By default 64 bit winegcc tries to libk with 64 bit wine libs even if -m32 is
-# specified. Direct it to the 32bit libraries.
-LDFLAGS+=	-L/usr/lib/i386-linux-gnu/wine
-#LIBS=	-lftdi -lusb -lstdc++
+# 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
+# Direct it to the 32bit libraries.
+LDFLAGS+=	-L$(WINE_LIB) -L$(I386_LIB) -L$(STDCXX_LIB)
+#LDLIBS=	-lftdi -lusb
 # Build with static versions of libraries
-LIBS+=	/usr/lib/i386-linux-gnu/libftdi.a
-LIBS+=	/usr/lib/i386-linux-gnu/libusb.a
-LIBS+= /usr/lib/gcc/i686-linux-gnu/4.7/libstdc++.a
-
-WINE_LIB = /usr/lib/i386-linux-gnu/wine
+LDLIBS+=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
 
 all: spilpt.dll.so
 
@@ -22,13 +24,13 @@ spi.o: spi.h
 hexdump.o: hexdump.h
 
 spilpt.dll.so: wine_main.o basics.o spi.o hexdump.o spilpt.spec
-	$(LD) $(LDFLAGS) $^ -o $@ $(LIBS)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 .c.o: 
-	$(CC) -c $(CFLAGS) -o $@ $<
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 .cpp.o:
-	$(CXX) -c $(CFLAGS) -o $@ $<
+	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
 	rm -f *.o spilpt.dll.so
