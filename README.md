@@ -20,3 +20,6 @@ This is the first attempt at getting the thing actually working without an LPT p
 
 ### spitlpt.arduino.offload ###
 This should be the final product, a dll that offloads most of the work to the arduino to speed things up.
+
+### spilpt.ftdisyncbb ###
+This is the driver for SPI programmer based on FTDI FT232R or later chip using synchronous bitbang mode. Currently it supports running CSR tools (such as BlueLab or BlueSuite) under Linux with Wine. See included README.
