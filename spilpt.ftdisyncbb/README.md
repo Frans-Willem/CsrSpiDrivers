@@ -45,7 +45,7 @@ Build with command:
     make -f Makefile.wine all
 
 
-## Installing
+### Installing
 
 Install CSR BlueSuite in wine. Find all instances of spilpt.dll installed and
 move them out of the way:
@@ -56,6 +56,31 @@ Install wine dll:
 
     sudo make -f Makefile.wine install
 
+
+## Building DLL on Debian/Ubuntu 64 bit for Windows using MinGW
+
+Install MinGW cross-development environment:
+
+    sudo apt-get install -y gcc-mingw32
+
+Download precompiled libusb for windows from
+http://sourceforge.net/projects/libusb/files/ and extract it to the libusb
+directory:
+
+    wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19-rc1-win.7z
+    7z x -olibusb libusb-1.0.19-rc1-win.7z
+
+Download precompiled liftdi for windows from
+https://code.google.com/p/picusb/downloads/list and extract it to the libftdi1
+directory:
+
+    wget https://picusb.googlecode.com/files/libftdi1-1.0_devkit_mingw32_17Feb2013.zip
+    unzip libftdi1-1.0_devkit_mingw32_17Feb2013.zip
+    mv libftdi1-1.0_devkit_mingw32_17Feb2013 libftdi1
+
+Build with command:
+
+    make -f Makefile.mingw all
 
 ## Pinouts
 

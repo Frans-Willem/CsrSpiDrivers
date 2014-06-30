@@ -205,6 +205,7 @@ DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddr
 DLLEXPORT int __cdecl spifns_bluecore_xap_stopped(); //Returns -1 on error, 0 on XAP running, 1 on stopped
 DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount); //Return 0 on no error
 DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback);
+DLLEXPORT void __cdecl spifns_clear_last_error(void);
 
 
 #ifdef SPIFNS_API_1_4
@@ -225,7 +226,6 @@ DLLEXPORT int __cdecl spifns_stream_bluecore_xap_stopped(spifns_stream_t stream)
 /* get_last_error and clear_last_error both deal with the error that occurred
  * in the current thread */
 DLLEXPORT int __cdecl spifns_get_last_error32(uint32_t *addr, const char ** buf);
-DLLEXPORT void __cdecl spifns_clear_last_error(void);
 DLLEXPORT void __cdecl spifns_stream_set_debug_callback(spifns_stream_t stream, spifns_debug_callback fn, void *pvcontext);
 DLLEXPORT int __cdecl spifns_stream_get_device_id(spifns_stream_t stream, char *buf, size_t length);
 DLLEXPORT int __cdecl spifns_stream_lock(spifns_stream_t stream, uint32_t timeout);

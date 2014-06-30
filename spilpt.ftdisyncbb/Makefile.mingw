@@ -1,0 +1,68 @@
+CXX=	/usr/bin/i586-mingw32msvc-g++
+CC=	/usr/bin/i586-mingw32msvc-gcc
+LD=	/usr/bin/i586-mingw32msvc-g++
+
+LIBFTDI=	./libftdi1
+LIBUSB=	./libusb
+
+CFLAGS+=	-Wall
+LDFLAGS+=	-shared
+
+CPPFLAGS+=	-I$(LIBFTDI)/include/libftdi1
+LDLIBS+=	$(LIBFTDI)/lib/libftdi1.a
+
+CPPFLAGS+=	-I$(LIBUSB)/include
+LDLIBS+=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
+
+# Doesn't compile yet
+#CPPFLAGS+=	-DSPI_STATS
+CPPFLAGS+=	-DUSE_USLEEP_REPLACEMENT
+# See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
+CPPFLAGS+=	-DMINGW_MS_VSNPRINTF_WORKAROUND
+
+MAKEFILE=	$(firstword $(MAKEFILE_LIST))
+
+ifeq ($(SPIAPI), )
+
+all: win32-1.3/spiapi.dll win32-1.4/spiapi.dll
+
+win32-1.3/spiapi.dll:
+	$(MAKE) -f $(MAKEFILE) SPIAPI=1.3 all
+
+win32-1.4/spiapi.dll:
+	$(MAKE) -f $(MAKEFILE) SPIAPI=1.4 all
+
+else
+
+ifeq ($(SPIAPI), 1.3)
+OBJDIR=	win32-1.3
+LIBRARY_DEF=	library-1.3.def
+CPPFLAGS+=	-DSPIFNS_API=1.3
+else ifeq ($(SPIAPI), 1.4)
+OBJDIR=	win32-1.4
+LIBRARY_DEF=	library-1.4.def
+CPPFLAGS+=	-DSPIFNS_API_1_4
+endif
+
+all: $(OBJDIR)/spilpt.dll
+
+basics.o: spi.h basics.h spifns.h
+spi.o: spi.h usleep.h
+hexdump.o: hexdump.h
+
+$(OBJDIR)/spilpt.dll: $(OBJDIR)/wine_main.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/usleep.o $(OBJDIR)/msvsnprintf.o $(LIBRARY_DEF)
+	mkdir -p $(OBJDIR)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+
+endif
+
+$(OBJDIR)/%.o: %.c
+	mkdir -p $(OBJDIR)
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+$(OBJDIR)/%.o: %.cpp
+	mkdir -p $(OBJDIR)
+	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+clean:
+	rm -fr win32-1.3 win32-1.4

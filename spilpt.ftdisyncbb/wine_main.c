@@ -9,8 +9,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
     switch (fdwReason)
     {
+#ifdef __WINESRC__
         case DLL_WINE_PREATTACH:
             return FALSE;    /* prefer native version */
+#endif
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(hinstDLL);
             break;
