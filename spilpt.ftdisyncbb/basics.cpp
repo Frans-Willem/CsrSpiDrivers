@@ -567,7 +567,7 @@ DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
     return SPIFNS_XAP_RUNNING;
 }
 
-#ifdef SPIFNS_API_1_4
+#if SPIFNS_API == SPIFNS_API_1_4
 /* This is a limited implementation of CSR SPI API 1.4. It supports only 1
  * stream and does not support all of the features. */
 
@@ -691,4 +691,4 @@ DLLEXPORT void __cdecl spifns_stream_unlock(spifns_stream_t stream)
     WINE_TRACE("(%d)\n", stream);
 }
 
-#endif /* SPIFNS_API_1_4 */
+#endif /* SPIFNS_API == SPIFNS_API_1_4 */

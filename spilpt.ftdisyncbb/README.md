@@ -54,7 +54,9 @@ move them out of the way:
 
 Install wine dll:
 
-    sudo make -f Makefile.wine install
+    sudo make -f Makefile.wine SPIAPI=<SPI_API_version> install
+
+where *SPI_API_version* is one of "1.3" or "1.4".
 
 
 ## Building DLL on Debian/Ubuntu 64 bit for Windows using MinGW

@@ -31,10 +31,11 @@ spilpt-1.4-wine/spiapi.dll.so:
 else
 
 OBJDIR= spilpt-$(SPIAPI)-wine
-CPPFLAGS+=	-DSPIFNS_API=$(SPIAPI)
 
-ifeq ($(SPIAPI), 1.4)
-CPPFLAGS+=  -DSPIFNS_API_1_4
+ifeq ($(SPIAPI), 1.3)
+CPPFLAGS+=  -DSPIFNS_API=SPIFNS_API_1_3
+else ifeq ($(SPIAPI), 1.4)
+CPPFLAGS+=  -DSPIFNS_API=SPIFNS_API_1_4
 endif
 
 all: $(OBJDIR)/spilpt.dll.so

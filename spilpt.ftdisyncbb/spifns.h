@@ -10,10 +10,13 @@
 extern "C" {
 #endif
 
-#ifdef SPIFNS_API_1_4
-#define SPIFNS_VERSION 0x104
+#define SPIFNS_API_1_3  0x103
+#define SPIFNS_API_1_4  0x104
+
+#if defined(SPIFNS_API) && (SPIFNS_API == SPIFNS_API_1_3 || SPIFNS_API == SPIFNS_API_1_4)
+#define SPIFNS_VERSION SPIFNS_API
 #else
-#define SPIFNS_VERSION 0x103
+#error "Invalid CSR SPI API VERSION"
 #endif
 
 /* From BlueSuiteSource_V2_5.zip/CSRSource/result/include/spi/spi_common.h */
@@ -152,7 +155,7 @@ struct SPISEQ {
 	};
 };
 
-#ifdef SPIFNS_API_1_4
+#if SPIFNS_API == SPIFNS_API_1_4
 /* From BlueSuiteSource_V2_5.zip/CSRSource/result/include/spi/spifns.h */
 struct SPISEQ_1_4 {
 	enum {
@@ -180,7 +183,7 @@ struct SPISEQ_1_4 {
 };
 #endif
 
-#ifdef SPIFNS_API_1_4
+#if SPIFNS_API == SPIFNS_API_1_4
 typedef unsigned int spifns_stream_t;
 #define SPIFNS_STREAM_INVALID 0x7FFFFFFF
 #endif
@@ -208,7 +211,7 @@ DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback
 DLLEXPORT void __cdecl spifns_clear_last_error(void);
 
 
-#ifdef SPIFNS_API_1_4
+#if SPIFNS_API == SPIFNS_API_1_4
 
 /* From BlueSuiteSource_V2_5.zip/CSRSource/result/include/spi/spifns.h */
 
@@ -231,7 +234,7 @@ DLLEXPORT int __cdecl spifns_stream_get_device_id(spifns_stream_t stream, char *
 DLLEXPORT int __cdecl spifns_stream_lock(spifns_stream_t stream, uint32_t timeout);
 DLLEXPORT void __cdecl spifns_stream_unlock(spifns_stream_t stream);
 
-#endif /* SPIFNS_API_1_4 */
+#endif /* SPIFNS_API == SPIFNS_API_1_4 */
 
 #ifdef __cplusplus
 }   /* extern "C" */

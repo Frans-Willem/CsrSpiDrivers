@@ -36,10 +36,11 @@ else
 
 OBJDIR=	spilpt-$(SPIAPI)-win32
 LIBRARY_DEF=	library-$(SPIAPI).def
-CPPFLAGS+=	-DSPIFNS_API=$(SPIAPI)
 
-ifeq ($(SPIAPI), 1.4)
-CPPFLAGS+=	-DSPIFNS_API_1_4
+ifeq ($(SPIAPI), 1.3)
+CPPFLAGS+=	-DSPIFNS_API=SPIFNS_API_1_3
+else ifeq ($(SPIAPI), 1.4)
+CPPFLAGS+=	-DSPIFNS_API=SPIFNS_API_1_4
 endif
 
 all: $(OBJDIR)/spilpt.dll
