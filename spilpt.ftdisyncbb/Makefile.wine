@@ -8,7 +8,6 @@ LD=	wineg++
 CFLAGS=	-Wall -m32 -fPIC -DPIC
 CPPFLAGS+=	-D__WINESRC__
 CPPFLAGS+=	-DSPI_STATS
-CPPFLAGS+=	-DSPIFNS_API_1_4
 LDFLAGS=	-shared -m32
 # 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
 # Direct it to the 32bit libraries.
@@ -17,23 +16,48 @@ LDFLAGS+=	-L$(WINE_LIB) -L$(I386_LIB) -L$(STDCXX_LIB)
 # Build with static versions of libraries
 LDLIBS+=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
 
-all: spilpt.dll.so
+MAKEFILE=	$(firstword $(MAKEFILE_LIST))
+
+ifeq ($(SPIAPI), )
+
+all: spilpt-1.3-wine/spiapi.dll.so spilpt-1.4-wine/spiapi.dll.so
+
+spilpt-1.3-wine/spiapi.dll.so:
+	    $(MAKE) -f $(MAKEFILE) SPIAPI=1.3 all
+
+spilpt-1.4-wine/spiapi.dll.so:
+	    $(MAKE) -f $(MAKEFILE) SPIAPI=1.4 all
+
+else
+
+OBJDIR= spilpt-$(SPIAPI)-wine
+CPPFLAGS+=	-DSPIFNS_API=$(SPIAPI)
+
+ifeq ($(SPIAPI), 1.4)
+CPPFLAGS+=  -DSPIFNS_API_1_4
+endif
+
+all: $(OBJDIR)/spilpt.dll.so
+
+$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/wine_main.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o spilpt.dll-$(SPIAPI).spec
+	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+
+install:
+	install -m 0644 -o root -g root $(SPIAPI)/spilpt.dll.so $(WINE_LIB)/spilpt.dll.so
+
+endif
 
 basics.o: spi.h basics.h spifns.h
 spi.o: spi.h
 hexdump.o: hexdump.h
 
-spilpt.dll.so: wine_main.o basics.o spi.o hexdump.o spilpt.spec
-	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
-
-.c.o: 
+$(OBJDIR)/%.o: %.c
+	mkdir -p $(OBJDIR)
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
-.cpp.o:
+$(OBJDIR)/%.o: %.cpp
+	mkdir -p $(OBJDIR)
 	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -f *.o spilpt.dll.so
-
-install:
-	install -m 0644 -o root -g root spilpt.dll.so $(WINE_LIB)/spilpt.dll.so
+	rm -fr spilpt-1.3-wine spilpt-1.4-wine
