@@ -16,7 +16,7 @@ LDLIBS+=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
 
 # Doesn't compile yet
 #CPPFLAGS+=	-DSPI_STATS
-CPPFLAGS+=	-DUSE_USLEEP_REPLACEMENT
+CPPFLAGS+=	-DWIN_USLEEP_REPLACEMENT
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
 CPPFLAGS+=	-DMINGW_MS_VSNPRINTF_WORKAROUND
 
@@ -47,10 +47,10 @@ endif
 all: $(OBJDIR)/spilpt.dll
 
 basics.o: spi.h basics.h spifns.h
-spi.o: spi.h usleep.h
+spi.o: spi.h win_usleep.h
 hexdump.o: hexdump.h
 
-$(OBJDIR)/spilpt.dll: $(OBJDIR)/wine_main.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/usleep.o $(OBJDIR)/msvsnprintf.o $(LIBRARY_DEF)
+$(OBJDIR)/spilpt.dll: $(OBJDIR)/wine_main.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/win_usleep.o $(OBJDIR)/ms_vsnprintf.o $(LIBRARY_DEF)
 	mkdir -p $(OBJDIR)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 

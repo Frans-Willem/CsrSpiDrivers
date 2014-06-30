@@ -76,7 +76,7 @@ directory:
 
     wget https://picusb.googlecode.com/files/libftdi1-1.0_devkit_mingw32_17Feb2013.zip
     unzip libftdi1-1.0_devkit_mingw32_17Feb2013.zip
-    mv libftdi1-1.0_devkit_mingw32_17Feb2013 libftdi1
+    ln -s libftdi1-1.0_devkit_mingw32_17Feb2013 libftdi1
 
 Build with command:
 
