@@ -12,7 +12,7 @@ Example of CSR packages using API version 1.3:
 * CSR BlueLab 4.1
 
 You can check the API version of CSR package by inspecting original spilpt.dll
-with the following command:
+with the following command on Linux:
 
     winedump -j export spilpt.dll | grep spifns_stream_
 
@@ -35,11 +35,6 @@ Install 32 bit stuff.
 
     sudo apt-get install -y wine-dev:i386 libc6-dev-i386 libstdc++-dev:i386 libftdi-dev:i386
 
-If You want to build for SPI API version 1.3 instead of 1.4, comment out this
-line in Makefile.wine:
-
-    CFLAGS+= -DSPIFNS_API_1_4
-
 Build with command:
 
     make -f Makefile.wine all
@@ -52,7 +47,7 @@ move them out of the way:
 
     find ~/.wine -iname spilpt.dll -execdir mv {} {}.orig \;
 
-Install wine dll:
+Install wine dll into the wine directory:
 
     sudo make -f Makefile.wine SPIAPI=<SPI_API_version> install
 
@@ -83,6 +78,20 @@ directory:
 Build with command:
 
     make -f Makefile.mingw all
+
+### Install
+
+1. Make a backup of spilpt.dll in your application directory (e.g. in
+   *C:\Program Files\CSR\BlueSuite\*);
+2. Copy appropriate version of spilpt.dll from spilpt-1.4-win32 or
+   spilpt-1.3-win32 directory to your application directory;
+3. Download and run Zadig from http://zadig.akeo.ie/ . In Options menu choose
+   "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
+   choose libusbK driver, press "Replace driver" or "Install driver".  This
+   will install generic libusb-compatible driver for your FTDI chip. There is a
+   nice tutorial on running libftdi programs on Windows here:
+   http://embedded-funk.net/running-libftdi-under-windows/ ;
+4. Run your CSR apps.
 
 ## Pinouts
 
