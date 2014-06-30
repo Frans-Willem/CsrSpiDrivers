@@ -14,6 +14,9 @@
 
 #include "spi.h"
 #include "hexdump.h"
+#ifdef USE_USLEEP_REPLACEMENT
+#include "usleep.h"
+#endif
 
 /* SPI clock frequency. At maximum I got 15KB/s reads at 8 MHz SPI clock. At
  * 12MHz SPI clock it doesn't work. */
