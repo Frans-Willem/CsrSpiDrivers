@@ -6,7 +6,7 @@ LIBFTDI=	./libftdi1
 LIBUSB=	./libusb
 
 CFLAGS+=	-Wall
-LDFLAGS+=	-shared
+LDFLAGS+=	-shared -static-libgcc
 
 CPPFLAGS+=	-I$(LIBFTDI)/include/libftdi1
 LDLIBS+=	$(LIBFTDI)/lib/libftdi1.a
