@@ -18,13 +18,26 @@
 #define SPI_XFER_READ   (1 << 0)
 #define SPI_XFER_WRITE  (1 << 1)
 
+struct spi_port {
+    uint16_t vid, pid;
+    char manuf[128], desc[128], serial[128];
+};
+
 typedef void (*spi_error_cb)(const char *errstr);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int spi_open(void);
+extern struct spi_port spi_ports[16];
+extern int spi_nports;
+
+int spi_init(void);
+void spi_deinit(void);
+
+int spi_enumerate_ports(void);
+
+int spi_open(int nport);
 int spi_isopen(void);
 int spi_close(void);
 

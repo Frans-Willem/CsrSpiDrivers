@@ -59,7 +59,6 @@ char g_szMaxClock[16]="1000";
 char g_szErrorString[256]="No error";
 unsigned int g_nError=SPIERR_NO_ERROR;
 //Some gs_check data here. Maybe this indicates that this should be a file split ?
-HANDLE g_hDevice=0;
 unsigned int g_nRef=0;
 int g_nCmdReadBits=0;
 int g_nCmdWriteBits=0;
@@ -154,15 +153,15 @@ DLLEXPORT int __cdecl spifns_get_version() {
 //
 //RE Check: Completely identical
 DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
-    int rc;
-
     WINE_TRACE("(%d)\n", nPort);
 
-    rc = spi_open();
-
-    WINE_TRACE("spi_open() returns %d\n", rc);
-    if (spi_open() < 0)
+    if (spi_init() < 0)
         return INVALID_HANDLE_VALUE;
+
+    if (spi_open(nPort) < 0)
+        return INVALID_HANDLE_VALUE;
+
+    /* Return some dummy handle value */
     return (HANDLE)&spifns_open_port;
 }
 
@@ -221,20 +220,25 @@ DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
 	}
 	return 0;
 }
-//RE Check: Opcodes functionally identical
-//Original uses 'add esi, 1
-//Compiler makes 'inc esi'
+
 DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
+    char port_desc[512];
+    int nport;
+
     WINE_TRACE("\n");
-	char szPortName[8];
-	for (int nPort=2; nPort<=16; nPort++) {
-		HANDLE hDevice;
-		if ((hDevice=spifns_open_port(nPort))!=INVALID_HANDLE_VALUE) {
-			CloseHandle(hDevice);
-			sprintf(szPortName,"COM%d",nPort);
-			pCallback(nPort,szPortName,pData);
-		}
-	}
+
+    if (spi_init() < 0)
+        return;
+
+    if (spi_enumerate_ports() < 0)
+        return;
+
+    for (nport = 0; nport < spi_nports; nport++) {
+        snprintf(port_desc, sizeof(port_desc), "%s %s, S/N %s (0x%04x:0x%04x)",
+            spi_ports[nport].manuf, spi_ports[nport].desc, spi_ports[nport].serial,
+            spi_ports[nport].vid, spi_ports[nport].pid);
+        pCallback(nport, port_desc, pData);
+    }
 }
 //RE Check: Opcodes functionally identical
 //Original passes arguments through eax
@@ -244,13 +248,12 @@ DLLEXPORT void __cdecl spifns_sequence_setvar_spishiftperiod(int nPeriod) {
 	//TODO
 	spifns_debugout("Delays set to %d\n",g_nSpiShiftPeriod=nPeriod);
 }
-//RE Check: Opcodes functionally identical, slightly re-ordered (but no impact on result)
-//Original passes arguments through eax
-//Compiled takes argument on stack. Maybe change it to __fastcall ?
+
 DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
     WINE_TRACE("(%d)\n", nPort);
+
 	spifns_close_port();
-	if (INVALID_HANDLE_VALUE==(g_hDevice=spifns_open_port(nPort)))
+    if (spifns_open_port(nPort) == INVALID_HANDLE_VALUE)
 		return false;
 	g_nSpiPort=nPort;
 	//TODO: Do this properly!
@@ -592,7 +595,9 @@ DLLEXPORT void __cdecl spifns_stream_close(spifns_stream_t stream)
 DLLEXPORT unsigned int __cdecl spifns_count_streams(void)
 {
     WINE_TRACE("()\n");
-    return g_nRef ? 1 : 0;
+    if (g_nRef)
+        return 1;
+    return 0;
 }
 
 DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount)

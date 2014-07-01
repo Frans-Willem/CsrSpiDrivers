@@ -14,9 +14,7 @@
 
 #include "spi.h"
 #include "hexdump.h"
-#ifdef WIN_USLEEP_REPLACEMENT
-#include "win_usleep.h"
-#endif
+#include "compat.h"
 
 /* SPI clock frequency. At maximum I got 15KB/s reads at 8 MHz SPI clock. At
  * 12MHz SPI clock it doesn't work. */
@@ -62,12 +60,19 @@ static struct spi_stats {
 } spi_stats;
 #endif
 
-char *ftdi_device_descs[] = {
-    "i:0x0403:0x6001",
-    "i:0x0403:0x6010",
-    "i:0x0403:0x6011",
-    "i:0x0403:0x6014",
-    NULL
+struct ftdi_device_ids {
+    uint16_t vid, pid;
+};
+
+#define SPI_MAX_PORTS   16
+struct spi_port spi_ports[SPI_MAX_PORTS];
+int spi_nports = 0;
+
+static struct ftdi_device_ids ftdi_device_ids[] = {
+    { 0x0403, 0x6001 },
+    { 0x0403, 0x6010 },
+    { 0x0403, 0x6011 },
+    { 0x0403, 0x6014 },
 };
 
 
@@ -224,16 +229,6 @@ static int spi_led_tick(int ticks)
 #endif
 
     return 0;
-}
-
-static int spi_init(void)
-{
-    /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
-    ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
-#ifdef SPI_STATS
-    spi_stats.misc_ticks++;
-#endif
-    return spi_set_pins(ftdi_pin_state);
 }
 
 int spi_xfer_begin(void)
@@ -472,10 +467,71 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
     return size;
 }
 
-int spi_open(void)
+int spi_init(void)
 {
-    char **dev_descp;
+    if (ftdicp == NULL) {
+        ftdicp = ftdi_new();
+        if (ftdicp == NULL) {
+            spi_err("FTDI: init failed");
+            return -1;
+        }
+    }
 
+    ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
+
+    return 0;
+}
+
+void spi_deinit(void)
+{
+    if (ftdicp != NULL) {
+        ftdi_free(ftdicp);
+        ftdicp = NULL;
+    }
+}
+
+int spi_enumerate_ports(void)
+{
+    int id;
+    struct ftdi_device_list *ftdevlist, *ftdev;
+
+    if (ftdicp == NULL) {
+        if (spi_init() < 0)
+            return -1;
+    }
+
+    spi_nports = 0;
+
+    for (id = 0; id < sizeof(ftdi_device_ids); id++) {
+        if (ftdi_usb_find_all(ftdicp, &ftdevlist, ftdi_device_ids[id].vid, ftdi_device_ids[id].pid) < 0) {
+            spi_err("FTDI: ftdi_usb_find_all() failed: %s", ftdi_get_error_string(ftdicp));
+            return -1;
+        }
+        for (ftdev = ftdevlist; ftdev->next; ftdev = ftdev->next) {
+            spi_ports[spi_nports].vid = ftdi_device_ids[id].vid;
+            spi_ports[spi_nports].pid = ftdi_device_ids[id].pid;
+
+            if (ftdi_usb_get_strings(ftdicp, ftdev->dev,
+                        spi_ports[spi_nports].manuf, sizeof(spi_ports[spi_nports].manuf),
+                        spi_ports[spi_nports].desc, sizeof(spi_ports[spi_nports].desc),
+                        spi_ports[spi_nports].serial, sizeof(spi_ports[spi_nports].serial)) < 0)
+            {
+                spi_err("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(ftdicp));
+                return -1;
+            }
+
+            spi_nports++;
+            if (spi_nports >= sizeof(spi_ports))
+                return 0;
+        }
+        ftdi_list_free(&ftdevlist);
+    }
+
+    return 0;
+}
+
+int spi_open(int nport)
+{
     WINE_TRACE("\n");
 
     spi_nrefs++;
@@ -485,13 +541,8 @@ int spi_open(void)
     }
 
     if (ftdicp == NULL) {
-        ftdicp = ftdi_new();
-        if (ftdicp == NULL) {
-            spi_err("FTDI: init failed");
-            goto init_err;
-        }
-
-        ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
+        if (spi_init() < 0)
+            return -1;
     }
 
 #ifdef SPI_STATS
@@ -500,17 +551,15 @@ int spi_open(void)
         WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
 #endif
 
-    for (dev_descp = ftdi_device_descs; *dev_descp; dev_descp++)  {
-        if (ftdi_usb_open_string(ftdicp, *dev_descp) == 0)
-            break;
-    }
-
-    if (!*dev_descp) {
-        WINE_ERR("FTDI: can't find FTDI device\n");
+    if (ftdi_usb_open_desc(ftdicp, spi_ports[nport].vid, spi_ports[nport].pid,
+                NULL, spi_ports[nport].serial) < 0)
+    {
+        spi_err("FTDI: ftdi_usb_open_desc() failed: %s", ftdi_get_error_string(ftdicp));
         goto init_err;
     }
 
-    WINE_TRACE("FTDI: using FTDI device: %s\n", *dev_descp);
+    WINE_TRACE("FTDI: using FTDI device: \"%s:%s:%s\"\n", spi_ports[nport].manuf,
+            spi_ports[nport].desc, spi_ports[nport].serial);
 
     spi_dev_open++;
 
@@ -541,20 +590,20 @@ int spi_open(void)
         goto init_err;
     }
 
-    if (spi_init() < 0)
+    /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
+    ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
+#ifdef SPI_STATS
+    spi_stats.misc_ticks++;
+#endif
+    if (spi_set_pins(ftdi_pin_state) < 0)
         goto init_err;
 
     return 0;
 
 init_err:
-    if (ftdicp != NULL) {
-        if (spi_dev_open > 0)
-            ftdi_usb_close(ftdicp);
-        spi_dev_open = 0;
-
-        ftdi_free(ftdicp);
-        ftdicp = NULL;
-    }
+    if (spi_dev_open > 0)
+        ftdi_usb_close(ftdicp);
+    spi_dev_open = 0;
 
     return -1;
 }
