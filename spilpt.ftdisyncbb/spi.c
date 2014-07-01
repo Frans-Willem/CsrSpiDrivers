@@ -95,9 +95,9 @@ static void spi_err(const char *fmt, ...) {
 
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
+    WINE_ERR("%s\n", buf);
 	if (spi_err_cb)
         spi_err_cb(buf);
-    WINE_ERR("%s\n", buf);
     va_end(args);
 }
 
@@ -467,6 +467,51 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
     return size;
 }
 
+int spi_enumerate_ports(void)
+{
+    int id, rc;
+    struct ftdi_device_list *ftdevlist, *ftdev;
+
+    spi_nports = 0;
+
+    for (id = 0; id < sizeof(ftdi_device_ids) / sizeof(ftdi_device_ids[0]); id++) {
+        WINE_TRACE("find all: 0x%04x:0x%04x\n", ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
+        rc = ftdi_usb_find_all(ftdicp, &ftdevlist, ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
+        if (rc < 0) {
+            spi_err("FTDI: ftdi_usb_find_all() failed: %s", ftdi_get_error_string(ftdicp));
+            return -1;
+        }
+        if (rc == 0)
+            continue;
+
+        WINE_TRACE("devlist=%p\n", ftdevlist);
+        for (ftdev = ftdevlist; ftdev; ftdev = ftdev->next) {
+            WINE_TRACE("dev=%p\n", ftdev);
+
+            spi_ports[spi_nports].vid = ftdi_device_ids[id].vid;
+            spi_ports[spi_nports].pid = ftdi_device_ids[id].pid;
+
+            if (ftdi_usb_get_strings(ftdicp, ftdev->dev,
+                        spi_ports[spi_nports].manuf, sizeof(spi_ports[spi_nports].manuf),
+                        spi_ports[spi_nports].desc, sizeof(spi_ports[spi_nports].desc),
+                        spi_ports[spi_nports].serial, sizeof(spi_ports[spi_nports].serial)) < 0)
+            {
+                spi_err("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(ftdicp));
+                return -1;
+            }
+            WINE_TRACE("manuf=%s, desc=%s, serial=%s", spi_ports[spi_nports].manuf,
+                    spi_ports[spi_nports].desc, spi_ports[spi_nports].serial);
+
+            spi_nports++;
+            if (spi_nports >= SPI_MAX_PORTS)
+                return 0;
+        }
+        ftdi_list_free(&ftdevlist);
+    }
+
+    return 0;
+}
+
 int spi_init(void)
 {
     if (ftdicp == NULL) {
@@ -479,6 +524,11 @@ int spi_init(void)
 
     ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
 
+    if (spi_enumerate_ports() < 0) {
+        spi_err("FTDI: port enumeration failed");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -490,49 +540,9 @@ void spi_deinit(void)
     }
 }
 
-int spi_enumerate_ports(void)
-{
-    int id;
-    struct ftdi_device_list *ftdevlist, *ftdev;
-
-    if (ftdicp == NULL) {
-        if (spi_init() < 0)
-            return -1;
-    }
-
-    spi_nports = 0;
-
-    for (id = 0; id < sizeof(ftdi_device_ids); id++) {
-        if (ftdi_usb_find_all(ftdicp, &ftdevlist, ftdi_device_ids[id].vid, ftdi_device_ids[id].pid) < 0) {
-            spi_err("FTDI: ftdi_usb_find_all() failed: %s", ftdi_get_error_string(ftdicp));
-            return -1;
-        }
-        for (ftdev = ftdevlist; ftdev->next; ftdev = ftdev->next) {
-            spi_ports[spi_nports].vid = ftdi_device_ids[id].vid;
-            spi_ports[spi_nports].pid = ftdi_device_ids[id].pid;
-
-            if (ftdi_usb_get_strings(ftdicp, ftdev->dev,
-                        spi_ports[spi_nports].manuf, sizeof(spi_ports[spi_nports].manuf),
-                        spi_ports[spi_nports].desc, sizeof(spi_ports[spi_nports].desc),
-                        spi_ports[spi_nports].serial, sizeof(spi_ports[spi_nports].serial)) < 0)
-            {
-                spi_err("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(ftdicp));
-                return -1;
-            }
-
-            spi_nports++;
-            if (spi_nports >= sizeof(spi_ports))
-                return 0;
-        }
-        ftdi_list_free(&ftdevlist);
-    }
-
-    return 0;
-}
-
 int spi_open(int nport)
 {
-    WINE_TRACE("\n");
+    WINE_TRACE("(%d)\n", nport);
 
     spi_nrefs++;
 
@@ -545,6 +555,11 @@ int spi_open(int nport)
             return -1;
     }
 
+    if (spi_nports == 0 || nport < spi_nports - 1) {
+        spi_err("No FTDI device found");
+        goto open_err;
+    }
+
 #ifdef SPI_STATS
     memset(&spi_stats, 0, sizeof(spi_stats));
     if (gettimeofday(&spi_stats.tv_open_begin, NULL) < 0)
@@ -555,7 +570,7 @@ int spi_open(int nport)
                 NULL, spi_ports[nport].serial) < 0)
     {
         spi_err("FTDI: ftdi_usb_open_desc() failed: %s", ftdi_get_error_string(ftdicp));
-        goto init_err;
+        goto open_err;
     }
 
     WINE_TRACE("FTDI: using FTDI device: \"%s:%s:%s\"\n", spi_ports[nport].manuf,
@@ -565,29 +580,29 @@ int spi_open(int nport)
 
     if (ftdi_usb_reset(ftdicp) < 0) {
         spi_err("FTDI: reset failed: %s", ftdi_get_error_string(ftdicp));
-        goto init_err;
+        goto open_err;
     }
 
     if (ftdi_usb_purge_buffers(ftdicp) < 0) {
         spi_err("FTDI: purge buffers failed: %s", ftdi_get_error_string(ftdicp));
-        goto init_err;
+        goto open_err;
     }
 
     /* See FT232R datasheet, section "Baud Rate Generator" and AppNote
      * AN_232R-01, section "Synchronous Bit Bang Mode" */
     if (ftdi_set_baudrate(ftdicp, (SPI_CLOCK_FREQ * 2) / 16) < 0) {
         spi_err("FTDI: set baudrate failed: %s", ftdi_get_error_string(ftdicp));
-        goto init_err;
+        goto open_err;
     }
 
     if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
         spi_err("FTDI: reset bitmode failed: %s", ftdi_get_error_string(ftdicp));
-        goto init_err;
+        goto open_err;
     }
 
     if (ftdi_set_bitmode(ftdicp, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
         spi_err("FTDI: set synchronous bitbang mode failed: %s", ftdi_get_error_string(ftdicp));
-        goto init_err;
+        goto open_err;
     }
 
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
@@ -596,11 +611,11 @@ int spi_open(int nport)
     spi_stats.misc_ticks++;
 #endif
     if (spi_set_pins(ftdi_pin_state) < 0)
-        goto init_err;
+        goto open_err;
 
     return 0;
 
-init_err:
+open_err:
     if (spi_dev_open > 0)
         ftdi_usb_close(ftdicp);
     spi_dev_open = 0;

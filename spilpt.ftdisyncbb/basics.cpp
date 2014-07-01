@@ -158,7 +158,7 @@ DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
     if (spi_init() < 0)
         return INVALID_HANDLE_VALUE;
 
-    if (spi_open(nPort) < 0)
+    if (spi_open(nPort - 1) < 0)
         return INVALID_HANDLE_VALUE;
 
     /* Return some dummy handle value */
@@ -222,7 +222,7 @@ DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
 }
 
 DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
-    char port_desc[512];
+    char port_desc[128];
     int nport;
 
     WINE_TRACE("\n");
@@ -230,14 +230,11 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
     if (spi_init() < 0)
         return;
 
-    if (spi_enumerate_ports() < 0)
-        return;
-
     for (nport = 0; nport < spi_nports; nport++) {
-        snprintf(port_desc, sizeof(port_desc), "%s %s, S/N %s (0x%04x:0x%04x)",
-            spi_ports[nport].manuf, spi_ports[nport].desc, spi_ports[nport].serial,
-            spi_ports[nport].vid, spi_ports[nport].pid);
-        pCallback(nport, port_desc, pData);
+        snprintf(port_desc, sizeof(port_desc), "%d: %s %s",
+            nport + 1, spi_ports[nport].desc, spi_ports[nport].serial);
+        /* Ports start with 1 in spilpt */
+        pCallback(nport + 1, port_desc, pData);
     }
 }
 //RE Check: Opcodes functionally identical
@@ -399,7 +396,7 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
 			switch (i) {
 			case VARLIST_SPISPORT:{
 				if (!spifns_sequence_setvar_spiport(nValue)) {
-					const char szError[]="Couldn't find LPT port";
+					const char szError[]="Couldn't find SPI port";
 					memcpy(g_szErrorString,szError,sizeof(szError));
 					return 1;
 				}

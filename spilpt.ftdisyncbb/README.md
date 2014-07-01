@@ -8,7 +8,7 @@ that use API version 1.4:
 
 Example of CSR packages using API version 1.3:
 
-* CSR BlueSuite 2.3
+* CSR BlueSuite 2.1, 2.3
 * CSR BlueLab 4.1
 
 You can check the API version of CSR package by inspecting original spilpt.dll
@@ -115,6 +115,11 @@ resistors (220 Ohm works fine) to the appropriate FTDI
 pins. Wire LEDs anodes to FTDI VCCIO or 3V3OUT pin.
 
 
-## TODO
+## BUGS
 
-* Honor *g_nSpiShiftPeriod*
+* Driver sometimes fails with error "Unable to start read (invalid control
+  data)". The problem is clearly in SPI communication, but I still can not
+  figure out the cause. Anyway, restarting operation helps.
+* Driver for API 1.4 does not support more than one FTDI device connected to
+  the computer at the same time. This is due to a limited stream API
+  implementation.

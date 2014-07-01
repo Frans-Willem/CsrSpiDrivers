@@ -48,7 +48,7 @@ all: $(OBJDIR)/spilpt.dll
 endif
 
 $(OBJDIR)/basics.o: spi.h basics.h spifns.h
-$(OBJDIR)/spi.o: spi.h win_usleep.h
+$(OBJDIR)/spi.o: spi.h compat.h
 $(OBJDIR)/hexdump.o: hexdump.h
 
 $(OBJDIR)/spilpt.dll: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/compat.o $(LIBRARY_DEF)

@@ -13,10 +13,10 @@ zip: all
 	done; \
 	zip -9r spilpt-$$version.zip spilpt-$$version
 
-spilpt-1.4-win32/spilpt.dll:
+spilpt-1.4-win32/spilpt.dll::
 	make -f Makefile.mingw all
 
-spilpt-1.4-wine/spilpt.dll.so:
+spilpt-1.4-wine/spilpt.dll.so::
 	make -f Makefile.wine all
 
 clean:
