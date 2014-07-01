@@ -64,8 +64,8 @@ Download precompiled libusb for windows from
 http://sourceforge.net/projects/libusb/files/ and extract it to the libusb
 directory:
 
-    wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19-rc1-win.7z
-    7z x -olibusb libusb-1.0.19-rc1-win.7z
+    wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.18/libusb-1.0.18-win.7z
+    7z x -olibusb libusb-1.0.18-win.7z
 
 Download precompiled liftdi for windows from
 http://sourceforge.net/projects/picusb/files/ and extract it:
