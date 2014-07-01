@@ -68,12 +68,11 @@ directory:
     7z x -olibusb libusb-1.0.19-rc1-win.7z
 
 Download precompiled liftdi for windows from
-https://code.google.com/p/picusb/downloads/list and extract it to the libftdi1
-directory:
+http://sourceforge.net/projects/picusb/files/ and extract it:
 
-    wget https://picusb.googlecode.com/files/libftdi1-1.0_devkit_mingw32_17Feb2013.zip
-    unzip libftdi1-1.0_devkit_mingw32_17Feb2013.zip
-    ln -s libftdi1-1.0_devkit_mingw32_17Feb2013 libftdi1
+    wget http://sourceforge.net/projects/picusb/files/libftdi1-1.1_devkit_x86_x64_21Feb2014.zip
+    unzip libftdi1-1.1_devkit_x86_x64_21Feb2014.zip
+    ln -s libftdi1-1.1_devkit_x86_x64_21Feb2014 libftdi1
 
 Build with command:
 

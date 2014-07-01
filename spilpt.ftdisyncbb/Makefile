@@ -4,6 +4,7 @@ all: spilpt-1.4-win32/spilpt.dll spilpt-1.4-wine/spilpt.dll.so
 
 zip: all
 	version=`date '+%Y%m%d'`; \
+	rm -rf spilpt-$$version.zip spilpt-$$version; \
 	mkdir -p spilpt-$$version; \
 	for p in spilpt-1.4-win32/spilpt.dll spilpt-1.3-win32/spilpt.dll \
 		spilpt-1.4-wine/spilpt.dll.so spilpt-1.3-wine/spilpt.dll.so; \

@@ -9,7 +9,7 @@ CFLAGS+=	-Wall
 LDFLAGS+=	-shared -static-libgcc
 
 CPPFLAGS+=	-I$(LIBFTDI)/include/libftdi1
-LDLIBS+=	$(LIBFTDI)/lib/libftdi1.a
+LDLIBS+=	$(LIBFTDI)/lib32/libftdi1.a
 
 CPPFLAGS+=	-I$(LIBUSB)/include
 LDLIBS+=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
