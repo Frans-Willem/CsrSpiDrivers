@@ -476,6 +476,9 @@ int spi_init(void)
             return -1;
         }
     }
+
+    ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
+
     return 0;
 }
 
@@ -541,8 +544,6 @@ int spi_open(int nport)
         if (spi_init() < 0)
             return -1;
     }
-
-    ftdi_set_interface(ftdicp, INTERFACE_A); /* XXX for multichannel chips */
 
 #ifdef SPI_STATS
     memset(&spi_stats, 0, sizeof(spi_stats));
