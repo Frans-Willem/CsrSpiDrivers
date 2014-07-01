@@ -40,7 +40,7 @@ endif
 
 all: $(OBJDIR)/spilpt.dll.so
 
-$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/wine_main.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o spilpt.dll-$(SPIAPI).spec
+$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o spilpt.dll-$(SPIAPI).spec
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 install:
@@ -48,9 +48,9 @@ install:
 
 endif
 
-basics.o: spi.h basics.h spifns.h
-spi.o: spi.h
-hexdump.o: hexdump.h
+$(OBJDIR)/basics.o: spi.h basics.h spifns.h
+$(OBJDIR)/spi.o: spi.h
+$(OBJDIR)/hexdump.o: hexdump.h
 
 $(OBJDIR)/%.o: %.c
 	mkdir -p $(OBJDIR)

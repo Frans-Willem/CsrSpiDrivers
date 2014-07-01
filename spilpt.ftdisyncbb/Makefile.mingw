@@ -16,9 +16,9 @@ LDLIBS+=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
 
 # Doesn't compile yet
 #CPPFLAGS+=	-DSPI_STATS
-CPPFLAGS+=	-DWIN_USLEEP_REPLACEMENT
+CPPFLAGS+=	-DCOMPAT_USLEEP
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
-CPPFLAGS+=	-DMINGW_MS_VSNPRINTF_WORKAROUND
+CPPFLAGS+=	-DCOMPAT_MINGW_MS_VSNPRINTF
 
 MAKEFILE=	$(firstword $(MAKEFILE_LIST))
 
@@ -47,11 +47,11 @@ all: $(OBJDIR)/spilpt.dll
 
 endif
 
-basics.o: spi.h basics.h spifns.h
-spi.o: spi.h win_usleep.h
-hexdump.o: hexdump.h
+$(OBJDIR)/basics.o: spi.h basics.h spifns.h
+$(OBJDIR)/spi.o: spi.h win_usleep.h
+$(OBJDIR)/hexdump.o: hexdump.h
 
-$(OBJDIR)/spilpt.dll: $(OBJDIR)/wine_main.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/win_usleep.o $(OBJDIR)/ms_vsnprintf.o $(LIBRARY_DEF)
+$(OBJDIR)/spilpt.dll: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/compat.o $(LIBRARY_DEF)
 	mkdir -p $(OBJDIR)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
