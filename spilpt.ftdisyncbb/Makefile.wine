@@ -8,13 +8,13 @@ LD=	wineg++
 CFLAGS=	-Wall -m32 -fPIC -DPIC
 CPPFLAGS+=	-D__WINESRC__
 CPPFLAGS+=	-DSPI_STATS
-LDFLAGS=	-shared -m32
+LDFLAGS=	-shared -m32 -static-libgcc
 # 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
 # Direct it to the 32bit libraries.
 LDFLAGS+=	-L$(WINE_LIB) -L$(I386_LIB) -L$(STDCXX_LIB)
 #LDLIBS=	-lftdi -lusb
 # Build with static versions of libraries
-LDLIBS+=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
+LDLIBS+=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a $(STDCXX_LIB)/libstdc++.a
 
 MAKEFILE=	$(firstword $(MAKEFILE_LIST))
 
