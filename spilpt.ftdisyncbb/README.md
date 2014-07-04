@@ -1,3 +1,9 @@
+# CSR SPI programmer
+
+This is the driver for SPI programmer based on FTDI FT232R or later chip using
+synchronous bitbang mode. Currently it supports running CSR tools (such as
+BlueLab or BlueSuite) under Windows or under Linux with Wine.
+
 ## CSR SPI API versions
 
 This DLL implements CSR SPI API version 1.3 or 1.4, which is choosen at
@@ -84,12 +90,13 @@ Build with command:
    *C:\Program Files\CSR\BlueSuite\*);
 2. Copy appropriate version of spilpt.dll from spilpt-1.4-win32 or
    spilpt-1.3-win32 directory to your application directory;
-3. Download and run Zadig from http://zadig.akeo.ie/ . In Options menu choose
-   "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
-   choose libusbK driver, press "Replace driver" or "Install driver".  This
-   will install generic libusb-compatible driver for your FTDI chip. There is a
-   nice tutorial on running libftdi programs on Windows here:
-   http://embedded-funk.net/running-libftdi-under-windows/ ;
+3. Connect Your FTDI adapter to computer. Download and run Zadig from
+   http://zadig.akeo.ie/. In Options menu choose "List all devices", choose
+   Your FTDI device ("FT232R USB UART" or similar), choose libusbK driver,
+   press "Replace driver" or "Install driver".  This will install generic
+   libusb-compatible driver for your FTDI chip. There is a nice tutorial on
+   running libftdi programs on Windows here:
+   http://embedded-funk.net/running-libftdi-under-windows/;
 4. Run your CSR apps.
 
 ## Pinouts
