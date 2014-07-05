@@ -44,7 +44,7 @@ $(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o 
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 install:
-	install -m 0644 -o root -g root $(SPIAPI)/spilpt.dll.so $(WINE_LIB)/spilpt.dll.so
+	install -m 0644 -o root -g root $(OBJDIR)/spilpt.dll.so $(WINE_LIB)/spilpt.dll.so
 
 endif
 
