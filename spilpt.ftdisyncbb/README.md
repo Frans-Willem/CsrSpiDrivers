@@ -1,3 +1,9 @@
+# CSR SPI programmer
+
+This is the driver for SPI programmer based on FTDI FT232R or later chip using
+synchronous bitbang mode. Currently it supports running CSR tools (such as
+BlueLab or BlueSuite) under Windows or under Linux with Wine.
+
 ## CSR SPI API versions
 
 This driver implements CSR SPI API version 1.3 and 1.4, different DLLs built
@@ -130,7 +136,7 @@ Build with command:
    choose libusbK driver, press "Replace driver" or "Install driver".  This
    will install generic libusb-compatible driver for your FTDI chip. There is a
    nice tutorial on running libftdi programs on Windows here:
-   http://embedded-funk.net/running-libftdi-under-windows/ ;
+   http://embedded-funk.net/running-libftdi-under-windows/;
 6. Run your CSR apps.
 
 
@@ -145,16 +151,28 @@ Build with command:
 
 
 ## Thanks
-* This project is heavily based on Frans-Willem Hardijzer's (reverse-engineered spilpt.dll drivers)[https://github.com/Frans-Willem/CsrSpiDrivers].
-* Thanks *unicorn* from http://www.nebo-forum.kiev.ua/ for the idea of a DLL for wine.
+* This project is heavily based on Frans-Willem Hardijzer's (reverse-engineered
+  spilpt.dll drivers)[https://github.com/Frans-Willem/CsrSpiDrivers].
+* Thanks to *unicorn* from http://www.nebo-forum.kiev.ua/ for the idea of a DLL
+  for wine.
 
 
 ## Related projects
-* (LPT programmer and general info)[http://byron76.blogspot.com/] by Robin Gross;
-* (Similar SPILPT driver)[http://www.nebo-forum.kiev.ua/viewtopic.php?p=58291#p58291] for Wine under Linux by *unicorn* using FTDI MPSSE;
-* (Arduino SPILPT driver)[https://github.com/Frans-Willem/CsrSpiDrivers] by Frans-Willem Hardijzer - for Windows;
-* (USBSPI programmer based on CSR chip using original formware)[http://jernej87.blogspot.com/] by Jernej Škrabec:
- * (Using USBSPI on Linux)[http://jernej87.blogspot.com/2012/10/dumping-bluecore4-firmware-on-linux.html];
- * (USBSPI protocol analisys)[http://jernej87.blogspot.com/2012/10/csrs-usb-programmer-protocol-analysis.html];
-* (USBSPI programmer based on Stellaris Launchpad)[https://github.com/Frans-Willem/CsrUsbSpiDeviceRE] by Frans-Willem Hardijzer - for Windows;
- * (Port to Tiva C Launchpad)[https://github.com/raplin/CsrUsbSpiDeviceRE] by Richard Aplin;
+* (LPT programmer and general info)[http://byron76.blogspot.com/] by Robin
+  Gross;
+* (Similar SPILPT
+  driver)[http://www.nebo-forum.kiev.ua/viewtopic.php?p=58291#p58291] for Wine
+  under Linux by *unicorn* using FTDI MPSSE;
+* (Arduino SPILPT driver)[https://github.com/Frans-Willem/CsrSpiDrivers] by
+  Frans-Willem Hardijzer - for Windows;
+* (USBSPI programmer based on CSR chip using original
+  formware)[http://jernej87.blogspot.com/] by Jernej Škrabec:
+ * (Using USBSPI on
+   Linux)[http://jernej87.blogspot.com/2012/10/dumping-bluecore4-firmware-on-linux.html];
+ * (USBSPI protocol
+   analisys)[http://jernej87.blogspot.com/2012/10/csrs-usb-programmer-protocol-analysis.html];
+* (USBSPI programmer based on Stellaris
+  Launchpad)[https://github.com/Frans-Willem/CsrUsbSpiDeviceRE] by Frans-Willem
+  Hardijzer - for Windows;
+ * (Port to Tiva C Launchpad)[https://github.com/raplin/CsrUsbSpiDeviceRE] by
+   Richard Aplin;
