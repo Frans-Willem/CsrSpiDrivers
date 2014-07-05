@@ -77,7 +77,7 @@ where *SPI_API_version* is one of "1.3" or "1.4".
 
 ## Pinout
 
-You can build a simple programmer using popular FTDI adapter borads. Pinout
+You can build a simple programmer using popular FTDI adapter boards. Pinout
 specified in spi.c file. Change it at will. Beware that popular FTDI adapters
 provide 5V or 3V3 I/O levels while CSR chips require 3V3 or 1V8 I/O level. You
 may supply appropriate VCCIO to FTDI chip or use logic level converter if
@@ -131,12 +131,12 @@ Build with command:
 3. Copy appropriate version of spilpt.dll from spilpt-1.4-win32 or
    spilpt-1.3-win32 directory to your application directory;
 4. Connect Your FTDI device to computer;
-5. Download and run Zadig from http://zadig.akeo.ie/ . In Options menu choose
+5. Download and run Zadig from http://zadig.akeo.ie/. In Options menu choose
    "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
    choose libusbK driver, press "Replace driver" or "Install driver".  This
    will install generic libusb-compatible driver for your FTDI chip. There is a
-   nice tutorial on running libftdi programs on Windows here:
-   http://embedded-funk.net/running-libftdi-under-windows/;
+   nice [tutorial](http://embedded-funk.net/running-libftdi-under-windows/) on
+   running libftdi programs on Windows;
 6. Run your CSR apps.
 
 
