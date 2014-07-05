@@ -151,28 +151,28 @@ Build with command:
 
 
 ## Thanks
-* This project is heavily based on Frans-Willem Hardijzer's (reverse-engineered
-  spilpt.dll drivers)[https://github.com/Frans-Willem/CsrSpiDrivers].
+* This project is heavily based on Frans-Willem Hardijzer's [reverse-engineered
+  spilpt.dll drivers](https://github.com/Frans-Willem/CsrSpiDrivers).
 * Thanks to *unicorn* from http://www.nebo-forum.kiev.ua/ for the idea of a DLL
   for wine.
 
 
 ## Related projects
-* (LPT programmer and general info)[http://byron76.blogspot.com/] by Robin
+* [LPT programmer and general info](http://byron76.blogspot.com/) by Robin
   Gross;
-* (Similar SPILPT
-  driver)[http://www.nebo-forum.kiev.ua/viewtopic.php?p=58291#p58291] for Wine
+* [Similar SPILPT
+  driver](http://www.nebo-forum.kiev.ua/viewtopic.php?p=58291#p58291) for Wine
   under Linux by *unicorn* using FTDI MPSSE;
-* (Arduino SPILPT driver)[https://github.com/Frans-Willem/CsrSpiDrivers] by
+* [Arduino SPILPT driver](https://github.com/Frans-Willem/CsrSpiDrivers) by
   Frans-Willem Hardijzer - for Windows;
-* (USBSPI programmer based on CSR chip using original
-  formware)[http://jernej87.blogspot.com/] by Jernej Škrabec:
- * (Using USBSPI on
-   Linux)[http://jernej87.blogspot.com/2012/10/dumping-bluecore4-firmware-on-linux.html];
- * (USBSPI protocol
-   analisys)[http://jernej87.blogspot.com/2012/10/csrs-usb-programmer-protocol-analysis.html];
-* (USBSPI programmer based on Stellaris
-  Launchpad)[https://github.com/Frans-Willem/CsrUsbSpiDeviceRE] by Frans-Willem
+* [USBSPI programmer based on CSR chip using original
+  formware](http://jernej87.blogspot.com/) by Jernej Škrabec:
+ * [Using USBSPI on
+   Linux](http://jernej87.blogspot.com/2012/10/dumping-bluecore4-firmware-on-linux.html);
+ * [USBSPI protocol
+   analisys](http://jernej87.blogspot.com/2012/10/csrs-usb-programmer-protocol-analysis.html);
+* [USBSPI programmer based on Stellaris
+  Launchpad](https://github.com/Frans-Willem/CsrUsbSpiDeviceRE) by Frans-Willem
   Hardijzer - for Windows;
- * (Port to Tiva C Launchpad)[https://github.com/raplin/CsrUsbSpiDeviceRE] by
+ * [Port to Tiva C Launchpad](https://github.com/raplin/CsrUsbSpiDeviceRE) by
    Richard Aplin;
