@@ -21,20 +21,28 @@
 #define SPI_CLOCK_FREQ    8000000
 #define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
 
+/*
+ * FTDI bitbang pins:
+ * D0 - TXD
+ * D1 - RXD
+ * D2 - RTS#
+ * D3 - CTS#
+ * D4 - DTR#
+ * D5 - DSR#
+ * D6 - DCD#
+ * D7 - RI#
+ */
+
 /* Pinout. Change it at will. Beware that FTDI adapters provide 5V or 3V3 I/O
  * levels, but CSR chips require 3V3 or 1V8 I/O level. Use logic level
  * converter if levels doesn't match. */
-#define PIN_MOSI    (1 << 0)    /* FT232RL pin 1, signal TXD AKA D0, output */
+#define PIN_nCS     (1 << 0)    /* FT232RL pin 1, signal TXD AKA D0, output */
+#define PIN_CLK     (1 << 4)    /* FT232RL pin 2, signal DTR# AKA D4, output */
+#define PIN_MOSI    (1 << 2)    /* FT232RL pin 3, signal RTS# AKA D2, output */
 #define PIN_MISO    (1 << 1)    /* FT232RL pin 5, signal RXD AKA D1, input */
-#define PIN_CLK     (1 << 2)    /* FT232RL pin 3, signal RTS AKA D2, output */
-#if 0
-/* Multiplexing is not implemented. */
-#define PIN_MUL     (1 << 3)    /* FT232RL pin 11, signal CTS AKA D3, output */
-#endif
-#define PIN_nCS      (1 << 4)    /* FT232RL pin 2, signal DTR AKA D4, output */
-#define PIN_nLED_WR  (1 << 7)    /* FT232RL pin 6, signal RI AKA D7, output */
-#define PIN_nLED_RD  (1 << 5)    /* FT232RL pin 9, signal DSR AKA D5, output */
-#define PINS_OUTPUT (PIN_MOSI | PIN_CLK | /*PIN_MUL |*/ PIN_nCS | PIN_nLED_WR | PIN_nLED_RD)
+#define PIN_nLED_RD (1 << 5)    /* FT232RL pin 9, signal DSR# AKA D5, output */
+#define PIN_nLED_WR (1 << 6)    /* FT232RL pin 10, signal DCD# AKA D6, output */
+#define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS | PIN_nLED_RD | PIN_nLED_WR)
 
 static int spi_dev_open = 0;
 static int spi_nrefs = 0;
