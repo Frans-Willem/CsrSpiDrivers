@@ -76,10 +76,10 @@ struct spi_port spi_ports[SPI_MAX_PORTS];
 int spi_nports = 0;
 
 static struct ftdi_device_ids ftdi_device_ids[] = {
-    { 0x0403, 0x6001 },
-    { 0x0403, 0x6010 },
-    { 0x0403, 0x6011 },
-    { 0x0403, 0x6014 },
+    { 0x0403, 0x6001 }, /* FT232R */
+    { 0x0403, 0x6010 }, /* FT2232H/C/D */
+    { 0x0403, 0x6011 }, /* FT4232H */
+    { 0x0403, 0x6014 }, /* FT232H */
 };
 
 
