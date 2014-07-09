@@ -230,9 +230,21 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
     if (spi_init() < 0)
         return;
 
+    if (spi_nports == 0) {
+        /* Some apps, CSR86XX ROM ConfigTool 3.0.48 in particular, crash when
+         * no ports present. Return some dummy port for it if we can't find
+         * any. */
+        WINE_TRACE("No FTDI device found, calling port enum callback "
+                "(1, \"No FTDI device found\", %p)\n", pData);
+        pCallback(1, "No FTDI device found", pData);
+        return;
+    }
+
     for (nport = 0; nport < spi_nports; nport++) {
         snprintf(port_desc, sizeof(port_desc), "%d: %s %s",
             nport + 1, spi_ports[nport].desc, spi_ports[nport].serial);
+        WINE_TRACE("Calling port enum callback (%d, \"%s\", %p)\n",
+                nport + 1, port_desc, pData);
         /* Ports start with 1 in spilpt */
         pCallback(nport + 1, port_desc, pData);
     }

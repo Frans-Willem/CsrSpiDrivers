@@ -491,10 +491,7 @@ int spi_enumerate_ports(void)
         if (rc == 0)
             continue;
 
-        WINE_TRACE("devlist=%p\n", ftdevlist);
         for (ftdev = ftdevlist; ftdev; ftdev = ftdev->next) {
-            WINE_TRACE("dev=%p\n", ftdev);
-
             spi_ports[spi_nports].vid = ftdi_device_ids[id].vid;
             spi_ports[spi_nports].pid = ftdi_device_ids[id].pid;
 
@@ -506,7 +503,8 @@ int spi_enumerate_ports(void)
                 spi_err("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(ftdicp));
                 return -1;
             }
-            WINE_TRACE("manuf=%s, desc=%s, serial=%s", spi_ports[spi_nports].manuf,
+            WINE_TRACE("dev=%p, manuf=\"%s\", desc=\"%s\", serial=\"%s\"\n",
+                    ftdev, spi_ports[spi_nports].manuf,
                     spi_ports[spi_nports].desc, spi_ports[spi_nports].serial);
 
             spi_nports++;
