@@ -1,10 +1,62 @@
-# CSR SPI programmer
+# CSR BlueCore SPI USB programmer
 
-This is the driver for SPI programmer based on FTDI FT232R or later chip using
-synchronous bitbang mode. Currently it supports running CSR tools (such as
-BlueLab or BlueSuite) under Windows or under Linux with Wine.
+This is the driver for CSR BlueCore chips USB SPI programmer, based on FTDI USB
+to Serial converter chip. It's written for use with CSR tools (such as BlueLab
+or BlueSuite) under Windows or under Linux with [Wine](http://www.winehq.org/).
+It works by replacing SPI LPT programmer driver, spilpt.dll, in CSR
+applications.
 
-## CSR SPI API versions
+Advantages:
+* Works on Linux and Windows;
+* Does not require LPT port;
+* Cheap accessible hardware (search for "FT232RL module" on Ebay).
+
+Disadvantages:
+* Not very fast (70 seconds to read/write 1MB flash);
+* See [BUGS](#bugs) section.
+
+Programmer hardware can be made using simple FTDI adapter or breakout board.
+Alternately You may build dedicated programmer using the included schematic.
+
+## Hardware
+
+### Supported FTDI chips
+
+Driver is using FTDI syncronous bitbang mode for SPI, thus it should work with
+any of the following FTDI chips:
+
+* FT232R
+* FT232H
+* FT2232H/C/D
+* FT4232H
+
+
+### Using FTDI adapter as a programmer
+
+You can build a simple programmer using popular FTDI adapter boards. Pinout
+specified in spi.c file. Change it at will. Beware that FTDI adapters
+provide 5V or 3V3 I/O levels while CSR chips require 3V3 or 1V8 I/O level. You
+may supply appropriate VCCIO to FTDI chip or use logic level converter if
+levels don't match. See description of VCCIO pin in FTDI chip datasheet for
+details.
+
+| Signal | FT232RL pin | FTDI pin name | FTDI GPIO pin | CSR pin |
+| ------ | ----------- | ------------- | ------------- | ------- |
+| CS# | 1 | TXD | D0 | SPI_CS# |
+| CLK | 2 | DTR# | D4 | SPI_CLK |
+| MOSI | 5 | RXD | D1 | SPI_MOSI |
+| MISO | 11 | CTS# | D3 | SPI_MISO |
+| LED_RD | 9 | DSR# | D5 | -- |
+| LED_WR | 10 | DCD# | D6 | -- |
+
+LED connections are optional. Wire LEDs cathodes through the current limiting
+resistors (330 Ohm works fine) to the appropriate FTDI
+pins. Wire LEDs anodes to FTDI 3V3 pin.
+
+
+## Software
+
+### CSR SPI API versions
 
 This driver implements CSR SPI API version 1.3 and 1.4, different DLLs built
 for each API version during a compile time. Example of CSR packages that use
@@ -30,9 +82,53 @@ Old versions of BlueSuite can be found at
 https://www.csrsupport.com/PCSWArchive. Access to these pages requires
 registration.
 
-## Building for Wine
 
-### Building DLL on 32-bit Debian/Ubuntu Linux
+### Installing prebuilt drivers
+
+#### Installing on Ubuntu/Debian Linux
+
+Install Wine:
+
+    sudo apt-get install wine
+
+Install CSR BlueSuite in Wine. Find all instances of spilpt.dll installed and
+move them out of the way:
+
+    find ~/.wine -iname spilpt.dll -execdir mv {} {}.orig \;
+
+Copy approproate version of the .dll.so file to Wine system directory:
+
+   sudo cp -p spilpt-<SPI_API_version>-wine/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
+
+where `<SPI_API_version>` is one of `1.3` or `1.4` (see [CSR SPI API
+versions](#csr-spi-api-versions)). Alternately You can specify location of the
+.dll.so file in WINEDLLPATH environment variable, see wine(1) man page for
+details.
+
+Run CSR apps.
+
+
+#### Installing on Windows
+
+1. Install CSR package such as BlueSuite;
+2. Make a backup of spilpt.dll in your application directory (e.g. in
+   `C:\Program Files (x86)\CSR\BlueSuite 2.5.8\`);
+3. Copy appropriate version of spilpt.dll from spilpt-1.4-win32 or
+   spilpt-1.3-win32 directory (see [CSR SPI API
+   versions](#csr-spi-api-versions)) to your application directory;
+4. Connect Your FTDI device to computer;
+5. Download and run Zadig from http://zadig.akeo.ie/. In Options menu choose
+   "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
+   choose libusbK driver, press "Replace driver" or "Install driver".  This
+   will install generic libusb-compatible driver for your FTDI chip. There is a
+   nice [tutorial](http://embedded-funk.net/running-libftdi-under-windows/) on
+   running libftdi programs on Windows;
+6. Run your CSR apps.
+
+
+### Building for Wine
+
+#### Building Wine DLL on 32-bit Debian/Ubuntu Linux
 
 Install build tools
 
@@ -47,7 +143,7 @@ Build with command:
     make -f Makefile.wine all
 
 
-### Building DLL on 64-bit Debian/Ubuntu Linux
+#### Building Wine DLL on 64-bit Debian/Ubuntu Linux
 
 Install build tools
 
@@ -61,45 +157,26 @@ Build with command:
 
     make -f Makefile.wine all
 
+#### Installing
 
-### Installing
-
-Install CSR BlueSuite in wine. Find all instances of spilpt.dll installed and
+Install CSR BlueSuite in Wine. Find all instances of spilpt.dll installed and
 move them out of the way:
 
     find ~/.wine -iname spilpt.dll -execdir mv {} {}.orig \;
 
-Install wine dll into the wine libraries directory:
+Install Wine dll into the Wine libraries directory:
 
     sudo make -f Makefile.wine SPIAPI=<SPI_API_version> install
 
-where *SPI_API_version* is one of "1.3" or "1.4".
-
-## Pinout
-
-You can build a simple programmer using popular FTDI adapter boards. Pinout
-specified in spi.c file. Change it at will. Beware that popular FTDI adapters
-provide 5V or 3V3 I/O levels while CSR chips require 3V3 or 1V8 I/O level. You
-may supply appropriate VCCIO to FTDI chip or use logic level converter if
-levels don't match. See description of VCCIO pin in FTDI chip datasheet for
+where `<SPI_API_version>` is one of `1.3` or `1.4` (see [CSR SPI API
+versions](#csr-spi-api-versions)). Alternately You can specify location of the
+.dll.so file in WINEDLLPATH environment variable, see wine(1) man page for
 details.
 
-| Signal | FT232RL pin | FTDI pin name | FTDI GPIO pin | CSR pin | HC-0x pin |
-| ------ | ----------- | ------------- | ------------- | ------- | --------- |
-| MOSI | 1 | TXD | D0 | SPI_MOSI | 17 |
-| MISO | 5 | RXD | D1 | SPI_MISO | 18 |
-| CLK | 3 | RTS# | D2 | SPI_CLK | 19 |
-| CS# | 2 | DTR# | D4 | SPI_CS# | 16 |
-| LED_WR | 6 | RI# | D7 | -- | -- |
-| LED_RD | 9 | DSR# | D5 | -- | -- |
 
-LED connections are optional. Wire LEDs cathodes through the current limiting
-resistors (330 Ohm works fine for 3V3) to the appropriate FTDI
-pins. Wire LEDs anodes to FTDI VCCIO pin.
+### Building DLL for Windows
 
-## Building DLL for Windows
-
-### Cross-compiling DLL on Debian/Ubuntu using MinGW
+#### Cross-compiling DLL for Windows on Debian/Ubuntu using MinGW
 
 Install MinGW cross-development environment:
 
@@ -123,28 +200,14 @@ Build with command:
 
     make -f Makefile.mingw all
 
-### Install on Windows
 
-1. Install CSR package such as BlueSuite;
-2. Make a backup of spilpt.dll in your application directory (e.g. in
-   *C:\Program Files (x86)\CSR\BlueSuite 2.5.8\*);
-3. Copy appropriate version of spilpt.dll from spilpt-1.4-win32 or
-   spilpt-1.3-win32 directory to your application directory;
-4. Connect Your FTDI device to computer;
-5. Download and run Zadig from http://zadig.akeo.ie/. In Options menu choose
-   "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
-   choose libusbK driver, press "Replace driver" or "Install driver".  This
-   will install generic libusb-compatible driver for your FTDI chip. There is a
-   nice [tutorial](http://embedded-funk.net/running-libftdi-under-windows/) on
-   running libftdi programs on Windows;
-6. Run your CSR apps.
-
-
-## BUGS
+### BUGS
 
 * Driver sometimes fails with error "Unable to start read (invalid control
   data)". The problem is clearly in SPI communication, but I still can not
   figure out the cause. Anyway, restarting operation helps.
+* BC57F687A chip stops talking SPI after first operation finishes, after that
+  it needs a power cycle to resurrect.
 * Driver for API 1.4 does not support more than one FTDI device connected to
   the computer at the same time. This is due to a limited stream API
   implementation.
@@ -153,8 +216,8 @@ Build with command:
 ## Thanks
 * This project is heavily based on Frans-Willem Hardijzer's [reverse-engineered
   spilpt.dll drivers](https://github.com/Frans-Willem/CsrSpiDrivers).
-* Thanks to *unicorn* from http://www.nebo-forum.kiev.ua/ for the idea of a DLL
-  for wine.
+* Thanks to **unicorn** from http://www.nebo-forum.kiev.ua/ for the idea of a DLL
+  for Wine.
 
 
 ## Related projects
@@ -162,11 +225,11 @@ Build with command:
   Gross;
 * [Similar SPILPT
   driver](http://www.nebo-forum.kiev.ua/viewtopic.php?p=58291#p58291) for Wine
-  under Linux by *unicorn* using FTDI MPSSE;
+  under Linux by **unicorn** using FTDI MPSSE;
 * [Arduino SPILPT driver](https://github.com/Frans-Willem/CsrSpiDrivers) by
   Frans-Willem Hardijzer - for Windows;
 * [USBSPI programmer based on CSR chip using original
-  formware](http://jernej87.blogspot.com/) by Jernej Škrabec:
+  firmware](http://jernej87.blogspot.com/) by Jernej Škrabec:
  * [Using USBSPI on
    Linux](http://jernej87.blogspot.com/2012/10/dumping-bluecore4-firmware-on-linux.html);
  * [USBSPI protocol
