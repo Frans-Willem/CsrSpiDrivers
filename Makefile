@@ -1,4 +1,5 @@
-VERSION:=	$(shell date '+%Y%m%d')
+#VERSION:=	$(shell date '+%Y%m%d')
+VERSION:=	0.1
 ZIP_NAME=	csr-spi-ftdi-$(VERSION)
 ZIM_FILES=	spilpt-1.4-win32/spilpt.dll spilpt-1.3-win32/spilpt.dll \
 	spilpt-1.4-wine/spilpt.dll.so spilpt-1.3-wine/spilpt.dll.so \

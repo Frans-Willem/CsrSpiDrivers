@@ -85,6 +85,8 @@ registration.
 
 ### Installing prebuilt drivers
 
+Prebuilt drivers for Linux and Windows can be downloaded from https://github.com/lorf/csr-spi-ftdi/releases.
+
 #### Installing on Ubuntu/Debian Linux
 
 Install Wine:
