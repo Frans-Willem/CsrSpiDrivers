@@ -102,7 +102,7 @@ static void spi_err(const char *fmt, ...) {
 
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
-    WINE_ERR("%s\n", buf);
+    WINE_WARN("%s\n", buf);
 	if (spi_err_cb)
         spi_err_cb(buf);
     va_end(args);
