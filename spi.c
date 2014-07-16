@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #ifdef SPI_STATS
+#include <math.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/time.h>
@@ -633,23 +634,42 @@ void spi_output_stats(void)
 {
     double xfer_pct, wait_pct;
     double avg_read, avg_write, avg_wait;
+    double rate;
 
-    xfer_pct = (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
-    xfer_pct *= 100;
-    xfer_pct /= (spi_stats.tv_open.tv_sec * 1000 + spi_stats.tv_open.tv_usec / 1000);
+    xfer_pct = wait_pct = avg_read = avg_write = avg_wait = rate = NAN;
 
-    wait_pct = (spi_stats.tv_wait_read.tv_sec * 1000 + spi_stats.tv_wait_read.tv_usec / 1000);
-    wait_pct *= 100;
-    wait_pct /= (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
+    if (spi_stats.tv_open.tv_sec || spi_stats.tv_open.tv_usec) {
+        xfer_pct = (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
+        xfer_pct *= 100;
+        xfer_pct /= (spi_stats.tv_open.tv_sec * 1000 + spi_stats.tv_open.tv_usec / 1000);
+    }
 
-    avg_wait = (spi_stats.tv_wait_read.tv_sec * 1000000 + spi_stats.tv_wait_read.tv_usec);
-    avg_wait /= spi_stats.read_waits;
+    if (spi_stats.tv_xfer.tv_sec || spi_stats.tv_xfer.tv_usec) {
+        wait_pct = (spi_stats.tv_wait_read.tv_sec * 1000 + spi_stats.tv_wait_read.tv_usec / 1000);
+        wait_pct *= 100;
+        wait_pct /= (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
+    }
 
-    avg_read = spi_stats.read_bytes;
-    avg_read /= spi_stats.reads;
+    if (spi_stats.read_waits) {
+        avg_wait = (spi_stats.tv_wait_read.tv_sec * 1000000 + spi_stats.tv_wait_read.tv_usec);
+        avg_wait /= spi_stats.read_waits;
+    }
 
-    avg_write = spi_stats.write_bytes;
-    avg_write /= spi_stats.writes;
+    if (spi_stats.reads) {
+        avg_read = spi_stats.read_bytes;
+        avg_read /= spi_stats.reads;
+    }
+
+    if (spi_stats.writes) {
+        avg_write = spi_stats.write_bytes;
+        avg_write /= spi_stats.writes;
+    }
+
+    if (spi_stats.tv_xfer.tv_sec || spi_stats.tv_xfer.tv_usec) {
+        rate = ((spi_stats.read_bytes + spi_stats.write_bytes) * 1000000) /
+            (spi_stats.tv_xfer.tv_sec * 1000000 + spi_stats.tv_xfer.tv_usec);
+        rate /= 1024;
+    }
 
     if (stderr) {
         fprintf(stderr,
@@ -660,7 +680,8 @@ void spi_output_stats(void)
                 "USB transactions: %lld\n"
                 "Reads: %lld (%lld bytes, %.2f bytes avg read size, %lld ticks)\n"
                 "Writes: %lld (%lld bytes, %.2f bytes avg write size,  %lld ticks)\n"
-                "Misc ticks: %lld\n",
+                "Misc ticks: %lld\n"
+                "Overall data rate: %.2f KB/s\n",
                 spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
                 spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
                 spi_stats.tv_wait_read.tv_sec, spi_stats.tv_wait_read.tv_usec / 1000,
@@ -668,7 +689,8 @@ void spi_output_stats(void)
                 spi_stats.trans_usb,
                 spi_stats.reads, spi_stats.read_bytes, avg_read, spi_stats.read_ticks,
                 spi_stats.writes, spi_stats.write_bytes, avg_write, spi_stats.write_ticks,
-                spi_stats.misc_ticks
+                spi_stats.misc_ticks,
+                rate
         );
     }
 }
