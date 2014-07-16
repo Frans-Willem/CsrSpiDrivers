@@ -104,7 +104,7 @@ move them out of the way:
 
 Copy approproate version of the .dll.so file to Wine system directory:
 
-   sudo cp -p spilpt-<SPI_API_version>-wine/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
+   sudo cp -p spilpt-wine-api<SPI_API_version>/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
 
 where `<SPI_API_version>` is one of `1.3` or `1.4` (see [CSR SPI API
 versions](#csr-spi-api-versions)). Alternately You can specify location of the
@@ -119,9 +119,9 @@ Run CSR apps.
 1. Install CSR package such as BlueSuite;
 2. Make a backup of spilpt.dll in your application directory (e.g. in
    `C:\Program Files (x86)\CSR\BlueSuite 2.5.8\`);
-3. Copy appropriate version of spilpt.dll from spilpt-1.4-win32 or
-   spilpt-1.3-win32 directory (see [CSR SPI API
-   versions](#csr-spi-api-versions)) to your application directory;
+3. Copy appropriate version of spilpt.dll from spilpt-win32-api1.4 or
+   spilpt-win32-api1.3 directory (see "CSR SPI API versions") to your
+   application directory;
 4. Connect Your FTDI device to computer;
 5. Download and run Zadig from http://zadig.akeo.ie/. In Options menu choose
    "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),

@@ -35,8 +35,8 @@ spiapi-1.4::
 
 else
 
-OBJDIR =	spilpt-win32-$(SPIAPI)
-LIBRARY_DEF =	library-$(SPIAPI).def
+OBJDIR =	spilpt-win32-api$(SPIAPI)
+LIBRARY_DEF =	spilpt.dll-api$(SPIAPI).def
 
 ifeq ($(SPIAPI), 1.3)
 CPPFLAGS +=	-DSPIFNS_API=SPIFNS_API_1_3
@@ -66,4 +66,4 @@ $(OBJDIR)/%.o: %.cpp
 	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr spilpt-win32-1.3 spilpt-win32-1.4
+	rm -fr spilpt-win32-api1.3 spilpt-win32-api1.4

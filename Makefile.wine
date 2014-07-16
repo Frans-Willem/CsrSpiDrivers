@@ -31,7 +31,7 @@ spiapi-1.4::
 
 else
 
-OBJDIR = spilpt-wine-$(SPIAPI)
+OBJDIR = spilpt-wine-api$(SPIAPI)
 
 ifeq ($(SPIAPI), 1.3)
 CPPFLAGS +=  -DSPIFNS_API=SPIFNS_API_1_3
@@ -41,7 +41,7 @@ endif
 
 all: $(OBJDIR)/spilpt.dll.so
 
-$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o spilpt.dll-$(SPIAPI).spec
+$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o spilpt.dll-api$(SPIAPI).spec
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 	$(STRIP) $@
 
@@ -63,4 +63,4 @@ $(OBJDIR)/%.o: %.cpp
 	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr spilpt-wine-1.3 spilpt-wine-1.4
+	rm -fr spilpt-wine-api1.3 spilpt-wine-api1.4

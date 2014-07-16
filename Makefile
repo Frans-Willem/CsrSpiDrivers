@@ -1,8 +1,8 @@
 #VERSION:=	$(shell date '+%Y%m%d')
 VERSION :=	0.1
 ZIP_NAME ?=	csr-spi-ftdi-$(VERSION)
-ZIP_FILES +=	spilpt-win32-1.4/spilpt.dll spilpt-win32-1.3/spilpt.dll \
-	spilpt-wine-1.4/spilpt.dll.so spilpt-wine-1.3/spilpt.dll.so \
+ZIP_FILES +=	spilpt-win32-api1.4/spilpt.dll spilpt-win32-api1.3/spilpt.dll \
+	spilpt-wine-api1.4/spilpt.dll.so spilpt-wine-api1.3/spilpt.dll.so \
 	README.md hardware/csr-spi-ftdi.sch hardware/csr-spi-ftdi.svg \
 	hardware/components.lib
 
