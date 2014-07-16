@@ -1,46 +1,47 @@
-CXX=	/usr/bin/i586-mingw32msvc-g++
-CC=	/usr/bin/i586-mingw32msvc-gcc
-LD=	/usr/bin/i586-mingw32msvc-g++
+CXX =	/usr/bin/i586-mingw32msvc-g++
+CC =	/usr/bin/i586-mingw32msvc-gcc
+LD =	/usr/bin/i586-mingw32msvc-g++
+STRIP ?=	/usr/bin/i586-mingw32msvc-strip
 
-LIBFTDI=	./libftdi1
-LIBUSB=	./libusb
+LIBFTDI ?=	./libftdi1
+LIBUSB ?=	./libusb
 
-CFLAGS+=	-Wall
-LDFLAGS+=	-shared -static-libgcc
+CFLAGS +=	-Wall
+LDFLAGS +=	-shared -static-libgcc
 
-CPPFLAGS+=	-I$(LIBFTDI)/include/libftdi1
-LDLIBS+=	$(LIBFTDI)/lib32/libftdi1.a
+CPPFLAGS +=	-I$(LIBFTDI)/include/libftdi1
+LDLIBS +=	$(LIBFTDI)/lib32/libftdi1.a
 
-CPPFLAGS+=	-I$(LIBUSB)/include
-LDLIBS+=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
+CPPFLAGS +=	-I$(LIBUSB)/include
+LDLIBS +=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
 
 # Doesn't compile yet
-#CPPFLAGS+=	-DSPI_STATS
-CPPFLAGS+=	-DCOMPAT_USLEEP
+#CPPFLAGS +=	-DSPI_STATS
+CPPFLAGS +=	-DCOMPAT_USLEEP
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
-CPPFLAGS+=	-DCOMPAT_MINGW_MS_VSNPRINTF
+CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
 
-MAKEFILE=	$(firstword $(MAKEFILE_LIST))
+MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 
 ifeq ($(SPIAPI), )
 
-all: win32-1.3/spiapi.dll win32-1.4/spiapi.dll
+all: spiapi-1.3 spiapi-1.4
 
-win32-1.3/spiapi.dll:
+spiapi-1.3::
 	$(MAKE) -f $(MAKEFILE) SPIAPI=1.3 all
 
-win32-1.4/spiapi.dll:
+spiapi-1.4::
 	$(MAKE) -f $(MAKEFILE) SPIAPI=1.4 all
 
 else
 
-OBJDIR=	spilpt-$(SPIAPI)-win32
-LIBRARY_DEF=	library-$(SPIAPI).def
+OBJDIR =	spilpt-win32-$(SPIAPI)
+LIBRARY_DEF =	library-$(SPIAPI).def
 
 ifeq ($(SPIAPI), 1.3)
-CPPFLAGS+=	-DSPIFNS_API=SPIFNS_API_1_3
+CPPFLAGS +=	-DSPIFNS_API=SPIFNS_API_1_3
 else ifeq ($(SPIAPI), 1.4)
-CPPFLAGS+=	-DSPIFNS_API=SPIFNS_API_1_4
+CPPFLAGS +=	-DSPIFNS_API=SPIFNS_API_1_4
 endif
 
 all: $(OBJDIR)/spilpt.dll
@@ -54,6 +55,7 @@ $(OBJDIR)/hexdump.o: hexdump.h
 $(OBJDIR)/spilpt.dll: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/compat.o $(LIBRARY_DEF)
 	mkdir -p $(OBJDIR)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	$(STRIP) $@
 
 $(OBJDIR)/%.o: %.c
 	mkdir -p $(OBJDIR)
@@ -64,4 +66,4 @@ $(OBJDIR)/%.o: %.cpp
 	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr spilpt-1.3-win32 spilpt-1.4-win32
+	rm -fr spilpt-win32-1.3 spilpt-win32-1.4

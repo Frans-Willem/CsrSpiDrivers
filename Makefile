@@ -1,27 +1,27 @@
 #VERSION:=	$(shell date '+%Y%m%d')
-VERSION:=	0.1
-ZIP_NAME=	csr-spi-ftdi-$(VERSION)
-ZIM_FILES=	spilpt-1.4-win32/spilpt.dll spilpt-1.3-win32/spilpt.dll \
-	spilpt-1.4-wine/spilpt.dll.so spilpt-1.3-wine/spilpt.dll.so \
+VERSION :=	0.1
+ZIP_NAME ?=	csr-spi-ftdi-$(VERSION)
+ZIP_FILES +=	spilpt-win32-1.4/spilpt.dll spilpt-win32-1.3/spilpt.dll \
+	spilpt-wine-1.4/spilpt.dll.so spilpt-wine-1.3/spilpt.dll.so \
 	README.md hardware/csr-spi-ftdi.sch hardware/csr-spi-ftdi.svg \
 	hardware/components.lib
 
-all: spilpt-1.4-win32/spilpt.dll spilpt-1.4-wine/spilpt.dll.so
+all: win32 wine
+
+win32::
+	make -f Makefile.mingw all
+
+wine::
+	make -f Makefile.wine all
 
 zip: all
 	rm -rf $(ZIP_NAME).zip $(ZIP_NAME)
 	mkdir -p $(ZIP_NAME)
-	for p in $(ZIM_FILES); do \
+	for p in $(ZIP_FILES); do \
 		mkdir -p $(ZIP_NAME)/`dirname $$p`; \
 		cp -p $$p $(ZIP_NAME)/`dirname $$p`; \
 	done
 	zip -9r $(ZIP_NAME).zip $(ZIP_NAME)
-
-spilpt-1.4-win32/spilpt.dll::
-	make -f Makefile.mingw all
-
-spilpt-1.4-wine/spilpt.dll.so::
-	make -f Makefile.wine all
 
 clean:
 	make -f Makefile.mingw clean
