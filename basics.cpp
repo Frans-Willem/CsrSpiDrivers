@@ -542,6 +542,9 @@ DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
     }
 
     /* Check the response to read command */
+    /* From CSR8645 datasheet: "When CSR8645 BGA is deselected (SPI_CS# = 1),
+     * the SPI_MISO line does not float. Instead, CSR8645 BGA outputs 0 if the
+     * processor is running or 1 if it is stopped. */
     if (xferbuf[0])
         return SPIFNS_XAP_STOPPED;
     return SPIFNS_XAP_RUNNING;
