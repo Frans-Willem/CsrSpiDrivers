@@ -36,12 +36,12 @@
 
 /* Pinout. Change it at will. Beware that FTDI adapters provide 5V or 3V3 I/O
  * levels, but CSR chips require 3V3 or 1V8 I/O level. */
-#define PIN_nCS     (1 << 0)    /* FT232RL pin 1, signal TXD AKA D0, output */
-#define PIN_CLK     (1 << 4)    /* FT232RL pin 2, signal DTR# AKA D4, output */
-#define PIN_MOSI    (1 << 1)    /* FT232RL pin 5, signal RXD AKA D1, output */
-#define PIN_MISO    (1 << 3)    /* FT232RL pin 11, signal CTS# AKA D3, input */
-#define PIN_nLED_RD (1 << 5)    /* FT232RL pin 9, signal DSR# AKA D5, output */
-#define PIN_nLED_WR (1 << 6)    /* FT232RL pin 10, signal DCD# AKA D6, output */
+#define PIN_nCS     (1 << 4)    /* FT232RL pin 2 (DTR#/D4), output */
+#define PIN_CLK     (1 << 2)    /* FT232RL pin 3 (RTS#/D2), output */
+#define PIN_MOSI    (1 << 7)    /* FT232RL pin 6 (RI#/D7), output */
+#define PIN_MISO    (1 << 5)    /* FT232RL pin 9 (DSR#/D5), input */
+#define PIN_nLED_RD (1 << 6)    /* FT232RL pin 10 (DCD#/D6), output */
+#define PIN_nLED_WR (1 << 3)    /* FT232RL pin 11 (CTS#/D3), output */
 #define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS | PIN_nLED_RD | PIN_nLED_WR)
 
 static int spi_dev_open = 0;

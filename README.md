@@ -33,21 +33,25 @@ any of the following FTDI chips:
 
 ### Using FTDI adapter as a programmer
 
-You can build a simple programmer using popular FTDI adapter boards. Pinout
-specified in spi.c file. Change it at will. Beware that FTDI adapters
-provide 5V or 3V3 I/O levels while CSR chips require 3V3 or 1V8 I/O level. You
-may supply appropriate VCCIO to FTDI chip or use logic level converter if
-levels don't match. See description of VCCIO pin in FTDI chip datasheet for
-details.
+You can build a simple programmer using popular FTDI breakout boards (search
+Ebay for "FT232RL module 3.3" for example). Pinout specified in spi.c file.
+Change it at will. Beware that FTDI boards usually provide 5V or 3V3 I/O levels
+while CSR chips require 3V3 or 1V8 I/O level. You may supply appropriate VCCIO
+to FTDI chip or use logic level converter if levels don't match. See
+description of VCCIO pin in FTDI chip datasheet for details.
 
-| Signal | FT232RL pin | FTDI pin name | FTDI GPIO pin | CSR pin |
-| ------ | ----------- | ------------- | ------------- | ------- |
-| CS# | 1 | TXD | D0 | SPI_CS# |
-| CLK | 2 | DTR# | D4 | SPI_CLK |
-| MOSI | 5 | RXD | D1 | SPI_MOSI |
-| MISO | 11 | CTS# | D3 | SPI_MISO |
-| LED_RD | 9 | DSR# | D5 | -- |
-| LED_WR | 10 | DCD# | D6 | -- |
+| Signal | FT232RL pin | FTDI pin name | FTDI GPIO pin | CSR pin  |
+|--------|-------------|---------------|---------------|----------|
+| CS#    | 2           | DTR#          | D4            | SPI_CS#  |
+| CLK    | 3           | RTS#          | D2            | SPI_CLK  |
+| MOSI   | 6           | RI#           | D7            | SPI_MOSI |
+| MISO   | 9           | DSR#          | D5            | SPI_MISO |
+| TX     | 1           | TXD           | Not used      | UART_RX  |
+| RX     | 5           | RXD           | Not used      | UART_TX  |
+| LED_RD | 10          | DCD#          | D6            | --       |
+| LED_WR | 11          | CTS#          | D3            | --       |
+
+TX and RX connections are optional and provide connectivity to BlueCore UART.
 
 LED connections are optional. Wire LEDs cathodes through the current limiting
 resistors (330 Ohm works fine) to the appropriate FTDI
