@@ -17,9 +17,8 @@
 #include "hexdump.h"
 #include "compat.h"
 
-/* SPI clock frequency. At maximum I got 15KB/s reads at 8 MHz SPI clock. At
- * 12MHz SPI clock it doesn't work. */
-#define SPI_CLOCK_FREQ    8000000
+/* SPI clock frequency. At maximum I got 15KB/s reads at 2 MHz SPI clock. */
+#define SPI_CLOCK_FREQ    2000000
 #define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
 
 /*
@@ -475,7 +474,7 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
     return size;
 }
 
-int spi_enumerate_ports(void)
+static int spi_enumerate_ports(void)
 {
     int id, rc;
     struct ftdi_device_list *ftdevlist, *ftdev;
@@ -594,13 +593,6 @@ int spi_open(int nport)
         goto open_err;
     }
 
-    /* See FT232R datasheet, section "Baud Rate Generator" and AppNote
-     * AN_232R-01, section "Synchronous Bit Bang Mode" */
-    if (ftdi_set_baudrate(ftdicp, (SPI_CLOCK_FREQ * 2) / 16) < 0) {
-        spi_err("FTDI: set baudrate failed: %s", ftdi_get_error_string(ftdicp));
-        goto open_err;
-    }
-
     if (ftdi_set_bitmode(ftdicp, 0, BITMODE_RESET) < 0) {
         spi_err("FTDI: reset bitmode failed: %s", ftdi_get_error_string(ftdicp));
         goto open_err;
@@ -608,6 +600,18 @@ int spi_open(int nport)
 
     if (ftdi_set_bitmode(ftdicp, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
         spi_err("FTDI: set synchronous bitbang mode failed: %s", ftdi_get_error_string(ftdicp));
+        goto open_err;
+    }
+
+    /*
+     * See FT232R datasheet, section "Baud Rate Generator" and AppNote
+     * AN_232R-01, section "Synchronous Bit Bang Mode". Also see this thread on
+     * bitbang baud rate hardware bug in FTDI chips (XXX is this related to
+     * syncbb mode?):
+     * http://developer.intra2net.com/mailarchive/html/libftdi/2010/msg00240.html
+     */
+    if (ftdi_set_baudrate(ftdicp, (SPI_CLOCK_FREQ * 2) / 16) < 0) {
+        spi_err("FTDI: set baudrate failed: %s", ftdi_get_error_string(ftdicp));
         goto open_err;
     }
 

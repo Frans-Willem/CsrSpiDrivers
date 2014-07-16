@@ -35,8 +35,6 @@ extern int spi_nports;
 int spi_init(void);
 void spi_deinit(void);
 
-int spi_enumerate_ports(void);
-
 int spi_open(int nport);
 int spi_isopen(void);
 int spi_close(void);
