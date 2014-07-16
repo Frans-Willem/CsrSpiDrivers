@@ -309,7 +309,6 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
         (uint8_t)(nAddress >> 8),   /* Address high byte */
         (uint8_t)(nAddress & 0xff), /* Address low byte */
     };
-    uint16_t *outbuf2;
 
     WINE_TRACE("(0x%04x, %d, %p)\n", nAddress, nLength, pnInput);
 
@@ -319,19 +318,10 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
         goto error; \
     } while (0)
 
-    outbuf2 = NULL;
-
     spi_led(SPI_LED_WRITE);
 
     if (!spi_isopen())
         _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
-
-    /* IO is done in two byte words */
-    outbuf2 = (uint16_t *)malloc(nLength * sizeof(uint16_t));
-    if (outbuf2 == NULL)
-        _ERR_RETURN(SPIERR_MALLOC_FAILED, "Allocate buffer failed");
-
-    memcpy(outbuf2, pnInput, nLength * sizeof(unsigned short));
 
     if (spi_xfer_begin() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
@@ -339,24 +329,19 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
     if (spi_xfer_8(SPI_XFER_WRITE, outbuf1, 3) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to start write");
 
-    if (spi_xfer_16(SPI_XFER_WRITE, outbuf2, nLength) < 0) {
-        spifns_debugout_readwrite(nAddress,'w',nLength, outbuf2);
+    if (spi_xfer_16(SPI_XFER_WRITE, pnInput, nLength) < 0) {
+        spifns_debugout_readwrite(nAddress,'w',nLength, pnInput);
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to write (writing buffer)");
     }
 
     if (spi_xfer_end() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to end transfer");
 
-    free(outbuf2);
-    outbuf2 = NULL;
-
     return 0;
 
 #undef _ERR_RETURN
 
 error:
-    if (outbuf2)
-        free(outbuf2);
     if (g_nError != SPIERR_NO_ERROR) {
         g_nErrorAddress=nAddress;
         WINE_WARN("%s\n", g_szErrorString);
@@ -456,7 +441,6 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
         (uint8_t)(nAddress & 0xff), /* Address low byte */
     };
     uint8_t inbuf1[2];
-    uint16_t *inbuf2;
 
     WINE_TRACE("(0x%02x, %d, %p)\n", nAddress, nLength, pnOutput);
 
@@ -466,17 +450,10 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
         goto error; \
     } while (0)
 
-    inbuf2 = NULL;
-
     spi_led(SPI_LED_READ);
 
     if (!spi_isopen())
         _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
-
-    /* IO is done in two byte words */
-    inbuf2 = (uint16_t *)malloc(nLength * sizeof(uint16_t));
-    if (inbuf2 == NULL)
-        _ERR_RETURN(SPIERR_MALLOC_FAILED, "Allocate buffer failed");
 
     if (spi_xfer_begin() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
@@ -484,36 +461,27 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
     if (spi_xfer_8(SPI_XFER_WRITE, outbuf, 3) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to start read");
 
-    if (spi_xfer_8(SPI_XFER_READ, inbuf1, 2) < 0) {
+    if (spi_xfer_8(SPI_XFER_READ, inbuf1, 2) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED,
                 "Unable to start read (getting control data)");
-    }
 
-    if (inbuf1[0] != 3 || inbuf1[1] != (nAddress >> 8)) {
+    if (inbuf1[0] != 3 || inbuf1[1] != (nAddress >> 8))
         _ERR_RETURN(SPIERR_READ_FAILED,
                 "Unable to start read (invalid control data)");
-    }
 
-    if (spi_xfer_16(SPI_XFER_READ, inbuf2, nLength) < 0) {
-        spifns_debugout_readwrite(nAddress,'r', nLength, inbuf2);
+    if (spi_xfer_16(SPI_XFER_READ, pnOutput, nLength) < 0) {
+        spifns_debugout_readwrite(nAddress,'r', nLength, pnOutput);
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to read (reading buffer)");
     }
 
     if (spi_xfer_end() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to end transfer");
 
-    memcpy(pnOutput, inbuf2, nLength * sizeof(unsigned short));
-
-    free(inbuf2);
-    inbuf2 = NULL;
-
 	return 0;
 
 #undef _ERR_RETURN
 
 error:
-    if (inbuf2)
-        free(inbuf2);
     if (g_nError != SPIERR_NO_ERROR) {
         g_nErrorAddress=nAddress;
         WINE_WARN("%s\n", g_szErrorString);
