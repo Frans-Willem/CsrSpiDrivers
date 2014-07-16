@@ -22,16 +22,13 @@ void usleep(int64_t usec)
 
 #ifdef COMPAT_MINGW_MS_VSNPRINTF
 /*
- * This fixes linking with pre-compiled libusb-1.0.19-rc1-win: "undefined
- * reference to __ms_vsnprintf". See:
+ * This fixes linking with precompiled libusb-1.0.18-win and
+ * libusb-1.0.19-rc1-win: "undefined reference to __ms_vsnprintf". See:
  * http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
  */
 
 #include <stdio.h>
 #include <stdarg.h>
 
-int __ms_vsnprintf(char *str, size_t size, const char *format, va_list ap)
-{
-    return vsnprintf(str, size, format, ap);
-}
+int (*__ms_vsnprintf)(char *, size_t, const char *, va_list) = &vsnprintf;
 #endif /* COMPAT_MINGW_MS_VSNPRINTF */
