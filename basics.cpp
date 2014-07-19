@@ -58,8 +58,6 @@ unsigned int g_nSpiShiftPeriod=1;
 char g_szMaxClock[16]="1000";
 char g_szErrorString[256]="No error";
 unsigned int g_nError=SPIERR_NO_ERROR;
-//Some gs_check data here. Maybe this indicates that this should be a file split ?
-unsigned int g_nRef=0;
 int g_nCmdReadBits=0;
 int g_nCmdWriteBits=0;
 int g_nSpiMul=0;
@@ -83,12 +81,11 @@ DLLEXPORT void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int 
 	*ppList=g_pVarList;
 	*pnCount=sizeof(g_pVarList)/sizeof(*g_pVarList);
 }
-//RE Check: Opcodes functionally identical
-//Original uses 'add g_nRef, 1'
-//Compiler makes 'inc g_nRef'
+
 DLLEXPORT int __cdecl spifns_init() {
     WINE_TRACE("\n");
-	g_nRef+=1;
+    if (spi_init() < 0)
+        return -1;
 	return 0;
 }
 //RE Check: Completely identical (one opcode off, jns should be jge, but shouldn't matter. Probably unsigned/signed issues)
@@ -150,13 +147,9 @@ DLLEXPORT int __cdecl spifns_get_version() {
     WINE_TRACE("return: 0x%02x\n", SPIFNS_VERSION);
 	return SPIFNS_VERSION;
 }
-//
-//RE Check: Completely identical
+
 DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
     WINE_TRACE("(%d)\n", nPort);
-
-    if (spi_init() < 0)
-        return INVALID_HANDLE_VALUE;
 
     if (spi_open(nPort - 1) < 0)
         return INVALID_HANDLE_VALUE;
@@ -165,13 +158,10 @@ DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
     return (HANDLE)&spifns_open_port;
 }
 
-//RE Check: Fully identical
 DLLEXPORT void __cdecl spifns_close_port() {
     WINE_TRACE("\n");
-    if (spi_isopen()) {
-        spi_led(SPI_LED_OFF);
-        spi_close();
-    }
+    spi_led(SPI_LED_OFF);
+    spi_close();
 }
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
@@ -185,14 +175,12 @@ DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
 		va_end(args);
 	}
 }
-//RE Check: Opcodes functionally identical
-//Original uses 'sub g_nRef, 1'
-//Compiler makes 'dec g_nRef'
+
 DLLEXPORT void __cdecl spifns_close() {
     WINE_TRACE("\n");
-	g_nRef--;
-	if (g_nRef==0)
-		spifns_close_port();
+	spifns_close_port();
+
+    spi_deinit();
 }
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
@@ -226,9 +214,6 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
     int nport;
 
     WINE_TRACE("\n");
-
-    if (spi_init() < 0)
-        return;
 
     if (spi_nports == 0) {
         /* Some apps, CSR86XX ROM ConfigTool 3.0.48 in particular, crash when
@@ -465,9 +450,11 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
         _ERR_RETURN(SPIERR_READ_FAILED,
                 "Unable to start read (getting control data)");
 
-    if (inbuf1[0] != 3 || inbuf1[1] != (nAddress >> 8))
+    if (inbuf1[0] != 3 || inbuf1[1] != (nAddress >> 8)) {
         _ERR_RETURN(SPIERR_READ_FAILED,
                 "Unable to start read (invalid control data)");
+        WINE_WARN("Control data: 0x%02x 0x%02x", inbuf1[0], inbuf1[1]);
+    }
 
     if (spi_xfer_16(SPI_XFER_READ, pnOutput, nLength) < 0) {
         spifns_debugout_readwrite(nAddress,'r', nLength, pnOutput);
@@ -575,9 +562,7 @@ DLLEXPORT void __cdecl spifns_stream_close(spifns_stream_t stream)
 DLLEXPORT unsigned int __cdecl spifns_count_streams(void)
 {
     WINE_TRACE("()\n");
-    if (g_nRef)
-        return 1;
-    return 0;
+    return 1;
 }
 
 DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount)

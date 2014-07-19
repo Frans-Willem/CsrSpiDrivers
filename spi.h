@@ -33,7 +33,7 @@ extern struct spi_port spi_ports[16];
 extern int spi_nports;
 
 int spi_init(void);
-void spi_deinit(void);
+int spi_deinit(void);
 
 int spi_open(int nport);
 int spi_isopen(void);
