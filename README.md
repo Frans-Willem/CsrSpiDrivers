@@ -73,10 +73,6 @@ This driver implements CSR SPI API version 1.3 (used in CSR BlueSuite 2.1, 2.3,
 CSR BlueLab 4.1) and 1.4 (CSR BlueSuite 2.4, 2.5, 2.5.8). DLL is built for each
 API version during a compile time.
 
-Current implementation of 1.4 API is based on a wild guess and is just a
-wrapper around 1.3 functions. It doesn't support multiple programmers connected
-at the same time and may contain other bugs (see "BUGS").
-
 You can check the API version of CSR package by inspecting original spilpt.dll
 with the following command on Linux:
 
@@ -109,7 +105,7 @@ move them out of the way:
 
 Copy approproate version of the .dll.so file to Wine system directory:
 
-   sudo cp -p spilpt-wine-api<SPI_API_version>/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
+    sudo cp -p spilpt-wine-api<SPI_API_version>/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
 
 where `<SPI_API_version>` is one of `1.3` or `1.4`. Alternately You can specify
 location of the .dll.so file in WINEDLLPATH environment variable, see wine(1)
@@ -217,9 +213,10 @@ Build with command:
   figure out the cause. Anyway, restarting operation helps.
 * BC5 and CSR8 chips stop responding over SPI after some time, the chip
   requires a reset to resurrect.
-* Driver for API 1.4 does not support more than one FTDI device connected to
-  the computer at the same time. This is due to a limited stream API
-  implementation.
+* Current implementation of 1.4 API is based on a wild guess and is just a
+  wrapper around 1.3 functions. It doesn't support multiple programmers
+  connected at the same time and may contain other bugs.
+
 
 
 ## Thanks
