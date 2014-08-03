@@ -50,8 +50,7 @@ static spi_error_cb spi_err_cb = NULL;
 static struct ftdi_context ftdic;
 static uint8_t ftdi_pin_state = 0;
 
-#define SPI_LED_FREQ  4   /* Hz */
-static long long spi_led_counter = 0;
+#define SPI_LED_FREQ  10   /* Hz */
 static int spi_led_state = 0;
 
 #ifdef SPI_STATS
@@ -179,6 +178,40 @@ static inline int spi_set_pins(uint8_t byte)
     return spi_ftdi_xfer(&byte, 1);
 }
 
+static int spi_led_tick(void)
+{
+    struct timeval tv;
+
+    if (spi_led_state == 0) {   /* Asked to turn LEDs off */
+        ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
+        if (spi_set_pins(ftdi_pin_state) < 0)
+            return -1;
+    } else {
+        if (gettimeofday(&tv, NULL) < 0) {
+            WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+            return -1;
+        }
+        timersub(&tv, &spi_led_start_tv, &tv);
+        if (((tv.tv_sec * 1000 + tv.tv_usec / 1000) / (1000 / SPI_LED_FREQ / 2)) % 2 == 0) {
+            /* Some LED(s) should be on */
+            if ((ftdi_pin_state & (PIN_nLED_WR | PIN_nLED_RD)) == (PIN_nLED_WR | PIN_nLED_RD)) {
+                ftdi_pin_state ^= spi_led_state;
+                if (spi_set_pins(ftdi_pin_state) < 0)
+                    return -1;
+            }
+        } else {
+            /* All LEDs should be off */
+            if ((ftdi_pin_state & (PIN_nLED_WR | PIN_nLED_RD)) != (PIN_nLED_WR | PIN_nLED_RD)) {
+                ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
+                if (spi_set_pins(ftdi_pin_state) < 0)
+                    return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 void spi_led(int led) 
 {
     spi_led_state = 0;
@@ -186,51 +219,11 @@ void spi_led(int led)
         spi_led_state |= PIN_nLED_RD;
     if (led & SPI_LED_WRITE)
         spi_led_state |= PIN_nLED_WR;
-}
 
-static int spi_led_tick(int ticks)
-{
-    if (spi_led_state == 0) {
-        if (spi_led_counter != 0) {
-            /* LEDs off */
-            ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
-            spi_led_counter = 0;
-#ifdef SPI_STATS
-            spi_stats.misc_ticks++;
-#endif
-            if (spi_set_pins(ftdi_pin_state) < 0)
-                return -1;
-        }
-    } else {
-        if (spi_led_counter > ((SPI_CLOCK_FREQ * 2) / SPI_LED_FREQ))
-            spi_led_counter = 0;
-
-        if (spi_led_counter == 0) {
-            /* Toggle specified LED(s) */
-            ftdi_pin_state ^= spi_led_state;
-            /* Turn off the other LED */
-            ftdi_pin_state |= ((PIN_nLED_RD | PIN_nLED_WR) & ~spi_led_state);
-#ifdef SPI_STATS
-            spi_stats.misc_ticks++;
-#endif
-            if (spi_set_pins(ftdi_pin_state) < 0) {
-                ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
-                spi_led_counter = 0;
-                return -1;
-            }
-        }
-
-        spi_led_counter += ticks;
-    }
-
-#if 0
-    WINE_TRACE("(%08d) state=0x%02x, counter=%08lld, rd=%s, wr=%s\n",
-            ticks, spi_led_state, spi_led_counter,
-            (ftdi_pin_state & PIN_nLED_RD ? "OFF": "ON "),
-            (ftdi_pin_state & PIN_nLED_WR ? "OFF": "ON "));
-#endif
-
-    return 0;
+    if (spi_led_state)
+        if (gettimeofday(&spi_led_start_tv, NULL) < 0)
+            WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+    spi_led_tick();
 }
 
 int spi_xfer_begin(void)
@@ -282,14 +275,11 @@ int spi_xfer_begin(void)
 int spi_xfer_end(void)
 {
     WINE_TRACE("\n");
-    spi_led(SPI_LED_OFF);
-    spi_led_tick(0);
     ftdi_pin_state |= PIN_nCS;
     if (spi_set_pins(ftdi_pin_state) < 0)
         return -1;
 
-#ifdef SPI_STATS
-    spi_stats.misc_ticks++;
+    spi_led(SPI_LED_OFF);
 
     {
         struct timeval tv;
@@ -312,7 +302,7 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
 
     WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
 
-    spi_led_tick(size * 8 * 2);
+    spi_led_tick();
 
     bytes_left = size;
     bufp = buf;
@@ -397,7 +387,7 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
 
     WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
 
-    spi_led_tick(size * 16 * 2);
+    spi_led_tick();
 
     words_left = size;
     bufp = buf;
@@ -530,6 +520,9 @@ int spi_init(void)
 int spi_deinit(void)
 {
     WINE_TRACE("spi_nrefs=%d, spi_dev_open=%d\n", spi_nrefs, spi_dev_open);
+
+    if (spi_nrefs == 0)
+        return 0;
 
     spi_nrefs--;
 
@@ -704,10 +697,12 @@ int spi_close(void)
 {
     WINE_TRACE("spi_nrefs=%d, spi_dev_open=%d\n", spi_nrefs, spi_dev_open);
 
+    if (spi_dev_open == 0)
+        return 0;
+
     spi_dev_open--;
     if (spi_dev_open == 0) {
         spi_led(SPI_LED_OFF);
-        spi_led_tick(0);
 
         if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
             spi_err("FTDI: reset bitmode failed: %s",

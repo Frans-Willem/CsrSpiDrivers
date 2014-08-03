@@ -160,7 +160,6 @@ DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
 
 DLLEXPORT void __cdecl spifns_close_port() {
     WINE_TRACE("\n");
-    spi_led(SPI_LED_OFF);
     spi_close();
 }
 //RE Check: Completely identical
@@ -303,10 +302,10 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
         goto error; \
     } while (0)
 
-    spi_led(SPI_LED_WRITE);
-
     if (!spi_isopen())
         _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
+
+    spi_led(SPI_LED_WRITE);
 
     if (spi_xfer_begin() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
@@ -435,10 +434,10 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
         goto error; \
     } while (0)
 
-    spi_led(SPI_LED_READ);
-
     if (!spi_isopen())
         _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
+
+    spi_led(SPI_LED_READ);
 
     if (spi_xfer_begin() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
