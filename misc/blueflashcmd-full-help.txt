@@ -1,0 +1,178 @@
+$ wine BlueFlashCmd.exe -help -hidden
+
+blueflashcmd, version 2.5.8.667 Release
+Copyright (C) 2002-2014, Cambridge Silicon Radio Ltd.
+
+Flash utility tool
+
+Usage:
+
+    blueflashcmd [chipver] [identify] [shape] [erase] [dump <filename>
+                 [<format>]] [verify] [test] [<filename>] [broad <mask>
+                 <filename> [<skipunused> <speed>]][-usb <port> | -lpt <port>
+                 | -port <port>] [-quiet] [-debug <level>] [-help] [-syntax]
+                 [-hidden] [-get <address>] [-trans <trans string>] [-mul
+                 <port>] [-xtal <frequency>] [-lpc <n1[,n2,...]>] [-ignore]
+                 [-verbose] [-norun]
+
+    chipver
+        Display chip ID. 
+    ********** Hidden **********
+        Synonyms for 'chipver' are '-chipver'.
+    ****************************
+
+    identify
+        Display the flash information and firmware IDs (if any). 
+    ********** Hidden **********
+        Synonyms for 'identify' are '-identify'.
+    ****************************
+
+    shape
+        Display flash and chip versions. 
+    ********** Hidden **********
+        Synonyms for 'shape' are '-shape'.
+    ****************************
+
+    erase
+        Erase the whole of flash. 
+    ********** Hidden **********
+        Synonyms for 'erase' are '-erase'.
+    ****************************
+
+    dump <filename> [<format>]
+        Write the flash contents to a file. 
+        <filename> = name of file to dump. Creates .xdv and .xpv files if no
+        <format>.
+        <format> = One of "-xuv", "-raw"
+    ********** Hidden **********
+        Synonyms for 'dump' are '-dump'.
+    ****************************
+
+    verify
+        Verify the flash contents with a file. 
+    ********** Hidden **********
+        Synonyms for 'verify' are '-verify'.
+    ****************************
+
+    ********** Hidden **********
+    test
+        Test command. 
+        Synonyms for 'test' are '-test'.
+    ****************************
+
+    <filename>
+        The filename of the image file to use
+
+    broad <mask> <filename> [<skipunused> <speed>]
+        uses broadcast mode to program devices simultaneously on a 16 channel
+        SPI Multiplexer. Program devices specified by mask. -broad and -mul
+        cannot be used together. 
+        <mask> = A binary mask of devices or 0 for all.
+        <filename> = filename of the image file to burn.
+
+        <skipunused> = One of "-skipunused". Skips stop and restart attempts
+        for unused positions in broadcast mode. Use with care - If devices are
+        connected, but not selected by -broad dev_bits, their behaviour is
+        undefined and possibly unstable. Note: Has no effect in auto-detect
+        mode i.e. -broad 0.
+
+        <speed> = Lower numbers are faster, (minimum is 1, default is 1).
+    ********** Hidden **********
+        Synonyms for 'broad' are '-broad'.
+    ****************************
+
+    -usb <port>
+        Indicates USB-SPI port. 
+
+        <port> = USB-SPI port e.g. -usb 0 or -usb nnnnnn (where nnnnnn is the
+        serial number of the USB-SPI converter).
+
+    -lpt <port>
+        Indicates LPT-SPI port. 
+        <port> = LPT-SPI multi-port e.g. -lpt 1 to select LPT1.
+
+    ********** Hidden **********
+    -port <port>
+        Indicates LPT-SPI port. 
+        <port> = LPT-SPI multi-port e.g. -lpt 1 to select LPT1.
+    ****************************
+
+    -quiet
+        Suppress non-essential output. 
+
+    ********** Hidden **********
+    -debug <level>
+        Display debug information. 
+
+        <level> = The level of debug output. Specify 'full', 'enhanced',
+        'basic' or 'standard' - or specify the exact requirements in list
+        form: Possible group names are - 'basic' 'enhanced' 'full'. Possible
+        element names are - 'NvsEngine' 'VLIntLibrary' 'TestEngine' 'TestE2'
+        'SQLiteMetadataProvider' 'PsHelp' 'HydraText' 'Flash' 'E2' 'CuratorWr'
+        'CuratorLibrary' 'ConfToolsFwManaged' 'ConfigToolsCoreFramework'
+        'CndText' 'A11EpromCfgRw' 'uEnergy' 'PtTransport' 'Undefined'
+        'Utility' 'TestCode' 'PtTransPlugIn' 'Application' 'CmdLine'. For
+        example:
+        "full:all-cmdline-pttransport,enhanced:application+pttransport".
+    ****************************
+
+    -help
+        Display this help text. 
+    ********** Hidden **********
+        Synonyms for '-help' are '--help', '-?', '/?'.
+    ****************************
+
+    ********** Hidden **********
+    -syntax
+        Only show the syntax for help, not the full descriptions. 
+    ****************************
+
+    ********** Hidden **********
+    -hidden
+        Show the help for hidden parameters. 
+    ****************************
+
+    ********** Hidden **********
+    -get <address>
+        Read an address over SPI. 
+        <address> = Address to read.
+        Synonyms for '-get' are 'get'.
+    ****************************
+
+    ********** Hidden **********
+    -trans <trans string>
+        String used to define transport options. 
+        <trans string> = transport parameters e.g. -trans "spiport=0".
+    ****************************
+
+    -mul <port>
+        Indicates SPI multi-port. 
+        <port> = LPT-SPI multi-port (a number from 0 upwards; typically upto
+        15) e.g. -mul 2.
+
+    -xtal <frequency>
+        specifies module's crystal frequency. 
+
+        <frequency> = 0|10|16|26|32. Use 0 for no crystal. Higher values make
+        code run slower, lower values may cause instability.Default is 26. 
+        (Casiras use 16Mhz).
+
+    -lpc <n1[,n2,...]>
+        specifies the LPCs to use when multiple LPCs are present. 
+
+        <n1[,n2,...]> = Comma separated list of LPC numbersThe default is to
+        do the same action to every LPC.
+
+    ********** Hidden **********
+    -ignore
+        prevents halts on major errors. 
+    ****************************
+
+    ********** Hidden **********
+    -verbose
+        Output more text on what's happening. 
+    ****************************
+
+    -norun
+        Do not automatically restart the chip afterwards. 
+

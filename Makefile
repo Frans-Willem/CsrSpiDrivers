@@ -4,7 +4,7 @@ ZIP_NAME ?=	csr-spi-ftdi-$(VERSION)
 ZIP_FILES +=	spilpt-win32-api1.4/spilpt.dll spilpt-win32-api1.3/spilpt.dll \
 	spilpt-wine-api1.4/spilpt.dll.so spilpt-wine-api1.3/spilpt.dll.so \
 	README.md hardware/csr-spi-ftdi.sch hardware/csr-spi-ftdi.svg \
-	hardware/components.lib
+	hardware/components.lib misc
 
 all: win32 wine
 
@@ -19,7 +19,7 @@ zip: all
 	mkdir -p $(ZIP_NAME)
 	for p in $(ZIP_FILES); do \
 		mkdir -p $(ZIP_NAME)/`dirname $$p`; \
-		cp -p $$p $(ZIP_NAME)/`dirname $$p`; \
+		cp -Rp $$p $(ZIP_NAME)/`dirname $$p`; \
 	done
 	zip -9r $(ZIP_NAME).zip $(ZIP_NAME)
 

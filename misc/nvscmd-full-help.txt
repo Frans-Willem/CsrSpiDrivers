@@ -1,0 +1,142 @@
+$ wine nvscmd.exe -help -hidden
+
+nvscmd, version 2.5.8.667 Release
+Copyright (C) 2010-2014, Cambridge Silicon Radio Ltd.
+
+Non-Volatile Storage Programming Tool
+
+This tool is for creating and manipulating images for CSR chips with "Serial
+Quad I/O (SQI) flash", "Serial Peripheral Interface (SPI) flash" or EEPROM
+storage attached.
+
+Usage:
+
+    nvscmd (dump <file> | erase | burn <file> [<number>] | verify <file> |
+           identify | relocatexuv <in_file> <out_file> <offset_to_apply> |
+           broad <file> <mask>) [-usb <port> | -lpt <port>] [-quiet] [-debug
+           <level>] [-help] [-syntax] [-hidden] [-nvstype <The type of flash>]
+           [-trans <trans string>] [-mul <port>] [-norun] [-unlock <file>]
+
+    dump <file>
+        Dump the contents of the NVS to the file specified. 
+
+        <file> = The filename of the file to use. If the extension is .PTN,
+        dump the partition table to the file specified and create a separate
+        .XUV file for each partition. If the extension is .XUV, dump the whole
+        of the NVS to the file specified.
+
+    erase
+        Erase the whole contents of the NVS. 
+
+    burn <file> [<number>]
+        Write the contents of the file to the NVS. 
+
+        <file> = The filename of the file to use. If the extension is .PTN,
+        the files listed within it have a path relative to its directory (or
+        an absolute path) and the second parameter is required. If the
+        extension is .XUV, write the contents into the NVS without a partition
+        table.
+
+        <number> = The partition index number, or the word ALL to write the
+        partition table and the contents of all partitions.
+
+    verify <file>
+        Verify the contents of the file with the NVS. 
+
+        <file> = The filename of the file to use. If the extension is .PTN,
+        compare the partition table structure with the table in the file (but
+        not the individual .XUV files). If the extension is .XUV, verify the
+        file with the NVS .
+
+    identify
+        Identify the chip and connected flash devices available. 
+
+    ********** Hidden **********
+    relocatexuv <in_file> <out_file> <offset_to_apply>
+        Relocate the input .XUV file to the specified start address and write
+        it to the output .XUV file. 
+        <in_file> = The file to read, which must have a .XUV extension.
+
+        <out_file> = The file to create with the new relocated base address,
+        which must have a .XUV extension.
+
+        <offset_to_apply> = The offset to apply to the file, specified in
+        terms of number of words.
+    ****************************
+
+    broad <file> <mask>
+        Broadcast the image to all devices in the mask. To program into flash,
+        the filename must have an extension of .XUV. 
+        <file> = The file to use.
+        <mask> = A binary mask of devices (or 0 for all devices found).
+
+    -usb <port>
+        Indicates USB-SPI port. 
+
+        <port> = USB-SPI port e.g. -usb 0 or -usb nnnnnn (where nnnnnn is the
+        serial number of the USB-SPI converter).
+
+    -lpt <port>
+        Indicates LPT-SPI port. 
+        <port> = LPT-SPI multi-port e.g. -lpt 1 to select LPT1.
+
+    -quiet
+        Suppress non-essential output. 
+
+    ********** Hidden **********
+    -debug <level>
+        Display debug information. 
+
+        <level> = The level of debug output. Specify 'full', 'enhanced',
+        'basic' or 'standard' - or specify the exact requirements in list
+        form: Possible group names are - 'basic' 'enhanced' 'full'. Possible
+        element names are - 'NvsEngine' 'VLIntLibrary' 'TestEngine' 'TestE2'
+        'SQLiteMetadataProvider' 'PsHelp' 'HydraText' 'Flash' 'E2' 'CuratorWr'
+        'CuratorLibrary' 'ConfToolsFwManaged' 'ConfigToolsCoreFramework'
+        'CndText' 'A11EpromCfgRw' 'uEnergy' 'PtTransport' 'Undefined'
+        'Utility' 'TestCode' 'PtTransPlugIn' 'Application' 'CmdLine'. For
+        example:
+        "full:all-cmdline-pttransport,enhanced:application+pttransport".
+    ****************************
+
+    -help
+        Display this help text. 
+    ********** Hidden **********
+        Synonyms for '-help' are '--help', '-?', '/?'.
+    ****************************
+
+    ********** Hidden **********
+    -syntax
+        Only show the syntax for help, not the full descriptions. 
+    ****************************
+
+    ********** Hidden **********
+    -hidden
+        Show the help for hidden parameters. 
+    ****************************
+
+    ********** Hidden **********
+    -nvstype <The type of flash>
+        Specify the type of NVS to manipulate. 
+        <The type of flash> = One of "INT", "SPIF", "SQIF"
+        Synonyms for '-nvstype' are '-flashtype'.
+    ****************************
+
+    ********** Hidden **********
+    -trans <trans string>
+        String used to define transport options. 
+        <trans string> = transport parameters e.g. -trans "spiport=0".
+    ****************************
+
+    -mul <port>
+        Indicates SPI multi-port. 
+        <port> = LPT-SPI multi-port (a number from 0 upwards; typically upto
+        15) e.g. -mul 2.
+
+    -norun
+        Do not automatically restart the chip afterwards. 
+
+    -unlock <file>
+        Unlocks a SPI-lockable chip. 
+        <file> = File containing the key used for SPI-unlocking.
+
