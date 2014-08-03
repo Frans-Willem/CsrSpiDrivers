@@ -1,18 +1,33 @@
+**Table of Contents**
+
+- [CSR BlueCore USB SPI programmer](#csr-bluecore-usb-spi-programmer)
+    - [CSR chips supported by programmer](#csr-chips-supported-by-programmer)
+        - [Notes](#notes)
+    - [Programmer hardware](#programmer-hardware)
+        - [Using FT232RL breakout board as a programmer](#using-ft232rl-breakout-board-as-a-programmer)
+        - [Dedicated programmer](#dedicated-programmer)
+    - [Software](#software)
+        - [CSR SPI API versions](#csr-spi-api-versions)
+        - [Installing prebuilt drivers](#installing-prebuilt-drivers)
+            - [Installing on Ubuntu/Debian Linux](#installing-on-ubuntudebian-linux)
+            - [Installing on Windows](#installing-on-windows)
+        - [Building for Wine](#building-for-wine)
+            - [Building Wine DLL on 32-bit Debian/Ubuntu Linux](#building-wine-dll-on-32-bit-debianubuntu-linux)
+            - [Building Wine DLL on 64-bit Debian/Ubuntu Linux](#building-wine-dll-on-64-bit-debianubuntu-linux)
+            - [Installing](#installing)
+        - [Building DLL for Windows](#building-dll-for-windows)
+            - [Cross-compiling DLL for Windows on Debian/Ubuntu using MinGW](#cross-compiling-dll-for-windows-on-debianubuntu-using-mingw)
+        - [BUGS](#bugs)
+    - [Thanks](#thanks)
+    - [Related projects](#related-projects)
+    - [Other sources of information](#other-sources-of-information)
+
 # CSR BlueCore USB SPI programmer
 
-This is USB SPI programmer for CSR BlueCore chips, based on FTDI FT232R USB to UART
-converter chip. It's written for use with CSR tools (such as BlueLab or
-BlueSuite) under Linux with Wine or under Windows. It works by replacing SPI
-LPT programmer driver, spilpt.dll, in CSR applications.
-
-Advantages:
-* Works on Linux and Windows;
-* Does not require LPT port;
-* Cheap accessible hardware.
-
-Disadvantages:
-* Not very fast (70 seconds to read 1MB flash);
-* See "BUGS" section.
+This is USB SPI programmer for CSR BlueCore chips, based on FTDI FT232R USB to
+UART converter chip. Software is written for use with CSR tools (such as
+BlueLab or BlueSuite) under Linux with Wine or under Windows. It works by
+replacing SPI LPT programmer driver, spilpt.dll, in CSR applications.
 
 Programmer hardware can be made using simple FTDI breakout board. Alternately
 You can build dedicated programmer using the included schematic.
@@ -21,31 +36,37 @@ Project home page: <https://github.com/lorf/csr-spi-ftdi>.
 
 ## CSR chips supported by programmer
 
-Generally, all CSR BlueCore chips should be supported. Programmer was tested
-with the following chips:
+Generally, all CSR BlueCore chips starting with BlueCore 2 should be supported.
+Programmer was tested with the following chips:
 
 * BC417 (on HC-05 module)
 * BC57F687A
 * CSR8645
 
-Note, that some chips (like CSR8645) share SPI pins with PCM function. For such
-chips to be accessible via SPI, `SPI_PCM#` pin should be pulled up to
-I/O VCC through a 10K resistor.
+### Notes
 
-There is also some limitations, see "BUGS" section.
+* BlueCore chips require 3.3V or 1.8V I/O voltage level. Check the datasheet.
+* Some chips (like CSR8645) share SPI pins with PCM function. For such chips to
+  be accessible via SPI, `SPI_PCM#` pin should be pulled up to I/O voltage
+  supply through a 10K resistor.
+* Some bluetooth modules based on BlueCore chips with builtin battery chargers
+  may be shipped with battery configuration enabled. Such modules will shutdown
+  shortly after power on if you don't connect charged battery. This can be
+  disabled using appropriate Configuration Tool.
 
 ## Programmer hardware
 
 Programmer hardware is based on FT232R chip. It is also possible to use later
-generation FTDI chips, like FT2232C/D/H or FT232H.
+generation FTDI chips, such as FT2232C/D/H or FT232H, with minor code
+modifications.
 
 ### Using FT232RL breakout board as a programmer
 
 You can build a simple programmer using popular FT232RL breakout boards (search
 Ebay for "FT232RL module 3.3" for example). Pinout specified in spi.c file.
-Change it at will. Beware that FTDI boards usually provide 5V or 3V3 I/O levels
-while CSR chips require 3V3 or 1V8 I/O level. You may supply appropriate VCCIO
-to FTDI chip or use logic level converter if levels don't match. See
+Change it at will. Note that FTDI boards usually provide 5V or 3.3V I/O levels
+while CSR chips require 3.3V or 1.8V I/O level. You may supply appropriate
+VCCIO to FTDI chip or use logic level converter if levels don't match. See
 description of VCCIO pin in FTDI chip datasheet for details.
 
 | Signal | FT232RL pin | FTDI pin name | FTDI GPIO bit | CSR pin  |
@@ -59,11 +80,19 @@ description of VCCIO pin in FTDI chip datasheet for details.
 | LED_RD | 10          | DCD#          | D6            | --       |
 | LED_WR | 11          | CTS#          | D3            | --       |
 
+SPI and UART BlueCore pins could be connected directly to FTDI pins, but I'd
+recommend to wire them through the 1K (or so) resistors.
+
 TX and RX connections are optional and provide connectivity to BlueCore UART.
 
 LED connections are optional. Wire LEDs cathodes through the current limiting
 resistors (330 Ohm works fine) to the appropriate FTDI
 pins. Wire LEDs anodes to FTDI 3V3 pin.
+
+### Dedicated programmer
+
+KiCad schematic for a dedicated programmer can be found in `hardware`
+subdirectory.
 
 ## Software
 
@@ -211,12 +240,9 @@ Build with command:
 * Driver sometimes fails with error "Unable to start read (invalid control
   data)". The problem is clearly in SPI communication, but I still can not
   figure out the cause. Anyway, restarting operation helps.
-* BC5 and CSR8 chips stop responding over SPI after some time, the chip
-  requires a reset to resurrect.
 * Current implementation of 1.4 API is based on a wild guess and is just a
   wrapper around 1.3 functions. It doesn't support multiple programmers
   connected at the same time and may contain other bugs.
-
 
 
 ## Thanks
@@ -233,6 +259,8 @@ Build with command:
   Hardijzer, for Windows <https://github.com/Frans-Willem/CsrSpiDrivers>;
 * SPILPT driver for Wine under Linux by **unicorn** using FTDI MPSSE
   <http://www.nebo-forum.kiev.ua/viewtopic.php?p=58291#p58291>;
+* Software to read/write BC4 flash over SPI using Raspberry PI GPIO
+  <http://members.efn.org/~rick/work/rpi.csr.html>;
 * USBSPI programmer based on CSR BC3 chip using original firmware by Jernej
   Škrabec <http://jernej87.blogspot.com/>;
 * USBSPI programmer software for Linux by Jernej Škrabec
