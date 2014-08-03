@@ -8,12 +8,7 @@
 #include "spifns.h"
 #include "basics.h"
 #include "spi.h"
-
-#ifdef __WINE__
-# define _snprintf snprintf
-# define stricmp strcasecmp
-# define _stricmp strcasecmp
-#endif
+#include "compat.h"
 
 /*
  * README:
@@ -478,9 +473,10 @@ error:
 DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	int nRetval=0;
 
-    WINE_TRACE("(%p, %d) type=%d\n", pSequence, nCount, pSequence->nType);
+    WINE_TRACE("(%p, %d)\n", pSequence, nCount);
 
 	while (nCount--) {
+        WINE_TRACE("command %d\n", pSequence->nType);
 		switch (pSequence->nType) {
 		case SPISEQ::TYPE_READ:{
 			if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
@@ -494,6 +490,12 @@ DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 			if (spifns_sequence_setvar(pSequence->setvar.szName,pSequence->setvar.szValue)==1)
 				nRetval=1;
 								 }break;
+        default:
+            WINE_WARN("Sequence command not implemented: %d\n", pSequence->nType);
+            g_nError = SPIFNS_ERROR_INVALID_PARAMETER;
+            snprintf(g_szErrorString, sizeof(g_szErrorString),
+                    "sequence command %d not implemented", pSequence->nType);
+            nRetval = 1;
 
 		}
 		pSequence++;
@@ -568,9 +570,10 @@ DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 
 {
 	int nRetval=0;
 
-    WINE_TRACE("(%d, %p, %d) type=%d\n", stream, pSequence, nCount, pSequence->nType);
+    WINE_TRACE("(%d, %p, %d)\n", stream, pSequence, nCount);
 
 	while (nCount--) {
+        WINE_TRACE("command %d\n", pSequence->nType);
 		switch (pSequence->nType) {
 		case SPISEQ_1_4::TYPE_READ:
 			if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
@@ -585,6 +588,7 @@ DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 
 				nRetval=1;
 			break;
         default:
+            WINE_WARN("Sequence command not implemented: %d\n", pSequence->nType);
             g_nError = SPIFNS_ERROR_INVALID_PARAMETER;
             snprintf(g_szErrorString, sizeof(g_szErrorString),
                     "sequence command %d not implemented", pSequence->nType);

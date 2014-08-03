@@ -15,11 +15,11 @@ LDLIBS +=	$(LIBFTDI)/lib32/libftdi1.a
 CPPFLAGS +=	-I$(LIBUSB)/include
 LDLIBS +=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
 
-# Doesn't compile yet
-#CPPFLAGS +=	-DSPI_STATS
+CPPFLAGS +=	-DSPI_STATS
 CPPFLAGS +=	-DCOMPAT_USLEEP
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
 CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
+CPPFLAGS +=	-DCOMPAT_TIMER_MACROS
 
 MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 

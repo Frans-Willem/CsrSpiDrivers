@@ -7,8 +7,8 @@
 #include <math.h>
 #include <errno.h>
 #include <string.h>
-#include <sys/time.h>
 #endif
+#include <sys/time.h>
 #ifdef __WINE__
 #include "wine/debug.h"
 #endif
@@ -20,6 +20,16 @@
 /* SPI clock frequency. At maximum I got 15KB/s reads at 2 MHz SPI clock. */
 #define SPI_CLOCK_FREQ    2000000
 #define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
+
+/*
+ * FT232R (as the lowest FTDI chip supporting sync bitbang mode) has 128 byte
+ * receive buffer and 256 byte transmit buffer. It works like 384 byte buffer.
+ * See:
+ * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00410.html
+ * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00413.html
+ * http://jdelfes.blogspot.ru/2014/03/ft232r-bitbang-spi-part-2.html
+ */
+#define FTDI_MAX_XFER_SIZE      (128 + 256)
 
 /*
  * FTDI bitbang pins:
@@ -52,17 +62,14 @@ static uint8_t ftdi_pin_state = 0;
 
 #define SPI_LED_FREQ  10   /* Hz */
 static int spi_led_state = 0;
+static struct timeval spi_led_start_tv;
 
 #ifdef SPI_STATS
 static struct spi_stats {
-    long long trans_usb;
-    long long reads, writes;
-    long long read_bytes, write_bytes;
-    long long read_ticks, write_ticks, misc_ticks;
-    long long read_waits;
+    long reads, writes;
+    long read_bytes, write_bytes;
     struct timeval tv_xfer_begin, tv_xfer;
     struct timeval tv_open_begin, tv_open;
-    struct timeval tv_wait_read;
 } spi_stats;
 #endif
 
@@ -76,6 +83,7 @@ int spi_nports = 0;
 
 static struct ftdi_device_ids ftdi_device_ids[] = {
     { 0x0403, 0x6001 }, /* FT232R */
+    /* Chips below are not tested. */
     { 0x0403, 0x6010 }, /* FT2232H/C/D */
     { 0x0403, 0x6011 }, /* FT4232H */
     { 0x0403, 0x6014 }, /* FT232H */
@@ -111,10 +119,6 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
 {
     int rc;
     uint8_t *bufp;
-#ifdef SPI_STATS
-    struct timeval tv;
-    int num_waits = 0;
-#endif
 
     bufp = buf;
 
@@ -127,10 +131,6 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
         spi_err("FTDI: short write: need %d, got %d", len, rc);
         return -1;
     }
-
-#ifdef SPI_STATS
-    spi_stats.trans_usb++;
-#endif
 
     /* In FTDI sync bitbang mode every write is preceded by a read to internal
      * buffer. We need to issue read for every write.
@@ -147,26 +147,9 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
         }
         if (rc == 0) {
             usleep(SPI_READ_WAIT_INTVL_us);
-#ifdef SPI_STATS
-            num_waits++;
-#endif
         } else {
             len -= rc;
             bufp += rc;
-
-#ifdef SPI_STATS
-            spi_stats.trans_usb++;
-
-            if (num_waits) {
-                tv.tv_sec = (num_waits * SPI_READ_WAIT_INTVL_us) / 1000000;
-                tv.tv_usec = (num_waits * SPI_READ_WAIT_INTVL_us) % 1000000;
-                timeradd(&spi_stats.tv_wait_read, &tv, &spi_stats.tv_wait_read);
-
-                spi_stats.read_waits++;
-
-                num_waits = 0;
-            }
-#endif
         }
     }
 
@@ -228,7 +211,7 @@ void spi_led(int led)
 
 int spi_xfer_begin(void)
 {
-    uint8_t pin_states[6];
+    uint8_t pin_states[32];
     int state_offset;
 
     WINE_TRACE("\n");
@@ -240,7 +223,8 @@ int spi_xfer_begin(void)
 
     state_offset = 0;
 
-    /* Reset sequence: deassert CS, wait two clock cycles */
+    /* BlueCore chip SPI port reset sequence: deassert CS, wait at least two
+     * clock cycles */
 
     ftdi_pin_state |= PIN_nCS;
     pin_states[state_offset++] = ftdi_pin_state;
@@ -265,10 +249,6 @@ int spi_xfer_begin(void)
     if (spi_ftdi_xfer(pin_states, state_offset) < 0)
         return -1;
 
-#ifdef SPI_STATS
-    spi_stats.misc_ticks += state_offset;
-#endif
-
     return 0;
 }
 
@@ -281,6 +261,7 @@ int spi_xfer_end(void)
 
     spi_led(SPI_LED_OFF);
 
+#ifdef SPI_STATS
     {
         struct timeval tv;
 
@@ -346,11 +327,9 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
 
 #ifdef SPI_STATS
         if (cmd & SPI_XFER_WRITE) {
-            spi_stats.write_ticks += state_offset;
             spi_stats.writes++;
             spi_stats.write_bytes += block_size;
         } else {
-            spi_stats.read_ticks += state_offset;
             spi_stats.reads++;
             spi_stats.read_bytes += block_size;
         }
@@ -426,11 +405,9 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
 
 #ifdef SPI_STATS
         if (cmd & SPI_XFER_WRITE) {
-            spi_stats.write_ticks += state_offset;
             spi_stats.writes++;
             spi_stats.write_bytes += block_size * 2;
         } else {
-            spi_stats.read_ticks += state_offset;
             spi_stats.reads++;
             spi_stats.read_bytes += block_size * 2;
         }
@@ -504,6 +481,8 @@ static int spi_enumerate_ports(void)
 
 int spi_init(void)
 {
+    WINE_TRACE("spi_nrefs=%d, spi_dev_open=%d\n", spi_nrefs, spi_dev_open);
+
     if (ftdi_init(&ftdic) < 0) {
         spi_err("FTDI: init failed");
         return -1;
@@ -605,9 +584,6 @@ int spi_open(int nport)
 
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
     ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
-#ifdef SPI_STATS
-    spi_stats.misc_ticks++;
-#endif
     if (spi_set_pins(ftdi_pin_state) < 0)
         goto open_err;
 
@@ -629,27 +605,14 @@ int spi_isopen(void)
 #ifdef SPI_STATS
 void spi_output_stats(void)
 {
-    double xfer_pct, wait_pct;
-    double avg_read, avg_write, avg_wait;
-    double rate;
+    double xfer_pct, avg_read, avg_write, rate;
 
-    xfer_pct = wait_pct = avg_read = avg_write = avg_wait = rate = NAN;
+    xfer_pct = avg_read = avg_write = rate = NAN;
 
     if (spi_stats.tv_open.tv_sec || spi_stats.tv_open.tv_usec) {
         xfer_pct = (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
         xfer_pct *= 100;
         xfer_pct /= (spi_stats.tv_open.tv_sec * 1000 + spi_stats.tv_open.tv_usec / 1000);
-    }
-
-    if (spi_stats.tv_xfer.tv_sec || spi_stats.tv_xfer.tv_usec) {
-        wait_pct = (spi_stats.tv_wait_read.tv_sec * 1000 + spi_stats.tv_wait_read.tv_usec / 1000);
-        wait_pct *= 100;
-        wait_pct /= (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
-    }
-
-    if (spi_stats.read_waits) {
-        avg_wait = (spi_stats.tv_wait_read.tv_sec * 1000000 + spi_stats.tv_wait_read.tv_usec);
-        avg_wait /= spi_stats.read_waits;
     }
 
     if (spi_stats.reads) {
@@ -663,31 +626,26 @@ void spi_output_stats(void)
     }
 
     if (spi_stats.tv_xfer.tv_sec || spi_stats.tv_xfer.tv_usec) {
-        rate = ((spi_stats.read_bytes + spi_stats.write_bytes) * 1000000) /
-            (spi_stats.tv_xfer.tv_sec * 1000000 + spi_stats.tv_xfer.tv_usec);
+        rate = ((spi_stats.read_bytes + spi_stats.write_bytes) * 1000) /
+            (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
         rate /= 1024;
     }
 
     if (stderr) {
         fprintf(stderr,
-                "Statistics:\n"
+                "*** Statistics *******************************************\n"
                 "Time open: %ld.%03ld s\n"
                 "Time in xfer: %ld.%03ld s (%.2f%% of open time)\n"
-                "Time waiting for data: %ld.%03ld s (%.2f%% of xfer time, %lld waits, %.0f us avg wait time)\n"
-                "USB transactions: %lld\n"
-                "Reads: %lld (%lld bytes, %.2f bytes avg read size, %lld ticks)\n"
-                "Writes: %lld (%lld bytes, %.2f bytes avg write size,  %lld ticks)\n"
-                "Misc ticks: %lld\n"
-                "Overall data rate: %.2f KB/s\n",
+                "Reads: %ld (%ld bytes, %.2f bytes avg read size)\n"
+                "Writes: %ld (%ld bytes, %.2f bytes avg write size)\n"
+                "Xfer data rate: %.2f KB/s (%ld bytes in %ld.%03ld s)\n"
+                "**********************************************************\n",
                 spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
                 spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
-                spi_stats.tv_wait_read.tv_sec, spi_stats.tv_wait_read.tv_usec / 1000,
-                    wait_pct, spi_stats.read_waits, avg_wait,
-                spi_stats.trans_usb,
-                spi_stats.reads, spi_stats.read_bytes, avg_read, spi_stats.read_ticks,
-                spi_stats.writes, spi_stats.write_bytes, avg_write, spi_stats.write_ticks,
-                spi_stats.misc_ticks,
-                rate
+                spi_stats.reads, spi_stats.read_bytes, avg_read,
+                spi_stats.writes, spi_stats.write_bytes, avg_write,
+                rate, spi_stats.read_bytes + spi_stats.write_bytes,
+                    spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000
         );
     }
 }

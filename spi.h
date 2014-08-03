@@ -1,20 +1,12 @@
 #ifndef _SPI_H
 #define _SPI_H
 
-/*
- * FT232R (as the lowest FTDI chip supporting sync bitbang mode) has 128 byte
- * receive buffer and 256 byte transmit buffer. It works like 384 byte buffer.
- * See:
- * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00410.html
- * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00413.html
- * http://jdelfes.blogspot.ru/2014/03/ft232r-bitbang-spi-part-2.html
- */
-#define FTDI_MAX_XFER_SIZE      (128 + 256)
-
+/* Bit field */
 #define SPI_LED_OFF     (0)
 #define SPI_LED_READ    (1 << 0)
 #define SPI_LED_WRITE   (1 << 1)
 
+/* Bit field */
 #define SPI_XFER_READ   (1 << 0)
 #define SPI_XFER_WRITE  (1 << 1)
 
