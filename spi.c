@@ -275,6 +275,15 @@ int spi_xfer_end(void)
     return 0;
 }
 
+/*
+ * There is a write speed optimization, that is made in assumption that reading
+ * from MOSI on the slave side occurs just a bit after slave sees positive CLK
+ * edge, so we can drive MOSI and CLK lines together in one operation, which
+ * requires less communication with FTDI chip and hence less time.  However,
+ * Vladimir Zidar reported that this doesn't work in his case (BC57F687A via
+ * TIAO TUMPA), so it was disabled by default. You can enable such an
+ * optimization by defining WRITE_OPTIMIZATION at compile time.
+ */
 int spi_xfer_8(int cmd, uint8_t *buf, int size)
 {
     int bytes_left, block_offset, block_size, state_offset;
@@ -288,7 +297,14 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
     bytes_left = size;
     bufp = buf;
     do {
+#ifdef WRITE_OPTIMIZATION
         block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
+#else
+        if (cmd & SPI_XFER_WRITE)
+            block_size = FTDI_MAX_XFER_SIZE / 8 / 3;
+        else
+            block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
+#endif
         if (block_size > bytes_left)
             block_size = bytes_left;
 
@@ -298,15 +314,16 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             byte = bufp[block_offset];
-            for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
+            for (bit = (1 << 7); bit != 0; bit >>= 1) {
                 if (cmd & SPI_XFER_WRITE) {
                     /* Set output bit */
                     if (byte & bit)
                         ftdi_pin_state |= PIN_MOSI;
                     else
                         ftdi_pin_state &= ~PIN_MOSI;
-                    /* Speed optimization: skip this cycle during write. */
-                    /*pin_states[state_offset++] = ftdi_pin_state;*/
+#ifndef WRITE_OPTIMIZATION
+                    pin_states[state_offset++] = ftdi_pin_state;
+#endif
                 } else {
                     /* Write 0 during a read */
                     ftdi_pin_state &= ~PIN_MOSI;
@@ -339,13 +356,16 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
             state_offset = 0;
             for (block_offset = 0; block_offset < block_size; block_offset++) {
                 byte = 0;
-                for (bit = (1 << 7); bit != 0; bit >>= 1) {  /* MSB first */
+                for (bit = (1 << 7); bit != 0; bit >>= 1) {
                     /* Input bit */
                     if (pin_states[state_offset] & PIN_MISO)
                         byte |= bit;
                     state_offset++;
                     state_offset++;
-                    /*state_offset++;*/
+#ifndef WRITE_OPTIMIZATION
+                    if (cmd & SPI_XFER_WRITE)
+                        state_offset++;
+#endif
                 }
                 bufp[block_offset] = byte;
             }
@@ -371,21 +391,30 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
     words_left = size;
     bufp = buf;
     do {
+#ifdef WRITE_OPTIMIZATION
         block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
+#else
+        if (cmd & SPI_XFER_WRITE)
+            block_size = FTDI_MAX_XFER_SIZE / 16 / 3;
+        else
+            block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
+#endif
         if (block_size > words_left)
             block_size = words_left;
 
         state_offset = 0;
         for (block_offset = 0; block_offset < block_size; block_offset++) {
             word = bufp[block_offset];
-            for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
+            for (bit = (1 << 15); bit != 0; bit >>= 1) {
                 if (cmd & SPI_XFER_WRITE) {
                     /* Set output bit */
                     if (word & bit)
                         ftdi_pin_state |= PIN_MOSI;
                     else
                         ftdi_pin_state &= ~PIN_MOSI;
-                    /*pin_states[state_offset++] = ftdi_pin_state;*/
+#ifndef WRITE_OPTIMIZATION
+                    pin_states[state_offset++] = ftdi_pin_state;
+#endif
                 } else {
                     ftdi_pin_state &= ~PIN_MOSI;
                 }
@@ -417,13 +446,16 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
             state_offset = 0;
             for (block_offset = 0; block_offset < block_size; block_offset++) {
                 word = 0;
-                for (bit = (1 << 15); bit != 0; bit >>= 1) {  /* MSB first */
+                for (bit = (1 << 15); bit != 0; bit >>= 1) {
                     /* Input bit */
                     if (pin_states[state_offset] & PIN_MISO)
                         word |= bit;
                     state_offset++;
                     state_offset++;
-                    /*state_offset++;*/
+#ifndef WRITE_OPTIMIZATION
+                    if (cmd & SPI_XFER_WRITE)
+                        state_offset++;
+#endif
                 }
                 bufp[block_offset] = word;
             }
