@@ -28,29 +28,31 @@ WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 
 #define VARLIST_SPISPORT 0
 #define VARLIST_SPIMUL 1
-#define VARLIST_SPISHIFTPERIOD 2
 #define VARLIST_SPICLOCK 3
 #define VARLIST_SPICMDBITS 4
 #define VARLIST_SPICMDREADBITS 5
 #define VARLIST_SPICMDWRITEBITS 6
 #define VARLIST_SPIMAXCLOCK 7
+#define VARLIST_FTDI_BASE_CLOCK 8
 
 const SPIVARDEF g_pVarList[]={
 	{"SPIPORT","1",1},
 	{"SPIMUL","0",0},
-	{"SPISHIFTPERIOD","0",0},
+	{"SPISHIFTPERIOD","0",0},   /* Unused */
 	{"SPICLOCK","0",0},
 	{"SPICMDBITS","0",0},
 	{"SPICMDREADBITS","0",0},
 	{"SPICMDWRITEBITS","0",0},
-	{"SPIMAXCLOCK","1000",0}
+	{"SPIMAXCLOCK","1000",0},
+	{"FTDI_BASE_CLOCK","4000000",0}
 };
 
 unsigned int g_nSpiMulChipNum=-1;
 int g_nSpiPort=1;
 unsigned char g_bCurrentOutput=0x10;
 unsigned int g_nSpiShiftPeriod=1;
-char g_szMaxClock[16]="1000";
+unsigned long g_nSpiClock=1000;
+unsigned long g_nMaxSpiClock=1000;
 char g_szErrorString[256]="No error";
 unsigned int g_nError=SPIERR_NO_ERROR;
 int g_nCmdReadBits=0;
@@ -102,11 +104,11 @@ DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
 		return szReturn;
 	} else if (_stricmp(szName,"SPICLOCK")==0) {
 		static char szReturn[64];
-		sprintf(szReturn,"%f",172.41/(double)g_nSpiShiftPeriod);
+		sprintf(szReturn,"%lu",g_nSpiClock);
 		return szReturn;
 	} else if (_stricmp(szName,"SPIMAXCLOCK")==0) {
 		static char szReturn[24];
-		sprintf(szReturn,"%s",g_szMaxClock);
+		sprintf(szReturn,"%lu",g_nMaxSpiClock);
 		return szReturn;
 	} else {
 		return "";
@@ -192,13 +194,16 @@ DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
 }
 //RE Check: Completely identical
 DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
-    WINE_TRACE("(%s)\n", szCmd);
 	if (stricmp(szCmd,"SPISLOWER")==0) {
-		//TODO!
-		/*if (g_nSpiShiftPeriod<40) {
-			//SPI Shift Period seems to be done about 1.5 times, plus 1 to compensate for rounding down (for example in 1)
-			spifns_debugout("Delays now %d\n",g_nSpiShiftPeriod=g_nSpiShiftPeriod + (g_nSpiShiftPeriod>>2) + 1); //>>2 => /2 ?
-		}*/
+		//SPI Shift Period seems to be done about 1.5 times, plus 1 to compensate for rounding down (for example in 1)
+        g_nSpiClock = (g_nSpiClock * 2) / 3;
+        if (g_nSpiClock < 25)
+            g_nSpiClock = 25;
+        WINE_TRACE("%s: set SPI clock to %lu\n", szCmd, g_nSpiClock);
+        if (spi_set_clock(g_nSpiClock) < 0) {
+            /* XXX */
+            return 0;
+        }
 	}
 	return 0;
 }
@@ -227,14 +232,6 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
         /* Ports start with 1 in spilpt */
         pCallback(nport + 1, port_desc, pData);
     }
-}
-//RE Check: Opcodes functionally identical
-//Original passes arguments through eax
-//Compiled takes argument on stack. Maybe change it to __fastcall ?
-DLLEXPORT void __cdecl spifns_sequence_setvar_spishiftperiod(int nPeriod) {
-    WINE_TRACE("(%d)\n", nPeriod);
-	//TODO
-	spifns_debugout("Delays set to %d\n",g_nSpiShiftPeriod=nPeriod);
 }
 
 DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
@@ -380,17 +377,18 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
 			case VARLIST_SPIMUL:{
 				spifns_sequence_setvar_spimul(nValue);
 								}break;
-			case VARLIST_SPISHIFTPERIOD:{
-				spifns_sequence_setvar_spishiftperiod(nValue);
-										}break;
 			case VARLIST_SPICLOCK:{
-				double dblValue=strtod(szValue,0);
-				static const double dblNull=0.0;
-				if (dblValue==dblNull)
+				unsigned long nValue=strtoul(szValue, NULL, 0);
+				if (nValue == 0)
 					return 1; //ERROR!
-				int nShiftPeriod=(172.41/dblValue)+0.5;
-				if (nShiftPeriod<1) nShiftPeriod=1;
-				spifns_sequence_setvar_spishiftperiod(nShiftPeriod);
+                g_nSpiClock = nValue;
+                if (g_nSpiClock > g_nMaxSpiClock)
+                    g_nSpiClock = g_nMaxSpiClock;
+                if (spi_set_clock(g_nSpiClock) < 0) {
+                    const char szError[]="Couldn't set SPI clock";
+                    memcpy(g_szErrorString,szError,sizeof(szError));
+                    return 1;
+                }
 								  }break;
 			case VARLIST_SPICMDBITS:
 			case VARLIST_SPICMDREADBITS:
@@ -401,11 +399,23 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
 					g_nCmdReadBits=nValue;
 										 }break;
 			case VARLIST_SPIMAXCLOCK:{
-				double fValue=atof(szValue);
-				if (fValue<1.0)
-					fValue=1.0;
-				_snprintf(g_szMaxClock,10,"%f",fValue); //I have no idea why they only allow 11 characters to be output everything indicates the stack could allocate 16 :/
+                unsigned int nValue = strtoul(szValue, NULL, 0);
+                if (nValue == 0) {
+                    const char szError[]="SPIMAXCLOCK value should be positive integer";
+                    memcpy(g_szErrorString,szError,sizeof(szError));
+                    return 1;
+                }
+                g_nMaxSpiClock = nValue;
 									 }break;
+
+            case VARLIST_FTDI_BASE_CLOCK:
+                {
+                    unsigned int ftdi_clk;
+                    ftdi_clk = strtoul(szValue, NULL, 0);
+                    if (ftdi_clk != 0)
+                        spi_set_ftdi_base_clock(ftdi_clk);
+                }
+                break;
 			}
 		}
 	}

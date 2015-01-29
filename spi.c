@@ -17,8 +17,8 @@
 #include "hexdump.h"
 #include "compat.h"
 
-/* SPI clock frequency. At maximum I got 15KB/s reads at 2 MHz SPI clock. */
-#define SPI_CLOCK_FREQ    2000000
+/* FTDI clock frequency. At maximum I got 15KB/s reads at 4 MHz clock. */
+#define FTDI_BASE_CLOCK    4000000
 #define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
 
 /*
@@ -80,6 +80,9 @@ struct ftdi_device_ids {
 #define SPI_MAX_PORTS   16
 struct spi_port spi_ports[SPI_MAX_PORTS];
 int spi_nports = 0;
+
+unsigned long spi_ftdi_base_clock = FTDI_BASE_CLOCK;
+unsigned long spi_ftdi_clock = 0;
 
 static struct ftdi_device_ids ftdi_device_ids[] = {
     { 0x0403, 0x6001 }, /* FT232R */
@@ -549,6 +552,42 @@ int spi_deinit(void)
     return 0;
 }
 
+static int spi_set_ftdi_clock(void)
+{
+    if (spi_ftdi_clock == 0)
+        spi_ftdi_clock = spi_ftdi_base_clock;
+    WINE_TRACE("FTDI: FTDI clock: %lu\n", spi_ftdi_clock);
+    if (spi_isopen()) {
+        /*
+        * See FT232R datasheet, section "Baud Rate Generator" and AppNote
+        * AN_232R-01, section "Synchronous Bit Bang Mode". Also see this thread on
+        * bitbang baud rate hardware bug in FTDI chips (XXX is this related to
+        * syncbb mode?):
+        * http://developer.intra2net.com/mailarchive/html/libftdi/2010/msg00240.html
+        */
+        WINE_TRACE("FTDI: setting FTDI clock frequency: %lu, baudrate: %lu, FTDI_BASE_CLOCK: %lu\n",
+                spi_ftdi_clock, spi_ftdi_clock / 16, spi_ftdi_base_clock);
+        if (ftdi_set_baudrate(&ftdic, spi_ftdi_clock / 16) < 0) {
+            spi_err("FTDI: set baudrate failed: %s", ftdi_get_error_string(&ftdic));
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int spi_set_clock(unsigned long spi_clk) {
+    WINE_TRACE("FTDI: setting SPI clock: %lu\n", spi_clk);
+    spi_ftdi_clock = ((spi_clk * spi_ftdi_base_clock) / 1000);
+    return spi_set_ftdi_clock();
+}
+
+void spi_set_ftdi_base_clock(unsigned long ftdi_clk)
+{
+    WINE_WARN("FTDI: setting FTDI_BASE_CLOCK: %lu\n", ftdi_clk);
+    spi_ftdi_base_clock = ftdi_clk;
+}
+
 int spi_open(int nport)
 {
     WINE_TRACE("(%d)\n", nport);
@@ -602,17 +641,8 @@ int spi_open(int nport)
         goto open_err;
     }
 
-    /*
-     * See FT232R datasheet, section "Baud Rate Generator" and AppNote
-     * AN_232R-01, section "Synchronous Bit Bang Mode". Also see this thread on
-     * bitbang baud rate hardware bug in FTDI chips (XXX is this related to
-     * syncbb mode?):
-     * http://developer.intra2net.com/mailarchive/html/libftdi/2010/msg00240.html
-     */
-    if (ftdi_set_baudrate(&ftdic, (SPI_CLOCK_FREQ * 2) / 16) < 0) {
-        spi_err("FTDI: set baudrate failed: %s", ftdi_get_error_string(&ftdic));
+    if (spi_set_ftdi_clock() < 0)
         goto open_err;
-    }
 
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
     ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
@@ -671,13 +701,15 @@ void spi_output_stats(void)
                 "Reads: %ld (%ld bytes, %.2f bytes avg read size)\n"
                 "Writes: %ld (%ld bytes, %.2f bytes avg write size)\n"
                 "Xfer data rate: %.2f KB/s (%ld bytes in %ld.%03ld s)\n"
+                "FTDI base clock: %lu Hz\n"
                 "**********************************************************\n",
                 spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
                 spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
                 spi_stats.reads, spi_stats.read_bytes, avg_read,
                 spi_stats.writes, spi_stats.write_bytes, avg_write,
                 rate, spi_stats.read_bytes + spi_stats.write_bytes,
-                    spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000
+                    spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000,
+                spi_ftdi_base_clock
         );
     }
 }

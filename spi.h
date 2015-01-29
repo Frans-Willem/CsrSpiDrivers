@@ -27,6 +27,8 @@ extern int spi_nports;
 int spi_init(void);
 int spi_deinit(void);
 
+int spi_set_clock(unsigned long spi_clk);
+void spi_set_ftdi_base_clock(unsigned long ftdi_clk);
 int spi_open(int nport);
 int spi_isopen(void);
 int spi_close(void);
