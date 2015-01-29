@@ -1,16 +1,15 @@
-EESchema Schematic File Version 2  date Чт. 31 июля 2014 20:46:17
+EESchema Schematic File Version 2  date Вт. 27 янв. 2015 20:41:18
 LIBS:power
 LIBS:device
 LIBS:conn
 LIBS:components
-LIBS:csr-spi-ftdi-cache
 EELAYER 25  0
 EELAYER END
 $Descr A4 11700 8267
 encoding utf-8
 Sheet 1 1
 Title ""
-Date "31 jul 2014"
+Date "27 jan 2015"
 Rev ""
 Comp ""
 Comment1 ""
@@ -194,7 +193,7 @@ L R R9
 U 1 1 53C2A16F
 P 7400 4000
 F 0 "R9" V 7480 4000 50  0000 C CNN
-F 1 "1k" V 7400 4000 50  0000 C CNN
+F 1 "220" V 7400 4000 50  0000 C CNN
 	1    7400 4000
 	0    -1   -1   0   
 $EndComp
@@ -203,7 +202,7 @@ L R R8
 U 1 1 53C2A15C
 P 7400 3800
 F 0 "R8" V 7480 3800 50  0000 C CNN
-F 1 "1k" V 7400 3800 50  0000 C CNN
+F 1 "220" V 7400 3800 50  0000 C CNN
 	1    7400 3800
 	0    -1   -1   0   
 $EndComp
@@ -435,7 +434,7 @@ L R R6
 U 1 1 53B41C9E
 P 7050 3700
 F 0 "R6" V 7130 3700 50  0000 C CNN
-F 1 "1k" V 7050 3700 50  0000 C CNN
+F 1 "220" V 7050 3700 50  0000 C CNN
 	1    7050 3700
 	0    -1   -1   0   
 $EndComp
@@ -444,7 +443,7 @@ L R R5
 U 1 1 53B41C8C
 P 7050 3500
 F 0 "R5" V 7130 3500 50  0000 C CNN
-F 1 "1k" V 7050 3500 50  0000 C CNN
+F 1 "220" V 7050 3500 50  0000 C CNN
 	1    7050 3500
 	0    -1   -1   0   
 $EndComp
@@ -453,7 +452,7 @@ L R R4
 U 1 1 53B41C86
 P 7400 3400
 F 0 "R4" V 7480 3400 50  0000 C CNN
-F 1 "1k" V 7400 3400 50  0000 C CNN
+F 1 "220" V 7400 3400 50  0000 C CNN
 	1    7400 3400
 	0    -1   -1   0   
 $EndComp
@@ -462,7 +461,7 @@ L R R1
 U 1 1 53B41C7F
 P 7050 3300
 F 0 "R1" V 7130 3300 50  0000 C CNN
-F 1 "1k" V 7050 3300 50  0000 C CNN
+F 1 "220" V 7050 3300 50  0000 C CNN
 	1    7050 3300
 	0    -1   -1   0   
 $EndComp

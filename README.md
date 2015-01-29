@@ -81,7 +81,7 @@ description of VCCIO pin in FTDI chip datasheet for details.
 | LED_WR | 11          | CTS#          | D3            | --       |
 
 SPI and UART BlueCore pins could be connected directly to FTDI pins, but I'd
-recommend to wire them through the 1K (or so) resistors.
+recommend to wire them through the 220 Ohm (or so) resistors.
 
 TX and RX connections are optional and provide connectivity to BlueCore UART.
 
