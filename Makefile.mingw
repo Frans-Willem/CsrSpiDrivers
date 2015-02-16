@@ -48,11 +48,11 @@ all: $(OBJDIR)/spilpt.dll
 
 endif
 
-$(OBJDIR)/basics.o: spi.h basics.h spifns.h
+$(OBJDIR)/basics.o: spi.h basics.h spifns.h logging.h
 $(OBJDIR)/spi.o: spi.h compat.h
-$(OBJDIR)/hexdump.o: hexdump.h
+$(OBJDIR)/logging.o: logging.h compat.h
 
-$(OBJDIR)/spilpt.dll: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/hexdump.o $(OBJDIR)/compat.o $(LIBRARY_DEF)
+$(OBJDIR)/spilpt.dll: $(OBJDIR)/dllmain.o $(OBJDIR)/logging.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/compat.o $(LIBRARY_DEF)
 	mkdir -p $(OBJDIR)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 	$(STRIP) $@

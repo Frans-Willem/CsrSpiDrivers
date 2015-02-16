@@ -9,6 +9,7 @@
 #include "basics.h"
 #include "spi.h"
 #include "compat.h"
+#include "logging.h"
 
 /*
  * README:
@@ -34,6 +35,8 @@ WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 #define VARLIST_SPICMDWRITEBITS 6
 #define VARLIST_SPIMAXCLOCK 7
 #define VARLIST_FTDI_BASE_CLOCK 8
+#define VARLIST_FTDI_LOG_LEVEL 9
+#define VARLIST_FTDI_LOG_FILE 10
 
 const SPIVARDEF g_pVarList[]={
 	{"SPIPORT","1",1},
@@ -44,7 +47,9 @@ const SPIVARDEF g_pVarList[]={
 	{"SPICMDREADBITS","0",0},
 	{"SPICMDWRITEBITS","0",0},
 	{"SPIMAXCLOCK","1000",0},
-	{"FTDI_BASE_CLOCK","4000000",0}
+	{"FTDI_BASE_CLOCK","4000000",0},
+	{"FTDI_LOG_LEVEL","warn",0},
+	{"FTDI_LOG_FILE","stderr",0}
 };
 
 unsigned int g_nSpiMulChipNum=-1;
@@ -70,24 +75,45 @@ spifns_debug_callback g_pDebugCallback=0;
 
 DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...);
 DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData);
+DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue);
 
 //RE Check: Completely identical.
 DLLEXPORT void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 
 	*ppList=g_pVarList;
 	*pnCount=sizeof(g_pVarList)/sizeof(*g_pVarList);
 }
 
+/* Try to initialize variables from environment earlier than pttransport
+ * will send them to us */
+int spifns_init_vars_from_env(void)
+{
+    const char *var, *val;
+    unsigned int ii;
+
+    for (ii = 0; ii < sizeof(g_pVarList)/sizeof(g_pVarList[0]); ii++) {
+        var = g_pVarList[ii].szName;
+        val = getenv(var);
+        if (val != NULL && val[0] != '\0') {
+            if (spifns_sequence_setvar(var, val) !=0)
+                return -1;
+        }
+    }
+    return 0;
+}
+
 DLLEXPORT int __cdecl spifns_init() {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
+    if (spifns_init_vars_from_env() < 0)
+        return -1;
     if (spi_init() < 0)
         return -1;
 	return 0;
 }
 //RE Check: Completely identical (one opcode off, jns should be jge, but shouldn't matter. Probably unsigned/signed issues)
 DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
-    WINE_TRACE("(%s)\n", szName);
+    LOG(DEBUG, "(%s)", szName);
 	if (!szName) {
 		return "";
 	} else if (_stricmp(szName,"SPIPORT")==0) {
@@ -116,7 +142,7 @@ DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
 }
 //RE Check: Completely identical
 DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 	if (pnErrorAddress)
 		*pnErrorAddress=g_nErrorAddress;
 	if (pszErrorString)
@@ -126,7 +152,7 @@ DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddr
 
 DLLEXPORT void spifns_clear_last_error(void)
 {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 	static const char szError[]="No error";
 	memcpy(g_szErrorString,szError,sizeof(szError));
     g_nErrorAddress=0;
@@ -135,18 +161,18 @@ DLLEXPORT void spifns_clear_last_error(void)
 
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback) {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 	g_pDebugCallback=pCallback;
     spi_set_error_cb((spi_error_cb)pCallback);
 }
 //RE Check: Completely identical
 DLLEXPORT int __cdecl spifns_get_version() {
-    WINE_TRACE("return: 0x%02x\n", SPIFNS_VERSION);
+    LOG(DEBUG, "returning 0x%02x", SPIFNS_VERSION);
 	return SPIFNS_VERSION;
 }
 
 DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
-    WINE_TRACE("(%d)\n", nPort);
+    LOG(DEBUG, "(%d)", nPort);
 
     if (spi_open(nPort - 1) < 0)
         return INVALID_HANDLE_VALUE;
@@ -156,12 +182,12 @@ DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
 }
 
 DLLEXPORT void __cdecl spifns_close_port() {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
     spi_close();
 }
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 	if (g_pDebugCallback) {
 		static char szDebugOutput[256];
 		va_list args;
@@ -173,14 +199,14 @@ DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
 }
 
 DLLEXPORT void __cdecl spifns_close() {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 	spifns_close_port();
 
     spi_deinit();
 }
 //RE Check: Completely identical
 DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
-    WINE_TRACE("(%d)\n", nChip);
+    LOG(DEBUG, "(%d)", nChip);
 	/*g_bCurrentOutput=g_bCurrentOutput&0xD3|0x10;
 	g_nSpiMul=0;
 	g_nSpiMulConfig=nChip;
@@ -199,7 +225,7 @@ DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
         g_nSpiClock = (g_nSpiClock * 2) / 3;
         if (g_nSpiClock < 25)
             g_nSpiClock = 25;
-        WINE_TRACE("%s: set SPI clock to %lu\n", szCmd, g_nSpiClock);
+        LOG(INFO, "%s: set SPI clock to %lu", szCmd, g_nSpiClock);
         if (spi_set_clock(g_nSpiClock) < 0) {
             /* XXX */
             return 0;
@@ -212,14 +238,14 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
     char port_desc[128];
     int nport;
 
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 
     if (spi_nports == 0) {
         /* Some apps, CSR86XX ROM ConfigTool 3.0.48 in particular, crash when
          * no ports present. Return some dummy port for it if we can't find
          * any. */
-        WINE_TRACE("No FTDI device found, calling port enum callback "
-                "(1, \"No FTDI device found\", %p)\n", pData);
+        LOG(WARN, "No FTDI device found, calling port enum callback "
+                "(1, \"No FTDI device found\", %p)", pData);
         pCallback(1, "No FTDI device found", pData);
         return;
     }
@@ -227,7 +253,7 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
     for (nport = 0; nport < spi_nports; nport++) {
         snprintf(port_desc, sizeof(port_desc), "%d: %s %s",
             nport + 1, spi_ports[nport].desc, spi_ports[nport].serial);
-        WINE_TRACE("Calling port enum callback (%d, \"%s\", %p)\n",
+        LOG(DEBUG, "Calling port enum callback (%d, \"%s\", %p)",
                 nport + 1, port_desc, pData);
         /* Ports start with 1 in spilpt */
         pCallback(nport + 1, port_desc, pData);
@@ -235,7 +261,7 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
 }
 
 DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
-    WINE_TRACE("(%d)\n", nPort);
+    LOG(DEBUG, "(%d)", nPort);
 
 	spifns_close_port();
     if (spifns_open_port(nPort) == INVALID_HANDLE_VALUE)
@@ -247,7 +273,7 @@ DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
 }
 //RE Check: Functionally equivalent, but completely different ASM code 
 DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
-    WINE_TRACE("(0x%04x, '%c', %d, buf)\n", nAddress, cOperation, nLength);
+    LOG(DEBUG, "(0x%04x, '%c', %d, buf)", nAddress, cOperation, nLength);
 	if (g_pDebugCallback) {
 		static const char * const pszTable[]={
 			"%04X     %c ????\n",
@@ -268,10 +294,10 @@ DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char c
 		else
 			memset(bCopy,0,sizeof(bCopy));
 		if (nLength<2) {
-            WINE_TRACE(pszTable[nLength],nAddress,cOperation,bCopy[0]);
+            LOG(DEBUG, pszTable[nLength],nAddress,cOperation,bCopy[0]);
 			spifns_debugout(pszTable[nLength],nAddress,cOperation,bCopy[0]);
 		} else {
-            WINE_TRACE(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
+            LOG(DEBUG, pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
 			spifns_debugout(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
 		}
 #undef _MIN
@@ -286,7 +312,7 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
         (uint8_t)(nAddress & 0xff), /* Address low byte */
     };
 
-    WINE_TRACE("(0x%04x, %d, %p)\n", nAddress, nLength, pnInput);
+    LOG(DEBUG, "(0x%04x, %d, %p)", nAddress, nLength, pnInput);
 
 #define _ERR_RETURN(n, s) do { \
         g_nError = (n); \
@@ -296,6 +322,9 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
 
     if (!spi_isopen())
         _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
+
+    DUMP(pnInput, nLength << 1, "write16(addr=0x%04x, len=%d, crc32=0x%08x)",
+            nAddress, nLength, buf_crc32(pnInput, nLength << 1));
 
     spi_led(SPI_LED_WRITE);
 
@@ -320,14 +349,14 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
 error:
     if (g_nError != SPIERR_NO_ERROR) {
         g_nErrorAddress=nAddress;
-        WINE_WARN("%s\n", g_szErrorString);
+        LOG(ERR, "%s", g_szErrorString);
     }
     return 1;
 }
 
 //RE Check: Functionally identical, register choice, calling convention, and some ordering changes.
 DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
-    WINE_TRACE("(%d)\n", nMul);
+    LOG(DEBUG, "(%d)", nMul);
 /*	BYTE bNewOutput=g_bCurrentOutput&~BV_CLK;
 	if ((g_nSpiMulChipNum=nMul)<=16) {
 		//Left side
@@ -358,7 +387,7 @@ DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
 }
 //RE Check: Functionally identical, register choice, calling convention, stack size, and some ordering changes.
 DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue) {
-    WINE_TRACE("(%s, %s)\n", szName, szValue);
+    LOG(DEBUG, "(%s, %s)", szName, szValue);
 	if (szName==0)
 		return 1;
 	if (szValue==0)
@@ -416,6 +445,61 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
                         spi_set_ftdi_base_clock(ftdi_clk);
                 }
                 break;
+            case VARLIST_FTDI_LOG_LEVEL:
+                {
+                    char *val, *cp, *tok;
+                    uint32_t lvl;
+
+                    val = strdup(szValue);
+                    if (val == NULL)
+                        return 1;
+
+                    cp = val;
+                    lvl = 0;
+                    while ((tok = strtok(cp, ",")) != NULL) {
+                        cp = NULL;
+                        switch (toupper(tok[0])) {
+                        case 'Q':
+                            lvl = (lvl & ~LOG_LEVEL_MASK) | LOG_LEVEL_QUIET;
+                            break;
+                        case 'E':
+                            lvl = (lvl & ~LOG_LEVEL_MASK) | LOG_LEVEL_ERR;
+                            break;
+                        case 'W':
+                            lvl = (lvl & ~LOG_LEVEL_MASK) | LOG_LEVEL_WARN;
+                            break;
+                        case 'I':
+                            lvl = (lvl & ~LOG_LEVEL_MASK) | LOG_LEVEL_INFO;
+                            break;
+                        case 'D':
+                            if (toupper(tok[1]) == 'E') /* DEBUG */
+                                lvl = (lvl & ~LOG_LEVEL_MASK) | LOG_LEVEL_DEBUG;
+                            else    /* DUMP */
+                                lvl |= LOG_FLAGS_DUMP;
+                            break;
+                        default:
+                            free(val);
+                            return 1;
+                        }
+                    }
+
+                    free(val);
+                    log_set_options(lvl);
+                }
+                break;
+            case VARLIST_FTDI_LOG_FILE:
+                if (!strcasecmp(szValue, "stdout")) {
+                    log_set_dest(stdout);
+                } else if (!strcasecmp(szValue, "stderr")) {
+                    log_set_dest(stderr);
+                } else {
+                    if (log_set_file(szValue) < 0) {
+                        const char szError[]="Couldn't open log file";
+                        memcpy(g_szErrorString,szError,sizeof(szError));
+                        return 1;
+                    }
+                }
+                break;
 			}
 		}
 	}
@@ -431,7 +515,7 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
     };
     uint8_t inbuf1[2];
 
-    WINE_TRACE("(0x%02x, %d, %p)\n", nAddress, nLength, pnOutput);
+    LOG(DEBUG, "(0x%02x, %d, %p)", nAddress, nLength, pnOutput);
 
 #define _ERR_RETURN(n, s) do { \
         g_nError = (n); \
@@ -457,7 +541,7 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
     if (inbuf1[0] != 3 || inbuf1[1] != (nAddress >> 8)) {
         _ERR_RETURN(SPIERR_READ_FAILED,
                 "Unable to start read (invalid control data)");
-        WINE_WARN("Control data: 0x%02x 0x%02x", inbuf1[0], inbuf1[1]);
+        LOG(ERR, "Control data: 0x%02x 0x%02x", inbuf1[0], inbuf1[1]);
     }
 
     if (spi_xfer_16(SPI_XFER_READ, pnOutput, nLength) < 0) {
@@ -468,6 +552,9 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
     if (spi_xfer_end() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to end transfer");
 
+    DUMP(pnOutput, nLength << 1, "read16(addr=0x%04x, len=%d, crc32=0x%08x)",
+            nAddress, nLength, buf_crc32(pnOutput, nLength << 1));
+
 	return 0;
 
 #undef _ERR_RETURN
@@ -475,7 +562,7 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
 error:
     if (g_nError != SPIERR_NO_ERROR) {
         g_nErrorAddress=nAddress;
-        WINE_WARN("%s\n", g_szErrorString);
+        LOG(ERR, "%s", g_szErrorString);
     }
     return 1;
 }
@@ -483,10 +570,10 @@ error:
 DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	int nRetval=0;
 
-    WINE_TRACE("(%p, %d)\n", pSequence, nCount);
+    LOG(DEBUG, "(%p, %d)", pSequence, nCount);
 
 	while (nCount--) {
-        WINE_TRACE("command %d\n", pSequence->nType);
+        LOG(DEBUG, "command %d", pSequence->nType);
 		switch (pSequence->nType) {
 		case SPISEQ::TYPE_READ:{
 			if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
@@ -501,7 +588,7 @@ DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 				nRetval=1;
 								 }break;
         default:
-            WINE_WARN("Sequence command not implemented: %d\n", pSequence->nType);
+            LOG(WARN, "Sequence command not implemented: %d", pSequence->nType);
             g_nError = SPIFNS_ERROR_INVALID_PARAMETER;
             snprintf(g_szErrorString, sizeof(g_szErrorString),
                     "sequence command %d not implemented", pSequence->nType);
@@ -523,7 +610,7 @@ DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
     };
     uint8_t inbuf[2];
 
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 
     if (spi_xfer_begin() < 0)
         return SPIFNS_XAP_NO_REPLY;
@@ -533,6 +620,8 @@ DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
         return SPIFNS_XAP_NO_REPLY;
     if (spi_xfer_end() < 0)
         return SPIFNS_XAP_NO_REPLY;
+    DUMP(inbuf, 2, "read8(addr=0x%04x, len=%d)", GBL_CHIP_VERSION_GEN1_ADDR, 3);
+    LOG(DEBUG, "CPU is %s", xferbuf[0] ? "stopped" : "running");
 
     if (inbuf[0] != 3 || inbuf[1] != 0xff) {
         /* No chip present or not responding correctly, no way to find out. */
@@ -554,7 +643,7 @@ DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
 
 DLLEXPORT int __cdecl spifns_stream_init(spifns_stream_t *p_stream)
 {
-    WINE_TRACE("(%p)\n", p_stream);
+    LOG(DEBUG, "(%p)", p_stream);
     int rc;
     
     rc = spifns_init();
@@ -566,13 +655,13 @@ DLLEXPORT int __cdecl spifns_stream_init(spifns_stream_t *p_stream)
 
 DLLEXPORT void __cdecl spifns_stream_close(spifns_stream_t stream)
 {
-    WINE_TRACE("(%d)\n", stream);
+    LOG(DEBUG, "(%d)", stream);
     spifns_close();
 }
 
 DLLEXPORT unsigned int __cdecl spifns_count_streams(void)
 {
-    WINE_TRACE("()\n");
+    LOG(DEBUG, "");
     return 1;
 }
 
@@ -580,10 +669,10 @@ DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 
 {
 	int nRetval=0;
 
-    WINE_TRACE("(%d, %p, %d)\n", stream, pSequence, nCount);
+    LOG(DEBUG, "(%d, %p, %d)", stream, pSequence, nCount);
 
 	while (nCount--) {
-        WINE_TRACE("command %d\n", pSequence->nType);
+        LOG(DEBUG, "command %d", pSequence->nType);
 		switch (pSequence->nType) {
 		case SPISEQ_1_4::TYPE_READ:
 			if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
@@ -598,7 +687,7 @@ DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 
 				nRetval=1;
 			break;
         default:
-            WINE_WARN("Sequence command not implemented: %d\n", pSequence->nType);
+            LOG(WARN, "Sequence command not implemented: %d", pSequence->nType);
             g_nError = SPIFNS_ERROR_INVALID_PARAMETER;
             snprintf(g_szErrorString, sizeof(g_szErrorString),
                     "sequence command %d not implemented", pSequence->nType);
@@ -611,25 +700,25 @@ DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 
 
 DLLEXPORT const char* __cdecl spifns_stream_command(spifns_stream_t stream, const char *command)
 {
-    WINE_TRACE("(%d, %s)\n", stream, command);
+    LOG(DEBUG, "(%d, %s)", stream, command);
     return spifns_command(command);
 }
 
 DLLEXPORT const char* __cdecl spifns_stream_getvar(spifns_stream_t stream, const char *var)
 {
-    WINE_TRACE("(%d, %s)\n", stream, var);
+    LOG(DEBUG, "(%d, %s)", stream, var);
     return spifns_getvar(var);
 }
 
 DLLEXPORT void __cdecl spifns_stream_chip_select(spifns_stream_t stream, int which)
 {
-    WINE_TRACE("(%d, %d)\n", stream, which);
+    LOG(DEBUG, "(%d, %d)", stream, which);
     spifns_chip_select(which);
 }
 
 DLLEXPORT int __cdecl spifns_stream_bluecore_xap_stopped(spifns_stream_t stream)
 {
-    WINE_TRACE("(%d)\n", stream);
+    LOG(DEBUG, "(%d)", stream);
     return spifns_bluecore_xap_stopped();
 }
 
@@ -642,7 +731,7 @@ DLLEXPORT int __cdecl spifns_get_last_error32(uint32_t *addr, const char ** buf)
     unsigned short saddr;
     int rc;
 
-    WINE_TRACE("(%p, %p)\n", addr, buf);
+    LOG(DEBUG, "(%p, %p)", addr, buf);
 
     rc = spifns_get_last_error(&saddr, buf);
     if (addr)
@@ -652,26 +741,26 @@ DLLEXPORT int __cdecl spifns_get_last_error32(uint32_t *addr, const char ** buf)
 
 DLLEXPORT void __cdecl spifns_stream_set_debug_callback(spifns_stream_t stream, spifns_debug_callback fn, void *pvcontext)
 {
-    WINE_TRACE("(%d, %p, %p)\n", stream, fn, pvcontext);
+    LOG(DEBUG, "(%d, %p, %p)", stream, fn, pvcontext);
     spifns_set_debug_callback(fn);
 }
 
 DLLEXPORT int __cdecl spifns_stream_get_device_id(spifns_stream_t stream, char *buf, size_t length)
 {
-    WINE_TRACE("(%d, %p, %u)\n", stream, buf, length);
+    LOG(DEBUG, "(%d, %p, %u)", stream, buf, length);
     snprintf(buf, length, "FTDISyncBB");
     return 0;
 }
 
 DLLEXPORT int __cdecl spifns_stream_lock(spifns_stream_t stream, uint32_t timeout)
 {
-    WINE_TRACE("(%d, %u)\n", stream, timeout);
+    LOG(DEBUG, "(%d, %u)", stream, timeout);
     return 0;
 }
 
 DLLEXPORT void __cdecl spifns_stream_unlock(spifns_stream_t stream)
 {
-    WINE_TRACE("(%d)\n", stream);
+    LOG(DEBUG, "(%d)", stream);
 }
 
 #endif /* SPIFNS_API == SPIFNS_API_1_4 */

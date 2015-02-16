@@ -14,8 +14,8 @@
 #endif
 
 #include "spi.h"
-#include "hexdump.h"
 #include "compat.h"
+#include "logging.h"
 
 /* FTDI clock frequency. At maximum I got 15KB/s reads at 4 MHz clock. */
 #define FTDI_BASE_CLOCK    4000000
@@ -112,7 +112,7 @@ static void spi_err(const char *fmt, ...) {
 
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
-    WINE_WARN("%s\n", buf);
+    LOG(ERR, buf);
 	if (spi_err_cb)
         spi_err_cb(buf);
     va_end(args);
@@ -174,7 +174,7 @@ static int spi_led_tick(void)
             return -1;
     } else {
         if (gettimeofday(&tv, NULL) < 0) {
-            WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+            LOG(WARN, "gettimeofday failed: %s", strerror(errno));
             return -1;
         }
         timersub(&tv, &spi_led_start_tv, &tv);
@@ -208,7 +208,7 @@ void spi_led(int led)
 
     if (spi_led_state)
         if (gettimeofday(&spi_led_start_tv, NULL) < 0)
-            WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+            LOG(WARN, "gettimeofday failed: %s", strerror(errno));
     spi_led_tick();
 }
 
@@ -217,11 +217,11 @@ int spi_xfer_begin(void)
     uint8_t pin_states[32];
     int state_offset;
 
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
 
 #ifdef SPI_STATS
     if (gettimeofday(&spi_stats.tv_xfer_begin, NULL) < 0)
-        WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+        LOG(WARN, "gettimeofday failed: %s", strerror(errno));
 #endif
 
     state_offset = 0;
@@ -257,7 +257,7 @@ int spi_xfer_begin(void)
 
 int spi_xfer_end(void)
 {
-    WINE_TRACE("\n");
+    LOG(DEBUG, "");
     ftdi_pin_state |= PIN_nCS;
     if (spi_set_pins(ftdi_pin_state) < 0)
         return -1;
@@ -269,7 +269,7 @@ int spi_xfer_end(void)
         struct timeval tv;
 
         if (gettimeofday(&tv, NULL) < 0)
-            WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+            LOG(WARN, "gettimeofday failed: %s", strerror(errno));
         timersub(&tv, &spi_stats.tv_xfer_begin, &tv);
         timeradd(&spi_stats.tv_xfer, &tv, &spi_stats.tv_xfer);
     }
@@ -293,7 +293,7 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
     uint8_t bit, byte, *bufp;
     uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
-    WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
+    LOG(DEBUG, "(%d, %p, %d)", cmd, buf, size);
 
     spi_led_tick();
 
@@ -387,7 +387,7 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
     uint16_t word, bit, *bufp;
     uint8_t pin_states[FTDI_MAX_XFER_SIZE];
 
-    WINE_TRACE("(%d, %p, %d)\n", cmd, buf, size);
+    LOG(DEBUG, "(%d, %p, %d)", cmd, buf, size);
 
     spi_led_tick();
 
@@ -479,7 +479,7 @@ static int spi_enumerate_ports(void)
     spi_nports = 0;
 
     for (id = 0; id < sizeof(ftdi_device_ids) / sizeof(ftdi_device_ids[0]); id++) {
-        WINE_TRACE("find all: 0x%04x:0x%04x\n", ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
+        LOG(DEBUG, "find all: 0x%04x:0x%04x", ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         rc = ftdi_usb_find_all(&ftdic, &ftdevlist, ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         if (rc < 0) {
             spi_err("FTDI: ftdi_usb_find_all() failed: %s", ftdi_get_error_string(&ftdic));
@@ -500,9 +500,10 @@ static int spi_enumerate_ports(void)
                 spi_err("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(&ftdic));
                 return -1;
             }
-            WINE_TRACE("dev=%p, manuf=\"%s\", desc=\"%s\", serial=\"%s\"\n",
+            LOG(INFO, "Found device: dev=%p, manuf=\"%s\", desc=\"%s\", serial=\"%s\", vid=0x%04x, pid=0x%04x",
                     ftdev, spi_ports[spi_nports].manuf,
-                    spi_ports[spi_nports].desc, spi_ports[spi_nports].serial);
+                    spi_ports[spi_nports].desc, spi_ports[spi_nports].serial,
+                    ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
 
             spi_nports++;
             if (spi_nports >= SPI_MAX_PORTS)
@@ -516,7 +517,7 @@ static int spi_enumerate_ports(void)
 
 int spi_init(void)
 {
-    WINE_TRACE("spi_nrefs=%d, spi_dev_open=%d\n", spi_nrefs, spi_dev_open);
+    LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     if (ftdi_init(&ftdic) < 0) {
         spi_err("FTDI: init failed");
@@ -533,7 +534,7 @@ int spi_init(void)
 
 int spi_deinit(void)
 {
-    WINE_TRACE("spi_nrefs=%d, spi_dev_open=%d\n", spi_nrefs, spi_dev_open);
+    LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     if (spi_nrefs == 0)
         return 0;
@@ -546,7 +547,7 @@ int spi_deinit(void)
                 return -1;
     }
     if (spi_nrefs < 0) {
-        WINE_WARN("spi_nrefs < 0\n");
+        LOG(WARN, "spi_nrefs < 0");
         spi_nrefs = 0;
     }
     return 0;
@@ -556,7 +557,7 @@ static int spi_set_ftdi_clock(void)
 {
     if (spi_ftdi_clock == 0)
         spi_ftdi_clock = spi_ftdi_base_clock;
-    WINE_TRACE("FTDI: FTDI clock: %lu\n", spi_ftdi_clock);
+    LOG(DEBUG, "FTDI: FTDI clock: %lu", spi_ftdi_clock);
     if (spi_isopen()) {
         /*
         * See FT232R datasheet, section "Baud Rate Generator" and AppNote
@@ -565,10 +566,11 @@ static int spi_set_ftdi_clock(void)
         * syncbb mode?):
         * http://developer.intra2net.com/mailarchive/html/libftdi/2010/msg00240.html
         */
-        WINE_TRACE("FTDI: setting FTDI clock frequency: %lu, baudrate: %lu, FTDI_BASE_CLOCK: %lu\n",
+        LOG(INFO, "FTDI: clock: %lu, baudrate: %lu, FTDI_BASE_CLOCK: %lu",
                 spi_ftdi_clock, spi_ftdi_clock / 16, spi_ftdi_base_clock);
         if (ftdi_set_baudrate(&ftdic, spi_ftdi_clock / 16) < 0) {
-            spi_err("FTDI: set baudrate failed: %s", ftdi_get_error_string(&ftdic));
+            spi_err("FTDI: set baudrate %lu failed: %s",
+                    spi_ftdi_clock / 16, ftdi_get_error_string(&ftdic));
             return -1;
         }
     }
@@ -577,20 +579,20 @@ static int spi_set_ftdi_clock(void)
 }
 
 int spi_set_clock(unsigned long spi_clk) {
-    WINE_TRACE("FTDI: setting SPI clock: %lu\n", spi_clk);
+    LOG(INFO, "FTDI: setting SPI clock: %lu", spi_clk);
     spi_ftdi_clock = ((spi_clk * spi_ftdi_base_clock) / 1000);
     return spi_set_ftdi_clock();
 }
 
 void spi_set_ftdi_base_clock(unsigned long ftdi_clk)
 {
-    WINE_WARN("FTDI: setting FTDI_BASE_CLOCK: %lu\n", ftdi_clk);
+    LOG(INFO, "FTDI: setting FTDI_BASE_CLOCK: %lu", ftdi_clk);
     spi_ftdi_base_clock = ftdi_clk;
 }
 
 int spi_open(int nport)
 {
-    WINE_TRACE("(%d)\n", nport);
+    LOG(DEBUG, "(%d)", nport);
 
     if (spi_dev_open > 0) {
         return 0;
@@ -606,7 +608,7 @@ int spi_open(int nport)
 #ifdef SPI_STATS
     memset(&spi_stats, 0, sizeof(spi_stats));
     if (gettimeofday(&spi_stats.tv_open_begin, NULL) < 0)
-        WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+        LOG(WARN, "gettimeofday failed: %s", strerror(errno));
 #endif
 
     if (ftdi_usb_open_desc(&ftdic, spi_ports[nport].vid, spi_ports[nport].pid,
@@ -616,7 +618,7 @@ int spi_open(int nport)
         goto open_err;
     }
 
-    WINE_TRACE("FTDI: using FTDI device: \"%s:%s:%s\"\n", spi_ports[nport].manuf,
+    LOG(INFO, "FTDI: using FTDI device: \"%s:%s:%s\"", spi_ports[nport].manuf,
             spi_ports[nport].desc, spi_ports[nport].serial);
 
     spi_dev_open++;
@@ -717,7 +719,7 @@ void spi_output_stats(void)
 
 int spi_close(void)
 {
-    WINE_TRACE("spi_nrefs=%d, spi_dev_open=%d\n", spi_nrefs, spi_dev_open);
+    LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     if (spi_dev_open == 0)
         return 0;
@@ -742,7 +744,7 @@ int spi_close(void)
             struct timeval tv;
 
             if (gettimeofday(&tv, NULL) < 0)
-                WINE_WARN("gettimeofday failed: %s\n", strerror(errno));
+                LOG(WARN, "gettimeofday failed: %s", strerror(errno));
             timersub(&tv, &spi_stats.tv_open_begin, &tv);
             timeradd(&spi_stats.tv_open, &tv, &spi_stats.tv_open);
         }
