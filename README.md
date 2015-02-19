@@ -160,6 +160,24 @@ Run CSR apps.
    <http://embedded-funk.net/running-libftdi-under-windows/>;
 6. Run your CSR apps.
 
+### Running
+
+Csr-spi-ftdi driver supports several options, that can be set as environment
+variables or as a -TRANS option to most CSR commandline apps.
+
+#### SPI clock
+
+SPI clock run at 1/2 (when reading) or 1/3 (when writing) of FTDI clock rate.
+CSR app may automatically slow SPI clock down when read or write verification
+fails. Some commands are executed at the 1/50 of the clock rate. FTDI clock
+rate can be contolled with FTDI_BASE_CLOCK option.
+
+#### Options
+
+* FTDI_BASE_CLOCK - Base clock frequency in Hz, default is 4 MHz. Changing this
+  value proportionally changes all SPI clock rates.
+
+For other options see `misc/transport-options.md`.
 
 ### Building for Wine
 
