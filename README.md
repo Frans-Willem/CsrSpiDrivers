@@ -241,14 +241,14 @@ WINEDLLPATH environment variable, see wine(1) man page for details.
 
 Install MinGW cross-development environment:
 
-    sudo apt-get install -y gcc-mingw32
+    sudo apt-get install -y mingw-w64
 
 Download precompiled libusb for windows from
 <http://sourceforge.net/projects/libusb/files/> and extract it to the libusb
 directory:
 
-    wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.18/libusb-1.0.18-win.7z
-    7z x -olibusb libusb-1.0.18-win.7z
+    wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19.7z
+    7z x -olibusb libusb-1.0.19.7z
 
 Download precompiled liftdi for windows from
 <http://sourceforge.net/projects/picusb/files/> and extract it:

@@ -1,7 +1,8 @@
-CXX =	/usr/bin/i586-mingw32msvc-g++
-CC =	/usr/bin/i586-mingw32msvc-gcc
-LD =	/usr/bin/i586-mingw32msvc-g++
-STRIP ?=	/usr/bin/i586-mingw32msvc-strip
+TARGET ?= i686-w64-mingw32-
+CXX =	$(TARGET)g++
+CC =	$(TARGET)gcc
+LD =	$(TARGET)g++
+STRIP ?=	$(TARGET)strip
 
 LIBFTDI ?=	./libftdi1
 LIBUSB ?=	./libusb
@@ -17,6 +18,7 @@ LDLIBS +=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
 
 CPPFLAGS +=	-DSPI_STATS
 CPPFLAGS +=	-DCOMPAT_USLEEP
+# Fixes compilation on Debian/Ubuntu with mingw-w64 < 3.0.
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
 CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
 CPPFLAGS +=	-DCOMPAT_TIMER_MACROS

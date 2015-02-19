@@ -1,3 +1,6 @@
+#ifndef _COMPAT_H
+#define _COMPAT_H
+
 #ifdef __WINE__
 # define _snprintf snprintf
 # define stricmp strcasecmp
@@ -52,3 +55,5 @@ void usleep(int64_t usec);
   } while (0)
 #endif
 #endif /* COMPAT_TIMER_MACROS */
+
+#endif /* _COMPAT_H */
