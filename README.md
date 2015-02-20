@@ -11,6 +11,9 @@
         - [Installing prebuilt drivers](#installing-prebuilt-drivers)
             - [Installing on Ubuntu/Debian Linux](#installing-on-ubuntudebian-linux)
             - [Installing on Windows](#installing-on-windows)
+        - [Running](#running)
+            - [SPI clock](#spi-clock)
+            - [Options](#options)
         - [Building for Wine](#building-for-wine)
             - [Building Wine DLL on 32-bit Debian/Ubuntu Linux](#building-wine-dll-on-32-bit-debianubuntu-linux)
             - [Building Wine DLL on 64-bit Debian/Ubuntu Linux](#building-wine-dll-on-64-bit-debianubuntu-linux)
@@ -176,6 +179,12 @@ rate can be contolled with FTDI_BASE_CLOCK option.
 
 * FTDI_BASE_CLOCK - Base clock frequency in Hz, default is 4 MHz. Changing this
   value proportionally changes all SPI clock rates.
+* FTDI_LOG_LEVEL - sets csr-spi-ftdi log level, available log levels: "quiet",
+  "err", "warn", "info", "debug". Adding a ",dump" option provides hex dumps of
+  transferred data. Example: "FTDI_LOG_LEVEL=info,dump". Default: "warn".
+* FTDI_LOG_FILE - specify log file name. Can be set to "stdout" to log to
+  standard output, or to "stderr" to log to standard error stream. Default:
+  "stderr".
 
 For other options see `misc/transport-options.md`.
 
