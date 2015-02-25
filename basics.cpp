@@ -56,8 +56,6 @@ unsigned int g_nSpiMulChipNum=-1;
 int g_nSpiPort=1;
 unsigned char g_bCurrentOutput=0x10;
 unsigned int g_nSpiShiftPeriod=1;
-unsigned long g_nSpiClock=1000;
-unsigned long g_nMaxSpiClock=1000;
 char g_szErrorString[256]="No error";
 unsigned int g_nError=SPIERR_NO_ERROR;
 int g_nCmdReadBits=0;
@@ -130,11 +128,11 @@ DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
 		return szReturn;
 	} else if (_stricmp(szName,"SPICLOCK")==0) {
 		static char szReturn[64];
-		sprintf(szReturn,"%lu",g_nSpiClock);
+		sprintf(szReturn,"%lu",spi_get_clock());
 		return szReturn;
 	} else if (_stricmp(szName,"SPIMAXCLOCK")==0) {
 		static char szReturn[24];
-		sprintf(szReturn,"%lu",g_nMaxSpiClock);
+		sprintf(szReturn,"%lu",spi_get_max_clock());
 		return szReturn;
 	} else {
 		return "";
@@ -218,15 +216,10 @@ DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
 		nChip,
 		nChip);*/
 }
-//RE Check: Completely identical
+
 DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
 	if (stricmp(szCmd,"SPISLOWER")==0) {
-		//SPI Shift Period seems to be done about 1.5 times, plus 1 to compensate for rounding down (for example in 1)
-        g_nSpiClock = (g_nSpiClock * 2) / 3;
-        if (g_nSpiClock < 25)
-            g_nSpiClock = 25;
-        LOG(INFO, "%s: set SPI clock to %lu", szCmd, g_nSpiClock);
-        if (spi_set_clock(g_nSpiClock) < 0) {
+        if (spi_clock_slowdown() < 0) {
             /* XXX */
             return 0;
         }
@@ -406,19 +399,15 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
 			case VARLIST_SPIMUL:{
 				spifns_sequence_setvar_spimul(nValue);
 								}break;
-			case VARLIST_SPICLOCK:{
-				unsigned long nValue=strtoul(szValue, NULL, 0);
-				if (nValue == 0)
+			case VARLIST_SPICLOCK:
+				if (nValue <= 0)
 					return 1; //ERROR!
-                g_nSpiClock = nValue;
-                if (g_nSpiClock > g_nMaxSpiClock)
-                    g_nSpiClock = g_nMaxSpiClock;
-                if (spi_set_clock(g_nSpiClock) < 0) {
+                if (spi_set_clock((unsigned long)nValue) < 0) {
                     const char szError[]="Couldn't set SPI clock";
                     memcpy(g_szErrorString,szError,sizeof(szError));
                     return 1;
                 }
-								  }break;
+				break;
 			case VARLIST_SPICMDBITS:
 			case VARLIST_SPICMDREADBITS:
 			case VARLIST_SPICMDWRITEBITS:{
@@ -427,23 +416,22 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
 				if (i!=VARLIST_SPICMDWRITEBITS)
 					g_nCmdReadBits=nValue;
 										 }break;
-			case VARLIST_SPIMAXCLOCK:{
-                unsigned int nValue = strtoul(szValue, NULL, 0);
-                if (nValue == 0) {
+			case VARLIST_SPIMAXCLOCK:
+                if (nValue <= 0) {
                     const char szError[]="SPIMAXCLOCK value should be positive integer";
                     memcpy(g_szErrorString,szError,sizeof(szError));
                     return 1;
                 }
-                g_nMaxSpiClock = nValue;
-									 }break;
+                spi_set_max_clock((unsigned long)nValue);
+				break;
 
             case VARLIST_FTDI_BASE_CLOCK:
-                {
-                    unsigned int ftdi_clk;
-                    ftdi_clk = strtoul(szValue, NULL, 0);
-                    if (ftdi_clk != 0)
-                        spi_set_ftdi_base_clock(ftdi_clk);
+                if (nValue <= 0) {
+                    const char szError[]="FTDI_BASE_CLOCK value should be positive integer";
+                    memcpy(g_szErrorString,szError,sizeof(szError));
+                    return 1;
                 }
+                spi_set_ftdi_base_clock((unsigned long)nValue);
                 break;
             case VARLIST_FTDI_LOG_LEVEL:
                 {
