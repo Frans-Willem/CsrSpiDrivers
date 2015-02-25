@@ -234,19 +234,24 @@ int spi_xfer_begin(void)
 
     ftdi_pin_state |= PIN_CLK;
     pin_states[state_offset++] = ftdi_pin_state;
+    pin_states[state_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
+    pin_states[state_offset++] = ftdi_pin_state;
     pin_states[state_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_CLK;
     pin_states[state_offset++] = ftdi_pin_state;
+    pin_states[state_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
+    pin_states[state_offset++] = ftdi_pin_state;
     pin_states[state_offset++] = ftdi_pin_state;
 
     /* Start transfer */
 
     ftdi_pin_state &= ~PIN_nCS;
+    pin_states[state_offset++] = ftdi_pin_state;
     pin_states[state_offset++] = ftdi_pin_state;
 
     if (spi_ftdi_xfer(pin_states, state_offset) < 0)
