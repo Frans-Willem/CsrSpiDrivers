@@ -1,29 +1,29 @@
 **Table of Contents**
 
-- [CSR BlueCore USB SPI programmer](#csr-bluecore-usb-spi-programmer)
-    - [CSR chips supported by programmer](#csr-chips-supported-by-programmer)
-        - [Notes](#notes)
-    - [Programmer hardware](#programmer-hardware)
-        - [Using FT232RL breakout board as a programmer](#using-ft232rl-breakout-board-as-a-programmer)
-        - [Dedicated programmer](#dedicated-programmer)
-    - [Software](#software)
-        - [CSR SPI API versions](#csr-spi-api-versions)
-        - [Installing prebuilt drivers](#installing-prebuilt-drivers)
-            - [Installing on Ubuntu/Debian Linux](#installing-on-ubuntudebian-linux)
-            - [Installing on Windows](#installing-on-windows)
-        - [Running](#running)
-            - [SPI clock](#spi-clock)
-            - [Options](#options)
-        - [Building for Wine](#building-for-wine)
-            - [Building Wine DLL on 32-bit Debian/Ubuntu Linux](#building-wine-dll-on-32-bit-debianubuntu-linux)
-            - [Building Wine DLL on 64-bit Debian/Ubuntu Linux](#building-wine-dll-on-64-bit-debianubuntu-linux)
-            - [Installing](#installing)
-        - [Building DLL for Windows](#building-dll-for-windows)
-            - [Cross-compiling DLL for Windows on Debian/Ubuntu using MinGW](#cross-compiling-dll-for-windows-on-debianubuntu-using-mingw)
-        - [BUGS](#bugs)
-    - [Thanks](#thanks)
-    - [Related projects](#related-projects)
-    - [Other sources of information](#other-sources-of-information)
+- [CSR BlueCore USB SPI programmer](#user-content-csr-bluecore-usb-spi-programmer)
+    - [CSR chips supported by programmer](#user-content-csr-chips-supported-by-programmer)
+        - [Hardware notes](#user-content-hardware-notes)
+    - [Programmer hardware](#user-content-programmer-hardware)
+        - [Using FT232RL breakout board as a programmer](#user-content-using-ft232rl-breakout-board-as-a-programmer)
+        - [Dedicated programmer](#user-content-dedicated-programmer)
+    - [Software](#user-content-software)
+        - [CSR SPI API versions](#user-content-csr-spi-api-versions)
+        - [Notes on SPI clock](#user-content-notes-on-spi-clock)
+        - [Installing prebuilt drivers](#user-content-installing-prebuilt-drivers)
+            - [Installing on Ubuntu/Debian Linux](#user-content-installing-on-ubuntudebian-linux)
+            - [Installing on Windows](#user-content-installing-on-windows)
+        - [Using the driver](#user-content-using-the-driver)
+            - [Options](#user-content-options)
+        - [Building for Wine](#user-content-building-for-wine)
+            - [Building Wine DLL on 32-bit Debian/Ubuntu Linux](#user-content-building-wine-dll-on-32-bit-debianubuntu-linux)
+            - [Building Wine DLL on 64-bit Debian/Ubuntu Linux](#user-content-building-wine-dll-on-64-bit-debianubuntu-linux)
+            - [Installing](#user-content-installing)
+        - [Building DLL for Windows](#user-content-building-dll-for-windows)
+            - [Cross-compiling DLL for Windows on Debian/Ubuntu using MinGW](#user-content-cross-compiling-dll-for-windows-on-debianubuntu-using-mingw)
+        - [BUGS](#user-content-bugs)
+    - [Thanks](#user-content-thanks)
+    - [Related projects](#user-content-related-projects)
+    - [Other sources of information](#user-content-other-sources-of-information)
 
 # CSR BlueCore USB SPI programmer
 
@@ -42,11 +42,11 @@ Project home page: <https://github.com/lorf/csr-spi-ftdi>.
 Generally, all CSR BlueCore chips starting with BlueCore 2 should be supported.
 Programmer was tested with the following chips:
 
-* BC417 (on HC-05 module)
+* BC417143 (on HC-05 module)
 * BC57F687A
 * CSR8645
 
-### Notes
+### Hardware notes
 
 * BlueCore chips require 3.3V or 1.8V I/O voltage level. Check the datasheet.
 * Some chips (like CSR8645) share SPI pins with PCM function. For such chips to
@@ -118,6 +118,13 @@ Old versions of BlueSuite can be found at
 <https://www.csrsupport.com/PCSWArchive>. Access to these pages requires
 registration.
 
+### Notes on SPI clock
+
+SPI clock run at 1/2 (when reading) or 1/3 (when writing) of FTDI clock rate.
+CSR app may automatically slow SPI clock down when read or write verification
+fails. Some commands are executed at the 1/50 of the clock rate. FTDI clock
+rate can be contolled with FTDI_BASE_CLOCK option.
+
 
 ### Installing prebuilt drivers
 
@@ -163,17 +170,10 @@ Run CSR apps.
    <http://embedded-funk.net/running-libftdi-under-windows/>;
 6. Run your CSR apps.
 
-### Running
+### Using the driver
 
 Csr-spi-ftdi driver supports several options, that can be set as environment
-variables or as a -TRANS option to most CSR commandline apps.
-
-#### SPI clock
-
-SPI clock run at 1/2 (when reading) or 1/3 (when writing) of FTDI clock rate.
-CSR app may automatically slow SPI clock down when read or write verification
-fails. Some commands are executed at the 1/50 of the clock rate. FTDI clock
-rate can be contolled with FTDI_BASE_CLOCK option.
+variables or using the -TRANS option to most CSR commandline apps.
 
 #### Options
 
@@ -270,6 +270,8 @@ Build with command:
 * Current implementation of 1.4 API is based on a wild guess and is just a
   wrapper around 1.3 functions. It doesn't support multiple programmers
   connected at the same time and may contain other bugs.
+* See [Issues on github](https://github.com/lorf/csr-spi-ftdi/issues) to list
+  current bug reports or to report a bug.
 
 
 ## Thanks
@@ -300,7 +302,8 @@ Build with command:
   Windows <https://github.com/Frans-Willem/CsrUsbSpiDeviceRE>;
 
 ## Other sources of information
-* BlueSuite 2.5.0 "source code"
+* ~~BlueSuite 2.5.0 "source code"
   <https://www.csrsupport.com/document.php?did=38692> - it doesn't contain
   source code for SPI drivers but at least development header files in
-  CSRSource/result/include/ are of some help.
+  CSRSource/result/include/ are of some help.~~ It seems CSR removed it from
+  download.
