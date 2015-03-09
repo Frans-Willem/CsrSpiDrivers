@@ -1,39 +1,38 @@
 **Table of Contents**
 
-- [CSR BlueCore USB SPI programmer](#user-content-csr-bluecore-usb-spi-programmer)
-    - [CSR chips supported by programmer](#user-content-csr-chips-supported-by-programmer)
-        - [Hardware notes](#user-content-hardware-notes)
-    - [Programmer hardware](#user-content-programmer-hardware)
-        - [Using FT232RL breakout board as a programmer](#user-content-using-ft232rl-breakout-board-as-a-programmer)
-        - [Dedicated programmer](#user-content-dedicated-programmer)
-    - [Software](#user-content-software)
-        - [CSR SPI API versions](#user-content-csr-spi-api-versions)
-        - [Notes on SPI clock](#user-content-notes-on-spi-clock)
-        - [Installing prebuilt drivers](#user-content-installing-prebuilt-drivers)
-            - [Installing on Ubuntu/Debian Linux](#user-content-installing-on-ubuntudebian-linux)
-            - [Installing on Windows](#user-content-installing-on-windows)
-        - [Using the driver](#user-content-using-the-driver)
-            - [Options](#user-content-options)
-        - [Building for Wine](#user-content-building-for-wine)
-            - [Building Wine DLL on 32-bit Debian/Ubuntu Linux](#user-content-building-wine-dll-on-32-bit-debianubuntu-linux)
-            - [Building Wine DLL on 64-bit Debian/Ubuntu Linux](#user-content-building-wine-dll-on-64-bit-debianubuntu-linux)
-            - [Installing](#user-content-installing)
-        - [Building DLL for Windows](#user-content-building-dll-for-windows)
-            - [Cross-compiling DLL for Windows on Debian/Ubuntu using MinGW](#user-content-cross-compiling-dll-for-windows-on-debianubuntu-using-mingw)
-        - [BUGS](#user-content-bugs)
-    - [Thanks](#user-content-thanks)
-    - [Related projects](#user-content-related-projects)
-    - [Other sources of information](#user-content-other-sources-of-information)
+* [CSR BlueCore USB SPI programmer](#csr-bluecore-usb-spi-programmer)
+  * [CSR chips supported by programmer](#csr-chips-supported-by-programmer)
+    * [Hardware notes](#hardware-notes)
+  * [Programmer hardware](#programmer-hardware)
+    * [Using FT232RL breakout board as a programmer](#using-ft232rl-breakout-board-as-a-programmer)
+    * [Dedicated programmer](#dedicated-programmer)
+  * [Software](#software)
+    * [CSR SPI API versions](#csr-spi-api-versions)
+    * [Installing prebuilt drivers](#installing-prebuilt-drivers)
+      * [Installing on Ubuntu/Debian Linux](#installing-on-ubuntudebian-linux)
+      * [Installing on Windows](#installing-on-windows)
+    * [Using the driver](#using-the-driver)
+      * [Options](#options)
+      * [Running under virtual machine](#running-under-virtual-machine)
+      * [SPI clock](#spi-clock)
+    * [Building for Wine](#building-for-wine)
+      * [Building Wine DLL on 32-bit Debian/Ubuntu Linux](#building-wine-dll-on-32-bit-debianubuntu-linux)
+      * [Building Wine DLL on 64-bit Debian/Ubuntu Linux](#building-wine-dll-on-64-bit-debianubuntu-linux)
+      * [Installing](#installing)
+    * [Building DLL for Windows](#building-dll-for-windows)
+      * [Cross-compiling DLL for Windows on Debian/Ubuntu using MinGW](#cross-compiling-dll-for-windows-on-debianubuntu-using-mingw)
+    * [Bugs](#bugs)
+  * [Thanks](#thanks)
+  * [Related projects](#related-projects)
+  * [Other sources of information](#other-sources-of-information)
 
 # CSR BlueCore USB SPI programmer
 
 This is USB SPI programmer for CSR BlueCore chips, based on FTDI FT232R USB to
-UART converter chip. Software is written for use with CSR tools (such as
-BlueLab or BlueSuite) under Linux with Wine or under Windows. It works by
-replacing SPI LPT programmer driver, spilpt.dll, in CSR applications.
-
-Programmer hardware can be made using simple FTDI breakout board. Alternately
-You can build dedicated programmer using the included schematic.
+UART converter chip. It consists of hardware, that can be made using simple
+FTDI breakout board or built as a dedicated programmer using included
+schematic, and driver, that replaces SPI LPT programmer driver, spilpt.dll, in
+CSR applications. Programmer works on Linux with Wine and on Windows.
 
 Project home page: <https://github.com/lorf/csr-spi-ftdi>.
 
@@ -54,8 +53,12 @@ Programmer was tested with the following chips:
   supply through a 10K resistor.
 * Some bluetooth modules based on BlueCore chips with builtin battery chargers
   may be shipped with battery configuration enabled. Such modules will shutdown
-  shortly after power on if you don't connect charged battery. This can be
-  disabled using appropriate Configuration Tool.
+  shortly after power on if You don't connect charged battery. Battery charger
+  configuration is defined in `PSKEY_USR0` and can be changed using appropriate
+  Configuration Tool or PSTool. Description of `PSKEY_USR0` can be found in
+  "Battery and Charger Configuration" section "PS Key Bit Fields" application
+  note appropriate for your firmware, see [Other sources of
+  information](#other-sources-of-information).
 
 ## Programmer hardware
 
@@ -94,8 +97,8 @@ pins. Wire LEDs anodes to FTDI 3V3 pin.
 
 ### Dedicated programmer
 
-KiCad schematic for a dedicated programmer can be found in `hardware`
-subdirectory.
+KiCad schematic for a dedicated programmer can be found in
+[hardware/](hardware/) subdirectory.
 
 ## Software
 
@@ -117,14 +120,6 @@ New versions of BlueSuite can be found at <https://www.csrsupport.com/PCSW>.
 Old versions of BlueSuite can be found at
 <https://www.csrsupport.com/PCSWArchive>. Access to these pages requires
 registration.
-
-### Notes on SPI clock
-
-SPI clock run at 1/2 (when reading) or 1/3 (when writing) of FTDI clock rate.
-CSR app may automatically slow SPI clock down when read or write verification
-fails. Some commands are executed at the 1/50 of the clock rate. FTDI clock
-rate can be contolled with FTDI_BASE_CLOCK option.
-
 
 ### Installing prebuilt drivers
 
@@ -158,9 +153,9 @@ Run CSR apps.
 1. Install CSR package such as BlueSuite;
 2. Make a backup of spilpt.dll in your application directory (e.g. in
    `C:\Program Files (x86)\CSR\BlueSuite 2.5.8\`);
-3. Copy appropriate version of spilpt.dll from spilpt-win32-api1.4 or
-   spilpt-win32-api1.3 directory (see "CSR SPI API versions") to your
-   application directory;
+3. Copy appropriate version of spilpt.dll from `spilpt-win32-api1.4` or
+   `spilpt-win32-api1.3` directory (see [CSR SPI API
+   versions](#csr-spi-api-versions)) to your application directory;
 4. Connect Your FTDI device to computer;
 5. Download and run Zadig from <http://zadig.akeo.ie/>. In Options menu choose
    "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
@@ -177,16 +172,31 @@ variables or using the -TRANS option to most CSR commandline apps.
 
 #### Options
 
-* FTDI_BASE_CLOCK - Base clock frequency in Hz, default is 4 MHz. Changing this
-  value proportionally changes all SPI clock rates.
-* FTDI_LOG_LEVEL - sets csr-spi-ftdi log level, available log levels: "quiet",
-  "err", "warn", "info", "debug". Adding a ",dump" option provides hex dumps of
-  transferred data. Example: "FTDI_LOG_LEVEL=info,dump". Default: "warn".
-* FTDI_LOG_FILE - specify log file name. Can be set to "stdout" to log to
-  standard output, or to "stderr" to log to standard error stream. Default:
-  "stderr".
+* `FTDI_BASE_CLOCK` - Base clock frequency in Hz, default is 4 MHz. Changing
+  this value proportionally changes all SPI clock rates.
+* `FTDI_LOG_LEVEL` - sets csr-spi-ftdi log level, available log levels:
+  `quiet`, `err`, `warn`, `info`, `debug`. Adding a `,dump` option provides hex
+  dumps of transferred data. Example: `FTDI_LOG_LEVEL=info,dump`. Default:
+  `warn`.
+* `FTDI_LOG_FILE` - specify log file name. Can be set to `stdout` to log to
+  standard output, or to `stderr` to log to standard error stream. Default:
+  `stderr`.
 
-For other options see `misc/transport-options.md`.
+For other options see [misc/transport-options.md](misc/transport-options.md).
+
+#### Running under virtual machine
+
+Running csr-spi-ftdi in a virtual machine slows things down dramatically
+presumably due to delays added by USB virtualization. E.g. running csr-spi-ftdi
+under VirtualBox slows transactions about 4x times. Running it under VMware
+player causes timing issue resulting in error, see [Bugs](#bugs) section.
+
+#### SPI clock
+
+SPI clock run at 1/2 (when reading) or 1/3 (when writing) of FTDI clock rate.
+CSR app may automatically slow SPI clock down when read or write verification
+fails. Some commands are executed at the 1/50 of the base SPI clock rate. FTDI
+clock rate can be contolled with `FTDI_BASE_CLOCK` [option](#options).
 
 ### Building for Wine
 
@@ -262,16 +272,21 @@ Build with command:
     make -f Makefile.mingw all
 
 
-### BUGS
+### Bugs
 
-* Driver sometimes fails with error "Unable to start read (invalid control
-  data)". The problem is clearly in SPI communication, but I still can not
-  figure out the cause. Anyway, restarting operation helps.
+* See [Issues on github](https://github.com/lorf/csr-spi-ftdi/issues) to list
+  current bug reports or to report a bug.
+* Driver may not work when run in VM under VMware products (confirmed in VMware
+  Player for Linux 7.1.0 build-2496824) due to very slow USB transactions with
+  FT232R. This manifests as `Unable to reset device` or `Processor failed to
+  stop` errors while dumping/flashing firmware. Workaround is to temporarily
+  set `PSKEY_WD_TIMEOUT` to 0 on the chip to disable watchdog, but all
+  operations will be very slow - it takes ~ 20 minutes to dump 1MB flash on
+  HC-05 module.  Other workaround is to use VirtualBox or run on bare hardware
+  instead. See issue lorf/csr-spi-ftdi#1 for details.
 * Current implementation of 1.4 API is based on a wild guess and is just a
   wrapper around 1.3 functions. It doesn't support multiple programmers
   connected at the same time and may contain other bugs.
-* See [Issues on github](https://github.com/lorf/csr-spi-ftdi/issues) to list
-  current bug reports or to report a bug.
 
 
 ## Thanks
@@ -307,3 +322,6 @@ Build with command:
   source code for SPI drivers but at least development header files in
   CSRSource/result/include/ are of some help.~~ It seems CSR removed it from
   download.
+* PS keys documentation:
+  * "BlueTunes ROM Configuration PS Key Bit Fields" (CS-126076-AN);
+  * "BlueCore ADK Sink Application Configuration PS Key Bit Fields" (CS-236873-ANP2).
