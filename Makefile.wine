@@ -1,10 +1,9 @@
 WINE_LIB =	/usr/lib/i386-linux-gnu/wine
 I386_LIB =	/usr/lib/i386-linux-gnu
-STDCXX_LIB =	/usr/lib/gcc/i686-linux-gnu/4.7
 
 CC =	winegcc
 CXX =	wineg++
-LD =	wineg++
+LD =	winegcc
 STRIP ?=	strip
 CFLAGS +=	-Wall -m32 -fPIC -DPIC
 CPPFLAGS +=	-D__WINESRC__
@@ -15,7 +14,7 @@ LDFLAGS +=	-shared -m32 -static-libgcc
 LDFLAGS +=	-L$(WINE_LIB) -L$(I386_LIB) -L$(STDCXX_LIB)
 #LDLIBS=	-lftdi -lusb
 # Build with static versions of libraries
-LDLIBS +=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a $(STDCXX_LIB)/libstdc++.a
+LDLIBS +=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
 
 MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 
