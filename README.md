@@ -13,7 +13,7 @@
       * [Installing on Windows](#installing-on-windows)
     * [Using the driver](#using-the-driver)
       * [Options](#options)
-      * [Running under virtual machine](#running-under-virtual-machine)
+      * [Running in virtual machine](#running-in-virtual-machine)
       * [SPI clock](#spi-clock)
     * [Building for Wine](#building-for-wine)
       * [Building Wine DLL on 32-bit Debian/Ubuntu Linux](#building-wine-dll-on-32-bit-debianubuntu-linux)
@@ -184,12 +184,17 @@ variables or using the -TRANS option to most CSR commandline apps.
 
 For other options see [misc/transport-options.md](misc/transport-options.md).
 
-#### Running under virtual machine
+#### Running in virtual machine
 
-Running csr-spi-ftdi in a virtual machine slows things down dramatically
-presumably due to delays added by USB virtualization. E.g. running csr-spi-ftdi
-under VirtualBox slows transactions about 4x times. Running it under VMware
-player causes timing issue resulting in error, see [Bugs](#bugs) section.
+Running csr-spi-ftdi in a virtual machine slows things down presumably due to
+delays added by USB virtualization. E.g. running csr-spi-ftdi under VirtualBox
+slows transactions down about 4x times.
+
+If You run csr-spi-ftdi in VMware and encounter very slow operation or `Unable
+to reset device` or `Processor failed to stop` errors, add this USB quirk for
+FT232R to the VM's .vmx file (see <http://kb.vmware.com/kb/774>):
+
+    usb.quirks.device0 = "0x0403:0x6001 skip-reset"
 
 #### SPI clock
 
@@ -276,14 +281,6 @@ Build with command:
 
 * See [Issues on github](https://github.com/lorf/csr-spi-ftdi/issues) to list
   current bug reports or to report a bug.
-* Driver may not work when run in VM under VMware products (confirmed in VMware
-  Player for Linux 7.1.0 build-2496824) due to very slow USB transactions with
-  FT232R. This manifests as `Unable to reset device` or `Processor failed to
-  stop` errors while dumping/flashing firmware. Workaround is to temporarily
-  set `PSKEY_WD_TIMEOUT` to 0 on the chip to disable watchdog, but all
-  operations will be very slow - it takes ~ 20 minutes to dump 1MB flash on
-  HC-05 module.  Other workaround is to use VirtualBox or run on bare hardware
-  instead. See issue lorf/csr-spi-ftdi#1 for details.
 * Current implementation of 1.4 API is based on a wild guess and is just a
   wrapper around 1.3 functions. It doesn't support multiple programmers
   connected at the same time and may contain other bugs.
