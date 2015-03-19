@@ -2,9 +2,8 @@
 VERSION :=	0.4.1
 ZIP_NAME ?=	csr-spi-ftdi-$(VERSION)
 ZIP_FILES +=	spilpt-win32-api1.4/spilpt.dll spilpt-win32-api1.3/spilpt.dll \
-	spilpt-wine-api1.4/spilpt.dll.so spilpt-wine-api1.3/spilpt.dll.so \
-	README.md hardware/csr-spi-ftdi.sch hardware/csr-spi-ftdi.svg \
-	hardware/components.lib misc
+	spilpt-wine-linux-api1.4/spilpt.dll.so spilpt-wine-linux-api1.3/spilpt.dll.so \
+	README.md hardware misc utils
 
 all: win32 wine
 

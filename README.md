@@ -139,7 +139,7 @@ move them out of the way:
 
 Copy approproate version of the .dll.so file to Wine system directory:
 
-    sudo cp -p spilpt-wine-api<SPI_API_version>/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
+    sudo cp -p spilpt-wine-linux-api<SPI_API_version>/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
 
 where `<SPI_API_version>` is one of `1.3` or `1.4`. Alternately You can specify
 location of the .dll.so file in WINEDLLPATH environment variable, see wine(1)
