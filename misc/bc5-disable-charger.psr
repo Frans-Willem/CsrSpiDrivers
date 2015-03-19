@@ -1,0 +1,13 @@
+// Please, make a configuration backup before performing any other actions!
+
+// PSKEY_USR_0
+// Name : Battery Configuration
+// Description : Battery managment settings
+
+// Default settings
+//&028a = 03E8 A596 B4B9 1E00 001E
+
+// Set all battery configuration values to zero.
+// This effectively disables battery level monitoring.
+// Note that just deleting PS Key is not enough.
+&028a = 0000 0000 0000 0000 0000
