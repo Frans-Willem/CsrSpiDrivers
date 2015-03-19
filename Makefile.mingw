@@ -1,20 +1,25 @@
-TARGET ?= i686-w64-mingw32-
-CXX =	$(TARGET)g++
-CC =	$(TARGET)gcc
-LD =	$(TARGET)g++
-STRIP ?=	$(TARGET)strip
+# Use mingw32
+TARGET_ARCH ?= i586-mingw32msvc-
+# Use mingw-w64
+#TARGET_ARCH ?= i686-w64-mingw32-
 
 LIBFTDI ?=	./libftdi1
 LIBUSB ?=	./libusb
 
+CXX =	$(TARGET_ARCH)g++
+CC =	$(TARGET_ARCH)gcc
+LD =	$(TARGET_ARCH)g++
+
 CFLAGS +=	-Wall
-LDFLAGS +=	-shared -static-libgcc
+LDFLAGS +=	-shared -static -s
 
 CPPFLAGS +=	-I$(LIBFTDI)/include/libftdi1
-LDLIBS +=	$(LIBFTDI)/lib32/libftdi1.a
+LDFLAGS  += -L$(LIBFTDI)/lib32
+LDLIBS   += -lftdi1
 
 CPPFLAGS +=	-I$(LIBUSB)/include
-LDLIBS +=	$(LIBUSB)/MinGW32/static/libusb-1.0.a
+LDFLAGS  += -L$(LIBUSB)/MinGW32/static
+LDLIBS   += -lusb-1.0
 
 CPPFLAGS +=	-DSPI_STATS
 CPPFLAGS +=	-DCOMPAT_USLEEP
@@ -57,7 +62,6 @@ $(OBJDIR)/logging.o: logging.h compat.h
 $(OBJDIR)/spilpt.dll: $(OBJDIR)/dllmain.o $(OBJDIR)/logging.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/compat.o $(LIBRARY_DEF)
 	mkdir -p $(OBJDIR)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
-	$(STRIP) $@
 
 $(OBJDIR)/%.o: %.c
 	mkdir -p $(OBJDIR)
