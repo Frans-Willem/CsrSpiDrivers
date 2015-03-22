@@ -2,7 +2,7 @@
 
 * [CSR BlueCore USB SPI programmer](#csr-bluecore-usb-spi-programmer)
   * [CSR chips supported by programmer](#csr-chips-supported-by-programmer)
-    * [Hardware notes](#hardware-notes)
+    * [Chip notes](#chip-notes)
   * [Programmer hardware](#programmer-hardware)
     * [Using FT232RL breakout board as a programmer](#using-ft232rl-breakout-board-as-a-programmer)
     * [Dedicated programmer](#dedicated-programmer)
@@ -12,6 +12,7 @@
       * [Installing on Ubuntu/Debian Linux](#installing-on-ubuntudebian-linux)
       * [Installing on Windows](#installing-on-windows)
     * [Using the driver](#using-the-driver)
+      * [Choosing LPT transport](#choosing-lpt-transport)
       * [Options](#options)
       * [Running in virtual machine](#running-in-virtual-machine)
       * [SPI clock](#spi-clock)
@@ -29,10 +30,10 @@
 # CSR BlueCore USB SPI programmer
 
 This is USB SPI programmer for CSR BlueCore chips, based on FTDI FT232R USB to
-UART converter chip. It consists of hardware, that can be made using simple
-FTDI breakout board or built as a dedicated programmer using included
-schematic, and driver, that replaces SPI LPT programmer driver, spilpt.dll, in
-CSR applications. Programmer works on Linux with Wine and on Windows.
+UART converter chip. Programmer hardware can be made using simple FT232RL
+breakout board, or built as a dedicated programmer using included schematic.
+Programmer driver works by replacing SPI LPT programmer driver, spilpt.dll, in
+CSR applications and is currently ported to Linux/Wine and Windows.
 
 Project home page: <https://github.com/lorf/csr-spi-ftdi>.
 
@@ -45,26 +46,29 @@ Programmer was tested with the following chips:
 * BC57F687A
 * CSR8645
 
-### Hardware notes
+### Chip notes
 
 * BlueCore chips require 3.3V or 1.8V I/O voltage level. Check the datasheet.
 * Some chips (like CSR8645) share SPI pins with PCM function. For such chips to
   be accessible via SPI, `SPI_PCM#` pin should be pulled up to I/O voltage
   supply through a 10K resistor.
+* On some chips (like BC6140) `SPI_DEBUG_EN` pin should be pulled up directly
+  to I/O voltage supply to enable SPI port.
 * Some bluetooth modules based on BlueCore chips with builtin battery chargers
   may be shipped with battery configuration enabled. Such modules will shutdown
   shortly after power on if You don't connect charged battery. Battery charger
   configuration is defined in `PSKEY_USR0` and can be changed using appropriate
   Configuration Tool or PSTool. Description of `PSKEY_USR0` can be found in
-  "Battery and Charger Configuration" section "PS Key Bit Fields" application
-  note appropriate for your firmware, see [Other sources of
-  information](#other-sources-of-information).
+  "Battery and Charger Configuration" section of "PS Key Bit Fields"
+  application note appropriate for your firmware, see [Other sources of
+  information](#other-sources-of-information). See sample PSR files for
+  disabling charger in [misc/](misc/).
 
 ## Programmer hardware
 
-Programmer hardware is based on FT232R chip. It is also possible to use later
-generation FTDI chips, such as FT2232C/D/H or FT232H, with minor code
-modifications.
+Programmer hardware is based on FT232R chip. It is also possible that later
+generation FTDI chips, such as FT2232C/D/H or FT232H, will also work, but this
+was not tested.
 
 ### Using FT232RL breakout board as a programmer
 
@@ -91,9 +95,9 @@ recommend to wire them through the 220 Ohm (or so) resistors.
 
 TX and RX connections are optional and provide connectivity to BlueCore UART.
 
-LED connections are optional. Wire LEDs cathodes through the current limiting
+LED connections are optional. Wire LED cathodes through the current limiting
 resistors (330 Ohm works fine) to the appropriate FTDI
-pins. Wire LEDs anodes to FTDI 3V3 pin.
+pins. Wire LED anodes to FTDI 3V3 pin.
 
 ### Dedicated programmer
 
@@ -137,7 +141,7 @@ move them out of the way:
 
     find ~/.wine -iname spilpt.dll -execdir mv {} {}.orig \;
 
-Copy approproate version of the .dll.so file to Wine system directory:
+Copy appropriate version of the .dll.so file to Wine system directory:
 
     sudo cp -p spilpt-wine-linux-api<SPI_API_version>/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
 
@@ -167,10 +171,16 @@ Run CSR apps.
 
 ### Using the driver
 
-Csr-spi-ftdi driver supports several options, that can be set as environment
-variables or using the -TRANS option to most CSR commandline apps.
+#### Choosing LPT transport
+
+Newer BlueSuite defaults to using CSR USB SPI programmer, to use csr-spi-ftdi
+as programmer You need to select LPT transport (sometimes called "SPI BCCMD").
+Use `-TRANS "SPITRANS=LPT SPIPORT=1"` option for command line tools.
 
 #### Options
+
+Csr-spi-ftdi driver supports several options, that can be set as environment
+variables or using the -TRANS option to most CSR commandline apps.
 
 * `FTDI_BASE_CLOCK` - Base clock frequency in Hz, default is 4 MHz. Changing
   this value proportionally changes all SPI clock rates.
@@ -187,21 +197,15 @@ For other options see [misc/transport-options.md](misc/transport-options.md).
 #### Running in virtual machine
 
 Running csr-spi-ftdi in a virtual machine slows things down presumably due to
-delays added by USB virtualization. E.g. running csr-spi-ftdi under VirtualBox
+latency added by USB virtualization. E.g. running csr-spi-ftdi under VirtualBox
 slows transactions down about 4x times.
-
-If You run csr-spi-ftdi in VMware and encounter very slow operation or `Unable
-to reset device` or `Processor failed to stop` errors, add this USB quirk for
-FT232R to the VM's .vmx file (see <http://kb.vmware.com/kb/774>):
-
-    usb.quirks.device0 = "0x0403:0x6001 skip-reset"
 
 #### SPI clock
 
 SPI clock run at 1/2 (when reading) or 1/3 (when writing) of FTDI clock rate.
 CSR app may automatically slow SPI clock down when read or write verification
 fails. Some commands are executed at the 1/50 of the base SPI clock rate. FTDI
-clock rate can be contolled with `FTDI_BASE_CLOCK` [option](#options).
+clock rate can be controlled with `FTDI_BASE_CLOCK` [option](#options).
 
 ### Building for Wine
 
@@ -265,7 +269,7 @@ directory:
     wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19.7z
     7z x -olibusb libusb-1.0.19.7z
 
-Download precompiled liftdi for windows from
+Download precompiled libftdi for windows from
 <http://sourceforge.net/projects/picusb/files/> and extract it:
 
     wget http://sourceforge.net/projects/picusb/files/libftdi1-1.1_devkit_x86_x64_21Feb2014.zip
@@ -321,4 +325,5 @@ Build with command:
   download.
 * PS keys documentation:
   * "BlueTunes ROM Configuration PS Key Bit Fields" (CS-126076-AN);
-  * "BlueCore ADK Sink Application Configuration PS Key Bit Fields" (CS-236873-ANP2).
+  * "BlueCore ADK Sink Application Configuration PS Key Bit Fields" (CS-236873-ANP2);
+  * "CSR8600 ROM Charger Configuration" (CS-223677-ANP1).
