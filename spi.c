@@ -697,6 +697,12 @@ int spi_open(int nport)
         goto open_err;
     }
 
+    /* Set 1 ms latency timer, see FTDI AN232B-04 */
+    if (ftdi_set_latency_timer(&ftdic, 1) < 0) {
+        spi_err("FTDI: setting latency timer failed: %s", ftdi_get_error_string(&ftdic));
+        goto open_err;
+    }
+
     if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
         spi_err("FTDI: reset bitmode failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
