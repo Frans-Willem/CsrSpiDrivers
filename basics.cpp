@@ -171,6 +171,8 @@ DLLEXPORT int __cdecl spifns_get_version() {
 }
 
 DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
+    LOG(INFO, "csr-spi-ftdi %s", VERSION);
+
     LOG(DEBUG, "(%d)", nPort);
 
     if (spi_open(nPort - 1) < 0)
@@ -317,8 +319,8 @@ DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned sh
     if (!spi_isopen())
         _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
 
-    DUMP(pnInput, nLength << 1, "write16(addr=0x%04x, len=%d, crc32=0x%08x)",
-            nAddress, nLength, buf_crc32(pnInput, nLength << 1));
+    DUMP(pnInput, nLength << 1, "write16(addr=0x%04x, len16=%d)",
+            nAddress, nLength);
 
     spi_led(SPI_LED_WRITE);
 
@@ -541,8 +543,8 @@ DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned sho
     if (spi_xfer_end() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to end transfer");
 
-    DUMP(pnOutput, nLength << 1, "read16(addr=0x%04x, len=%d, crc32=0x%08x)",
-            nAddress, nLength, buf_crc32(pnOutput, nLength << 1));
+    DUMP(pnOutput, nLength << 1, "read16(addr=0x%04x, len16=%d)",
+            nAddress, nLength);
 
 	return 0;
 

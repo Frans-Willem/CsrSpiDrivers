@@ -10,6 +10,8 @@ CXX =	$(TARGET_ARCH)g++
 CC =	$(TARGET_ARCH)gcc
 LD =	$(TARGET_ARCH)g++
 
+VERSION := $(shell cat VERSION)
+
 CFLAGS +=	-Wall
 LDFLAGS +=	-shared -static -s
 
@@ -27,6 +29,8 @@ CPPFLAGS +=	-DCOMPAT_USLEEP
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
 CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
 CPPFLAGS +=	-DCOMPAT_TIMER_MACROS
+
+CPPFLAGS += -DVERSION=\"$(VERSION)\"
 
 MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 

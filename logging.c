@@ -24,6 +24,7 @@ static inline void log_initialize(void)
 {
     if (!log_initialized) {
         log_dest = stderr;
+        log_close_file = 0;
         log_initialized = 1;
     }
 }
@@ -31,8 +32,15 @@ static inline void log_initialize(void)
 void log_set_options(uint32_t lvl)
 {
     log_initialize();
-    log_level = lvl & LOG_LEVEL_MASK;
     log_flags = lvl & ~LOG_LEVEL_MASK;
+    lvl &= LOG_LEVEL_MASK;
+    if (lvl <= LOG_MAX_LEVEL)
+        log_level = lvl;
+}
+
+uint32_t log_get_options(void)
+{
+    return log_level | log_flags;
 }
 
 int log_set_file(const char *filename)
@@ -40,8 +48,10 @@ int log_set_file(const char *filename)
     FILE *fp;
 
     log_initialize();
-    if (log_close_file)
+    if (log_close_file) {
         fclose(log_dest);
+        log_close_file = 0;
+    }
     fp = fopen(filename, "a");
     if (fp == NULL)
         return -1;
@@ -53,10 +63,11 @@ int log_set_file(const char *filename)
 void log_set_dest(FILE *fp)
 {
     log_initialize();
-    if (log_close_file)
+    if (log_close_file) {
         fclose(log_dest);
+        log_close_file = 0;
+    }
     log_dest = fp;
-    log_close_file = 0;
 }
 
 /*
@@ -100,57 +111,6 @@ static void hexdump (FILE *fp, const void *addr, int len)
 
     // And print the final ASCII bit.
     fprintf (fp, "  %s\n", buff);
-}
-
-void _log_hexdump_msg(const char *func, const char *file, int line,
-        uint32_t level, const void *data, size_t len, const char *fmt, ...)
-{
-    struct timeb tb;
-    static char strbuf[1024], timebuf[20], *optp;
-    va_list args;
-    uint32_t flags;
-
-    flags = level & ~LOG_LEVEL_MASK;
-    level &= LOG_LEVEL_MASK;
-
-    log_initialize();
-    if (log_dest != NULL &&
-            ((flags & log_flags & LOG_FLAGS_DUMP) ||
-             level <= log_level))
-    {
-        ftime(&tb);
-        strftime(timebuf, sizeof(timebuf), "%H:%M:%S", localtime(&tb.time));
-
-        if (fmt != NULL) {
-            va_start(args, fmt);
-            vsnprintf(strbuf, sizeof(strbuf), fmt, args);
-            va_end(args);
-        }
-
-        if (flags & LOG_FLAGS_DUMP)
-            optp = "dump";
-        else
-            optp = log_level_strings[level];
-
-        if (data == NULL) {
-            if (fmt == NULL || fmt[0] == '\0')
-                fprintf(log_dest, "%s.%03d: %s:%s:%d:%s\n", timebuf, tb.millitm,
-                        optp, file, line, func);
-            else
-                fprintf(log_dest, "%s.%03d: %s:%s:%d:%s: %s\n", timebuf, tb.millitm,
-                        optp, file, line, func, strbuf);
-        } else {
-            if (flags & log_flags & LOG_FLAGS_DUMP) {
-                if (fmt == NULL || fmt[0] == '\0')
-                    fprintf(log_dest, "%s.%03d: %s:%s:%d:%s:\n", timebuf, tb.millitm,
-                            optp, file, line, func);
-                else
-                    fprintf(log_dest, "%s.%03d: %s:%s:%d:%s: %s:\n", timebuf, tb.millitm,
-                            optp, file, line, func, strbuf);
-                hexdump(log_dest, data, len);
-            }
-        }
-    }
 }
 
 /*
@@ -246,7 +206,7 @@ static uint32_t crc32_tab[] = {
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 };
 
-uint32_t
+static uint32_t
 crc32(uint32_t crc, const void *buf, size_t size)
 {
     const uint8_t *p;
@@ -260,8 +220,77 @@ crc32(uint32_t crc, const void *buf, size_t size)
     return crc ^ ~0U;
 }
 
-uint32_t
+static uint32_t
 buf_crc32(const void *buf, size_t size)
 {
     return crc32(0xffffffff, buf, size);
+}
+
+void _log_msg(const char *func, const char *file, int line,
+        uint32_t level, const char *fmt, ...)
+{
+    struct timeb tb;
+    static char strbuf[1024], timebuf[20], *optp;
+    va_list args;
+
+    level &= LOG_LEVEL_MASK;
+    if (level > LOG_MAX_LEVEL || level > log_level)
+        return;
+
+    log_initialize();
+    if (log_dest == NULL)
+        return;
+
+    if (log_dest != NULL && level <= log_level)
+    {
+        ftime(&tb);
+        strftime(timebuf, sizeof(timebuf), "%H:%M:%S", localtime(&tb.time));
+
+        optp = log_level_strings[level];
+
+        if (fmt == NULL || fmt[0] == '\0') {
+            fprintf(log_dest, "%s.%03d: %s:%s:%d:%s\n", timebuf, tb.millitm,
+                    optp, file, line, func);
+        } else {
+            va_start(args, fmt);
+            vsnprintf(strbuf, sizeof(strbuf), fmt, args);
+            va_end(args);
+
+            fprintf(log_dest, "%s.%03d: %s:%s:%d:%s: %s\n", timebuf, tb.millitm,
+                    optp, file, line, func, strbuf);
+        }
+        fflush(log_dest);
+    }
+}
+
+void _log_hexdump(const char *func, const char *file, int line,
+        const void *data, size_t len, const char *fmt, ...)
+{
+    struct timeb tb;
+    static char strbuf[1024], timebuf[20];
+    va_list args;
+
+    if (!(log_flags & LOG_FLAGS_DUMP) || data == NULL)
+        return;
+
+    log_initialize();
+    if (log_dest == NULL)
+        return;
+
+    ftime(&tb);
+    strftime(timebuf, sizeof(timebuf), "%H:%M:%S", localtime(&tb.time));
+
+    if (fmt == NULL || fmt[0] == '\0') {
+        fprintf(log_dest, "%s.%03d: dump:%s:%d:%s (size=%d, crc32=0x%08x):\n", timebuf, tb.millitm,
+                file, line, func, (unsigned int)len, buf_crc32(data, len));
+    } else {
+        va_start(args, fmt);
+        vsnprintf(strbuf, sizeof(strbuf), fmt, args);
+        va_end(args);
+        fprintf(log_dest, "%s.%03d: dump:%s:%d:%s: %s (size=%d, crc32=0x%08x):\n", timebuf, tb.millitm,
+                file, line, func, strbuf, (unsigned int)len, buf_crc32(data, len));
+    }
+    hexdump(log_dest, data, len);
+
+    fflush(log_dest);
 }

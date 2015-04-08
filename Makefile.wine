@@ -5,13 +5,14 @@ I386_LIB ?=	/usr/lib/i386-linux-gnu
 STDCXX_LIB ?=	/usr/lib/gcc/i686-linux-gnu/$(WINEGCC_VER)
 
 WINEGCC_VER := $(shell env LC_ALL=C winegcc -v 2>&1 | awk '/^gcc version/ {print $$3}' | cut -d. -f1,2)
+VERSION := $(shell cat VERSION)
 
 CC =	winegcc
 CXX =	wineg++
 LD =	wineg++
 CFLAGS +=	-Wall -m32 -fPIC -DPIC
 CPPFLAGS +=	-D__WINESRC__
-CPPFLAGS +=	-DSPI_STATS
+CPPFLAGS +=	-DSPI_STATS -DVERSION=\"$(VERSION)\"
 LDFLAGS +=	-shared -m32 -static-libgcc -s
 # 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
 # Direct it to the 32bit libraries.

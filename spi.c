@@ -768,6 +768,7 @@ void spi_output_stats(void)
     if (stderr) {
         fprintf(stderr,
                 "*** FTDI Statistics **************************************\n"
+                "csr-spi-ftdi version: %s\n"
                 "Time open: %ld.%03ld s\n"
                 "Time in xfer: %ld.%03ld s (%.2f%% of open time)\n"
                 "Reads: %ld (%ld bytes, %.2f bytes avg read size)\n"
@@ -776,6 +777,7 @@ void spi_output_stats(void)
                 "FTDI base clock: %lu Hz, min clock: %lu Hz\n"
                 "SPI max clock: %lu, min clock: %lu, slowdowns: %lu\n"
                 "**********************************************************\n",
+                VERSION,
                 spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
                 spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
                 spi_stats.reads, spi_stats.read_bytes, avg_read,

@@ -1,5 +1,4 @@
-#VERSION:=	$(shell date '+%Y%m%d')
-VERSION :=	0.4.2
+VERSION :=	$(shell cat VERSION)
 ZIP_NAME ?=	csr-spi-ftdi-$(VERSION)
 ZIP_FILES +=	spilpt-win32-api1.4/spilpt.dll spilpt-win32-api1.3/spilpt.dll \
 	spilpt-wine-linux-api1.4/spilpt.dll.so spilpt-wine-linux-api1.3/spilpt.dll.so \
@@ -8,10 +7,10 @@ ZIP_FILES +=	spilpt-win32-api1.4/spilpt.dll spilpt-win32-api1.3/spilpt.dll \
 all: win32 wine
 
 win32::
-	make -f Makefile.mingw all
+	$(MAKE) -f Makefile.mingw all
 
 wine::
-	make -f Makefile.wine all
+	$(MAKE) -f Makefile.wine all
 
 zip: all
 	rm -rf $(ZIP_NAME).zip $(ZIP_NAME)
@@ -23,6 +22,6 @@ zip: all
 	zip -9r $(ZIP_NAME).zip $(ZIP_NAME)
 
 clean:
-	make -f Makefile.mingw clean
-	make -f Makefile.wine clean
+	$(MAKE) -f Makefile.mingw clean
+	$(MAKE) -f Makefile.wine clean
 	rm -rf $(ZIP_NAME) $(ZIP_NAME).zip
