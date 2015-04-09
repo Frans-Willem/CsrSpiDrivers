@@ -1,13 +1,16 @@
 #ifndef SPIFNS_H
 #define SPIFNS_H
 
-#ifdef DLLEXPORT
-# undef DLLEXPORT
-#endif
-#define DLLEXPORT  /* Empty */
+#include <inttypes.h>
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef SPILPT_SRC
+#define DLLEXPORT   __declspec(dllexport)
+#else
+#define DLLEXPORT   /* Empty */
 #endif
 
 #define SPIFNS_API_1_3  0x103
@@ -191,48 +194,48 @@ typedef unsigned int spifns_stream_t;
 typedef void (__cdecl *spifns_enumerate_ports_callback)(unsigned int nPortNumber, const char *szPortName, void *pData);
 typedef void (__cdecl *spifns_debug_callback)(const char *szDebug);
 
-DLLEXPORT int __cdecl spifns_init(); //Return 0 on no error, negative on error
-DLLEXPORT void __cdecl spifns_close();
-DLLEXPORT void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount);
-DLLEXPORT const char * __cdecl spifns_getvar(const char *szName);
-DLLEXPORT int __cdecl spifns_get_version(); //Should return 259
-DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData);
+int DLLEXPORT spifns_init(); //Return 0 on no error, negative on error
+void DLLEXPORT spifns_close();
+void DLLEXPORT spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount);
+const char* DLLEXPORT spifns_getvar(const char *szName);
+int DLLEXPORT spifns_get_version(); //Should return 259
+void DLLEXPORT spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData);
 #define CHIP_SELECT_XILINX      (0)
 #define CHIP_SELECT_SPARTAN     (1)
 #define CHIP_SELECT_NONE        (-1)
-DLLEXPORT void __cdecl spifns_chip_select(int nUnknown);
-DLLEXPORT const char* __cdecl spifns_command(const char *szCmd); //Return 0 on no error, or string on error.
+void DLLEXPORT spifns_chip_select(int nUnknown);
+const char* DLLEXPORT spifns_command(const char *szCmd); //Return 0 on no error, or string on error.
 /* returns the last error code, and if a pointer is passed in, the problematic address.*/
 /* get_last_error and clear_last_error both deal with the error that occurred in the current thread */
-DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **szErrorString); //Returns where the error occured, or 0x100 for none
-DLLEXPORT int __cdecl spifns_bluecore_xap_stopped(); //Returns -1 on error, 0 on XAP running, 1 on stopped
-DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount); //Return 0 on no error
-DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback);
-DLLEXPORT void __cdecl spifns_clear_last_error(void);
+unsigned int DLLEXPORT spifns_get_last_error(unsigned short *pnErrorAddress, const char **szErrorString); //Returns where the error occured, or 0x100 for none
+int DLLEXPORT spifns_bluecore_xap_stopped(); //Returns -1 on error, 0 on XAP running, 1 on stopped
+int DLLEXPORT spifns_sequence(SPISEQ *pSequence, unsigned int nCount); //Return 0 on no error
+void DLLEXPORT spifns_set_debug_callback(spifns_debug_callback pCallback);
+void DLLEXPORT spifns_clear_last_error(void);
 
 
 #if SPIFNS_API == SPIFNS_API_1_4
 
 /* From BlueSuiteSource_V2_5.zip/CSRSource/result/include/spi/spifns.h */
 
-DLLEXPORT unsigned int __cdecl spifns_count_streams(void);
-DLLEXPORT int __cdecl spifns_stream_init(spifns_stream_t *p_stream);
-DLLEXPORT void __cdecl spifns_stream_close(spifns_stream_t stream);
-DLLEXPORT unsigned int __cdecl spifns_count_streams(void);
-DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount);
-DLLEXPORT const char* __cdecl spifns_stream_command(spifns_stream_t stream, const char *command);
-DLLEXPORT const char* __cdecl spifns_stream_getvar(spifns_stream_t stream, const char *var);
-DLLEXPORT void __cdecl spifns_stream_chip_select(spifns_stream_t stream, int which);
-DLLEXPORT int __cdecl spifns_stream_bluecore_xap_stopped(spifns_stream_t stream);
+unsigned int DLLEXPORT spifns_count_streams(void);
+int DLLEXPORT spifns_stream_init(spifns_stream_t *p_stream);
+void DLLEXPORT spifns_stream_close(spifns_stream_t stream);
+unsigned int DLLEXPORT spifns_count_streams(void);
+int DLLEXPORT spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount);
+const char* DLLEXPORT spifns_stream_command(spifns_stream_t stream, const char *command);
+const char* DLLEXPORT spifns_stream_getvar(spifns_stream_t stream, const char *var);
+void DLLEXPORT spifns_stream_chip_select(spifns_stream_t stream, int which);
+int DLLEXPORT spifns_stream_bluecore_xap_stopped(spifns_stream_t stream);
 /* returns the last error code, and if a pointer is passed in, the problematic
  * address.*/
 /* get_last_error and clear_last_error both deal with the error that occurred
  * in the current thread */
-DLLEXPORT int __cdecl spifns_get_last_error32(uint32_t *addr, const char ** buf);
-DLLEXPORT void __cdecl spifns_stream_set_debug_callback(spifns_stream_t stream, spifns_debug_callback fn, void *pvcontext);
-DLLEXPORT int __cdecl spifns_stream_get_device_id(spifns_stream_t stream, char *buf, size_t length);
-DLLEXPORT int __cdecl spifns_stream_lock(spifns_stream_t stream, uint32_t timeout);
-DLLEXPORT void __cdecl spifns_stream_unlock(spifns_stream_t stream);
+int DLLEXPORT spifns_get_last_error32(uint32_t *addr, const char ** buf);
+void DLLEXPORT spifns_stream_set_debug_callback(spifns_stream_t stream, spifns_debug_callback fn, void *pvcontext);
+int DLLEXPORT spifns_stream_get_device_id(spifns_stream_t stream, char *buf, size_t length);
+int DLLEXPORT spifns_stream_lock(spifns_stream_t stream, uint32_t timeout);
+void DLLEXPORT spifns_stream_unlock(spifns_stream_t stream);
 
 #endif /* SPIFNS_API == SPIFNS_API_1_4 */
 

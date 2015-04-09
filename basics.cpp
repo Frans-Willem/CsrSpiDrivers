@@ -72,12 +72,12 @@ spifns_debug_callback g_pDebugCallback=0;
 #define BV_CLK 0x80
 #define BV_MISO 0x40 //NOTE: Use status register instead of data
 
-DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...);
-DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData);
-DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue);
+void spifns_debugout(const char *szFormat, ...);
+void spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData);
+int spifns_sequence_setvar(const char *szName, const char *szValue);
 
 //RE Check: Completely identical.
-DLLEXPORT void __cdecl spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
+void spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
     LOG(DEBUG, "");
 
 	*ppList=g_pVarList;
@@ -102,7 +102,7 @@ int spifns_init_vars_from_env(void)
     return 0;
 }
 
-DLLEXPORT int __cdecl spifns_init() {
+int spifns_init() {
     LOG(DEBUG, "");
     if (spifns_init_vars_from_env() < 0)
         return -1;
@@ -111,7 +111,7 @@ DLLEXPORT int __cdecl spifns_init() {
 	return 0;
 }
 //RE Check: Completely identical (one opcode off, jns should be jge, but shouldn't matter. Probably unsigned/signed issues)
-DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
+const char * spifns_getvar(const char *szName) {
     LOG(DEBUG, "(%s)", szName);
 	if (!szName) {
 		return "";
@@ -140,7 +140,7 @@ DLLEXPORT const char * __cdecl spifns_getvar(const char *szName) {
 	}
 }
 //RE Check: Completely identical
-DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
+unsigned int spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
     LOG(DEBUG, "");
 	if (pnErrorAddress)
 		*pnErrorAddress=g_nErrorAddress;
@@ -149,7 +149,7 @@ DLLEXPORT unsigned int __cdecl spifns_get_last_error(unsigned short *pnErrorAddr
 	return g_nError;
 }
 
-DLLEXPORT void spifns_clear_last_error(void)
+void spifns_clear_last_error(void)
 {
     LOG(DEBUG, "");
 	static const char szError[]="No error";
@@ -159,18 +159,18 @@ DLLEXPORT void spifns_clear_last_error(void)
 }
 
 //RE Check: Completely identical
-DLLEXPORT void __cdecl spifns_set_debug_callback(spifns_debug_callback pCallback) {
+void spifns_set_debug_callback(spifns_debug_callback pCallback) {
     LOG(DEBUG, "");
 	g_pDebugCallback=pCallback;
     spi_set_error_cb((spi_error_cb)pCallback);
 }
 //RE Check: Completely identical
-DLLEXPORT int __cdecl spifns_get_version() {
+int spifns_get_version() {
     LOG(DEBUG, "returning 0x%02x", SPIFNS_VERSION);
 	return SPIFNS_VERSION;
 }
 
-DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
+HANDLE spifns_open_port(int nPort) {
     LOG(INFO, "csr-spi-ftdi %s", VERSION);
 
     LOG(DEBUG, "(%d)", nPort);
@@ -182,12 +182,12 @@ DLLEXPORT HANDLE __cdecl spifns_open_port(int nPort) {
     return (HANDLE)&spifns_open_port;
 }
 
-DLLEXPORT void __cdecl spifns_close_port() {
+void spifns_close_port() {
     LOG(DEBUG, "");
     spi_close();
 }
 //RE Check: Completely identical
-DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
+void spifns_debugout(const char *szFormat, ...) {
     LOG(DEBUG, "");
 	if (g_pDebugCallback) {
 		static char szDebugOutput[256];
@@ -199,14 +199,14 @@ DLLEXPORT void __cdecl spifns_debugout(const char *szFormat, ...) {
 	}
 }
 
-DLLEXPORT void __cdecl spifns_close() {
+void spifns_close() {
     LOG(DEBUG, "");
 	spifns_close_port();
 
     spi_deinit();
 }
 //RE Check: Completely identical
-DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
+void spifns_chip_select(int nChip) {
     LOG(DEBUG, "(%d)", nChip);
 	/*g_bCurrentOutput=g_bCurrentOutput&0xD3|0x10;
 	g_nSpiMul=0;
@@ -220,7 +220,7 @@ DLLEXPORT void __cdecl spifns_chip_select(int nChip) {
 		nChip);*/
 }
 
-DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
+const char* spifns_command(const char *szCmd) {
 	if (stricmp(szCmd,"SPISLOWER")==0) {
         if (spi_clock_slowdown() < 0) {
             /* XXX */
@@ -230,7 +230,7 @@ DLLEXPORT const char* __cdecl spifns_command(const char *szCmd) {
 	return 0;
 }
 
-DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
+void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
     char port_desc[128];
     int nport;
 
@@ -256,7 +256,7 @@ DLLEXPORT void __cdecl spifns_enumerate_ports(spifns_enumerate_ports_callback pC
     }
 }
 
-DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
+bool spifns_sequence_setvar_spiport(int nPort) {
     LOG(DEBUG, "(%d)", nPort);
 
 	spifns_close_port();
@@ -268,7 +268,7 @@ DLLEXPORT bool __cdecl spifns_sequence_setvar_spiport(int nPort) {
 	return true;
 }
 //RE Check: Functionally equivalent, but completely different ASM code 
-DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
+void spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
     LOG(DEBUG, "(0x%04x, '%c', %d, buf)", nAddress, cOperation, nLength);
 	if (g_pDebugCallback) {
 		static const char * const pszTable[]={
@@ -301,7 +301,7 @@ DLLEXPORT void __cdecl spifns_debugout_readwrite(unsigned short nAddress, char c
 }
 
 /* Reimplemented using our SPI impl. */
-DLLEXPORT int __cdecl spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
+int spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
     uint8_t outbuf1[] = {
         0x02,                       /* Command: write */
         (uint8_t)(nAddress >> 8),   /* Address high byte */
@@ -351,7 +351,7 @@ error:
 }
 
 //RE Check: Functionally identical, register choice, calling convention, and some ordering changes.
-DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
+void spifns_sequence_setvar_spimul(unsigned int nMul) {
     LOG(DEBUG, "(%d)", nMul);
 /*	BYTE bNewOutput=g_bCurrentOutput&~BV_CLK;
 	if ((g_nSpiMulChipNum=nMul)<=16) {
@@ -382,7 +382,7 @@ DLLEXPORT void __cdecl spifns_sequence_setvar_spimul(unsigned int nMul) {
 	spifns_debugout("MulitplexSelect: %04x mul:%d config:%d chip_num:%d\n",g_bCurrentOutput,g_nSpiMul,g_nSpiMulConfig,g_nSpiMulChipNum);*/
 }
 //RE Check: Functionally identical, register choice, calling convention, stack size, and some ordering changes.
-DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szValue) {
+int spifns_sequence_setvar(const char *szName, const char *szValue) {
     LOG(DEBUG, "(%s, %s)", szName, szValue);
 	if (szName==0)
 		return 1;
@@ -498,7 +498,7 @@ DLLEXPORT int __cdecl spifns_sequence_setvar(const char *szName, const char *szV
 }
 
 /* Reimplemented using our SPI impl. */
-DLLEXPORT int __cdecl spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsigned short *pnOutput) {
+int spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsigned short *pnOutput) {
     uint8_t outbuf[] = {
         3,                          /* Command: read */
         (uint8_t)(nAddress >> 8),   /* Address high byte */
@@ -558,7 +558,7 @@ error:
     return 1;
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
-DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
+int spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 	int nRetval=0;
 
     LOG(DEBUG, "(%p, %d)", pSequence, nCount);
@@ -592,7 +592,7 @@ DLLEXPORT int __cdecl spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 }
 
 /* Reimplemented using our own SPI driver */
-DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
+int spifns_bluecore_xap_stopped() {
     /* Read chip version */
     uint8_t xferbuf[] = {
         3,      /* Command: read */
@@ -632,7 +632,7 @@ DLLEXPORT int __cdecl spifns_bluecore_xap_stopped() {
 /* This is a limited implementation of CSR SPI API 1.4. It supports only 1
  * stream and does not support all of the features. */
 
-DLLEXPORT int __cdecl spifns_stream_init(spifns_stream_t *p_stream)
+int spifns_stream_init(spifns_stream_t *p_stream)
 {
     LOG(DEBUG, "(%p)", p_stream);
     int rc;
@@ -644,19 +644,19 @@ DLLEXPORT int __cdecl spifns_stream_init(spifns_stream_t *p_stream)
     return rc;
 }
 
-DLLEXPORT void __cdecl spifns_stream_close(spifns_stream_t stream)
+void spifns_stream_close(spifns_stream_t stream)
 {
     LOG(DEBUG, "(%d)", stream);
     spifns_close();
 }
 
-DLLEXPORT unsigned int __cdecl spifns_count_streams(void)
+unsigned int spifns_count_streams(void)
 {
     LOG(DEBUG, "");
     return 1;
 }
 
-DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount)
+int spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount)
 {
 	int nRetval=0;
 
@@ -689,25 +689,25 @@ DLLEXPORT int __cdecl spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 
 	return nRetval;
 }
 
-DLLEXPORT const char* __cdecl spifns_stream_command(spifns_stream_t stream, const char *command)
+const char* spifns_stream_command(spifns_stream_t stream, const char *command)
 {
     LOG(DEBUG, "(%d, %s)", stream, command);
     return spifns_command(command);
 }
 
-DLLEXPORT const char* __cdecl spifns_stream_getvar(spifns_stream_t stream, const char *var)
+const char* spifns_stream_getvar(spifns_stream_t stream, const char *var)
 {
     LOG(DEBUG, "(%d, %s)", stream, var);
     return spifns_getvar(var);
 }
 
-DLLEXPORT void __cdecl spifns_stream_chip_select(spifns_stream_t stream, int which)
+void spifns_stream_chip_select(spifns_stream_t stream, int which)
 {
     LOG(DEBUG, "(%d, %d)", stream, which);
     spifns_chip_select(which);
 }
 
-DLLEXPORT int __cdecl spifns_stream_bluecore_xap_stopped(spifns_stream_t stream)
+int spifns_stream_bluecore_xap_stopped(spifns_stream_t stream)
 {
     LOG(DEBUG, "(%d)", stream);
     return spifns_bluecore_xap_stopped();
@@ -717,7 +717,7 @@ DLLEXPORT int __cdecl spifns_stream_bluecore_xap_stopped(spifns_stream_t stream)
  * address.*/
 /* get_last_error and clear_last_error both deal with the error that occurred
  * in the current thread */
-DLLEXPORT int __cdecl spifns_get_last_error32(uint32_t *addr, const char ** buf)
+int spifns_get_last_error32(uint32_t *addr, const char ** buf)
 {
     unsigned short saddr;
     int rc;
@@ -730,26 +730,26 @@ DLLEXPORT int __cdecl spifns_get_last_error32(uint32_t *addr, const char ** buf)
     return rc;
 }
 
-DLLEXPORT void __cdecl spifns_stream_set_debug_callback(spifns_stream_t stream, spifns_debug_callback fn, void *pvcontext)
+void spifns_stream_set_debug_callback(spifns_stream_t stream, spifns_debug_callback fn, void *pvcontext)
 {
     LOG(DEBUG, "(%d, %p, %p)", stream, fn, pvcontext);
     spifns_set_debug_callback(fn);
 }
 
-DLLEXPORT int __cdecl spifns_stream_get_device_id(spifns_stream_t stream, char *buf, size_t length)
+int spifns_stream_get_device_id(spifns_stream_t stream, char *buf, size_t length)
 {
     LOG(DEBUG, "(%d, %p, %u)", stream, buf, length);
     snprintf(buf, length, "FTDISyncBB");
     return 0;
 }
 
-DLLEXPORT int __cdecl spifns_stream_lock(spifns_stream_t stream, uint32_t timeout)
+int spifns_stream_lock(spifns_stream_t stream, uint32_t timeout)
 {
     LOG(DEBUG, "(%d, %u)", stream, timeout);
     return 0;
 }
 
-DLLEXPORT void __cdecl spifns_stream_unlock(spifns_stream_t stream)
+void spifns_stream_unlock(spifns_stream_t stream)
 {
     LOG(DEBUG, "(%d)", stream);
 }
