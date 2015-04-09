@@ -1,19 +1,19 @@
 # Use mingw32
-TARGET_ARCH ?= i586-mingw32msvc-
+#TOOLCHAIN ?= i586-mingw32msvc-
 # Use mingw-w64
-#TARGET_ARCH ?= i686-w64-mingw32-
+TOOLCHAIN ?= i686-w64-mingw32-
 
 LIBFTDI ?=	./libftdi1
 LIBUSB ?=	./libusb
 
-CXX =	$(TARGET_ARCH)g++
-CC =	$(TARGET_ARCH)gcc
-LD =	$(TARGET_ARCH)g++
+CXX =	$(TOOLCHAIN)g++
+CC =	$(TOOLCHAIN)gcc
+LD =	$(TOOLCHAIN)g++
 
 VERSION := $(shell cat VERSION)
 
-CFLAGS +=	-Wall
-LDFLAGS +=	-shared -static -s
+CFLAGS +=	-m32 -Wall
+LDFLAGS +=	-shared -m32 -O2 -static -s
 
 CPPFLAGS +=	-I$(LIBFTDI)/include/libftdi1
 LDFLAGS  += -L$(LIBFTDI)/lib32
@@ -23,11 +23,13 @@ CPPFLAGS +=	-I$(LIBUSB)/include
 LDFLAGS  += -L$(LIBUSB)/MinGW32/static
 LDLIBS   += -lusb-1.0
 
+CPPFLAGS += -DSPILPT_SRC
+
 CPPFLAGS +=	-DSPI_STATS
 CPPFLAGS +=	-DCOMPAT_USLEEP
 # Fixes compilation on Debian/Ubuntu with mingw-w64 < 3.0.
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
-CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
+#CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
 CPPFLAGS +=	-DCOMPAT_TIMER_MACROS
 
 CPPFLAGS += -DVERSION=\"$(VERSION)\"
@@ -65,7 +67,7 @@ $(OBJDIR)/logging.o: logging.h compat.h
 
 $(OBJDIR)/spilpt.dll: $(OBJDIR)/dllmain.o $(OBJDIR)/logging.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/compat.o $(LIBRARY_DEF)
 	mkdir -p $(OBJDIR)
-	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
+	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS) -Wl,--out-implib,$@.a
 
 $(OBJDIR)/%.o: %.c
 	mkdir -p $(OBJDIR)
