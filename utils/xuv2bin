@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+xuv2bin
+
+=head1 SYNOPSIS
+
+xuv2bin dump.xdv dump.xpv > dump.bin
+
+=head1 DESCRIPTION
+
+Converts XUV format files to plain binary
+
+=cut
+
+use warnings;
+use strict;
+
+print pack "v*", map { /^\s*\@([\da-f]+)\s+([\da-f]+)\s*$/i ? hex $2 : () } <>;

@@ -1,0 +1,23 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+raw2xuv
+
+=head1 SYNOPSIS
+
+raw2xuv dump.raw > dump.xuv
+
+=head1 DESCRIPTION
+
+Converts raw format files (produced by C<blueflashcmd -dump -raw>)
+to XUV format.
+
+=cut
+
+use warnings;
+use strict;
+
+my $i = 0;
+undef $/;
+map { printf "@%06x %04x\r\n", $i++, $_ } unpack "n*", <>;
