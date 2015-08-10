@@ -56,7 +56,6 @@
 
 static int spi_dev_open = 0;
 static int spi_nrefs = 0;
-static spi_error_cb spi_err_cb = NULL;
 
 static struct ftdi_context ftdic;
 static uint8_t ftdi_pin_state = 0;
@@ -96,6 +95,8 @@ static struct ftdi_device_ids ftdi_device_ids[] = {
     { 0x0403, 0x6014 }, /* FT232H */
 };
 
+static char *spi_err_buf = NULL;
+static size_t spi_err_buf_sz = 0;
 
 #ifdef __WINE__
 WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
@@ -105,9 +106,15 @@ WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
 #define WINE_ERR(args...)       do { } while(0)
 #endif
 
-void spi_set_error_cb(spi_error_cb err_cb)
+void spi_set_err_buf(char *buf, size_t sz)
 {
-    spi_err_cb = err_cb;
+    if (buf && sz) {
+        spi_err_buf = buf;
+        spi_err_buf_sz = sz;
+    } else {
+        spi_err_buf = NULL;
+        spi_err_buf_sz = 0;
+    }
 }
 
 static void spi_err(const char *fmt, ...) {
@@ -117,8 +124,10 @@ static void spi_err(const char *fmt, ...) {
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
     LOG(ERR, buf);
-	if (spi_err_cb)
-        spi_err_cb(buf);
+    if (spi_err_buf) {
+        strncpy(spi_err_buf, buf, spi_err_buf_sz);
+        spi_err_buf[spi_err_buf_sz - 1] = '\0';
+    }
     va_end(args);
 }
 

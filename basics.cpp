@@ -104,6 +104,7 @@ int spifns_init_vars_from_env(void)
 
 int spifns_init() {
     LOG(DEBUG, "");
+    spi_set_err_buf(g_szErrorString, sizeof(g_szErrorString));
     if (spifns_init_vars_from_env() < 0)
         return -1;
     if (spi_init() < 0)
@@ -162,7 +163,6 @@ void spifns_clear_last_error(void)
 void spifns_set_debug_callback(spifns_debug_callback pCallback) {
     LOG(DEBUG, "");
 	g_pDebugCallback=pCallback;
-    spi_set_error_cb((spi_error_cb)pCallback);
 }
 //RE Check: Completely identical
 int spifns_get_version() {

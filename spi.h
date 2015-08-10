@@ -15,14 +15,14 @@ struct spi_port {
     char manuf[128], desc[128], serial[128];
 };
 
-typedef void (*spi_error_cb)(const char *errstr);
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 extern struct spi_port spi_ports[16];
 extern int spi_nports;
+
+void spi_set_err_buf(char *buf, size_t sz);
 
 int spi_init(void);
 int spi_deinit(void);
@@ -44,7 +44,6 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size);
 int spi_xfer_end(void);
 
 void spi_led(int led);
-void spi_set_error_cb(spi_error_cb errcb);
 
 #ifdef __cplusplus
 } /* extern "C" */
