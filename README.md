@@ -6,6 +6,7 @@
   * [Programmer hardware](#programmer-hardware)
     * [Using FT232RL breakout board as a programmer](#using-ft232rl-breakout-board-as-a-programmer)
     * [Dedicated programmer](#dedicated-programmer)
+    * [Counterfeit FT232RL chips](#counterfeit-ft232rl-chips)
   * [Software](#software)
     * [CSR SPI API versions](#csr-spi-api-versions)
     * [Installing prebuilt drivers](#installing-prebuilt-drivers)
@@ -115,6 +116,29 @@ draw may exceed FT232R 50mA limit, which may cause communication errors.
 
 KiCad schematic for a dedicated programmer can be found in
 [hardware/](hardware/) subdirectory.
+
+### Counterfeit FT232RL chips
+
+When You buy cheap (< $5) FT232RL IC or module from Ebay or Aliexpress, You
+usually get counterfeit FT232RL chip
+([1](http://zeptobars.ru/en/read/FTDI-FT232RL-real-vs-fake-supereal),
+[2](http://www.eevblog.com/forum/reviews/ftdi-driver-kills-fake-ftdi-ft232/msg536891/#msg536891),
+[3](http://dangerousprototypes.com/forum/viewtopic.php?p=56343#p56343)).
+
+I've got such a chip (this one has read-only EEPROM, S/N A50285BI, probably
+it's a [generation 2 counterfeit](https://blog.cesanta.com/FTDI-adventures)),
+and verified csr-spi-ftdi to work with it. It may produce some communication
+errors (but they are automatically retried), but in general it works.
+
+Some versions of Windows FTDI driver tend to intentionally
+[brick](https://hackaday.com/2014/10/22/watch-that-windows-update-ftdi-drivers-are-killing-fake-chips/)
+generation 1 counterfeit chips by setting their PID to 0x0000. Although there
+is a
+[unbrick](https://www.reddit.com/r/arduino/comments/2k0i7x/watch_that_windows_update_ftdi_drivers_are/clgviyl)
+([2](http://www.youtube.com/watch?v=RZH_qGautqM)) and
+[protect](http://www.eevblog.com/forum/reviews/ftdi-driver-kills-fake-ftdi-ft232/msg537012/#msg537012)
+procedures, csr-spi-ftdi will work on the bricked chips too.
+
 
 ## Software
 

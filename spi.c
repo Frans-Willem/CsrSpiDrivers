@@ -89,6 +89,7 @@ unsigned long spi_ftdi_base_clock = FTDI_BASE_CLOCK;
 
 static struct ftdi_device_ids ftdi_device_ids[] = {
     { 0x0403, 0x6001 }, /* FT232R */
+    { 0x0403, 0x0000 }, /* Counterfeit FT232RL bricked by FTDI driver */
     /* Chips below are not tested. */
     { 0x0403, 0x6010 }, /* FT2232H/C/D */
     { 0x0403, 0x6011 }, /* FT4232H */
