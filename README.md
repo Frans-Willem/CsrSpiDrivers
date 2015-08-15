@@ -362,7 +362,7 @@ WINEDLLPATH environment variable, see wine(1) man page for details.
 
 Install MinGW cross-development environment:
 
-    sudo apt-get install -y mingw-w64
+    sudo apt-get install -y mingw-w64 cmake
 
 Download [precompiled libusb for
 windows](http://sourceforge.net/projects/libusb/files/) and extract it to the
@@ -371,12 +371,17 @@ libusb directory:
     wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19.7z
     7z x -olibusb libusb-1.0.19.7z
 
-Download precompiled libftdi for windows from
-<http://sourceforge.net/projects/picusb/files/> and extract it:
+Build [libftdi](http://www.intra2net.com/en/developer/libftdi/) from source:
 
-    wget http://sourceforge.net/projects/picusb/files/libftdi1-1.1_devkit_x86_x64_21Feb2014.zip
-    unzip libftdi1-1.1_devkit_x86_x64_21Feb2014.zip
-    ln -s libftdi1-1.1_devkit_x86_x64_21Feb2014 libftdi1
+    wget http://www.intra2net.com/en/developer/libftdi/download/libftdi1-1.2.tar.bz2
+    tar xjvf libftdi1-1.2.tar.bz2
+    cd libftdi1-1.2
+    cmake -DCMAKE_TOOLCHAIN_FILE=cmake/Toolchain-i686-w64-mingw32.cmake \
+        -DLIBUSB_INCLUDE_DIR=../libusb/include/libusb-1.0 \
+        -DLIBUSB_LIBRARIES="-L../../libusb/MinGW32/static -lusb-1.0" \
+        -DCMAKE_INSTALL_PREFIX=../libftdi1 .
+    make all install
+    cd ..
 
 Build with command:
 

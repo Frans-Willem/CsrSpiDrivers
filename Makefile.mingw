@@ -16,7 +16,7 @@ CFLAGS +=	-m32 -Wall
 LDFLAGS +=	-shared -m32 -O2 -static -s
 
 CPPFLAGS +=	-I$(LIBFTDI)/include/libftdi1
-LDFLAGS  += -L$(LIBFTDI)/lib32
+LDFLAGS  += -L$(LIBFTDI)/lib
 LDLIBS   += -lftdi1
 
 CPPFLAGS +=	-I$(LIBUSB)/include
