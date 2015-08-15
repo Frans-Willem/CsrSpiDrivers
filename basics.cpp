@@ -2,9 +2,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <ctype.h>
-#ifdef __WINE__
-#include "wine/debug.h"
-#endif
 
 #include "spifns.h"
 #include "basics.h"
@@ -19,14 +16,6 @@
  * For now, I'll leave it at this 
  * Feel free to use this to write your own 
 */
-
-#ifdef __WINE__
-WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
-#else
-#define WINE_TRACE(args...)     do { } while(0)
-#define WINE_WARN(args...)      do { } while(0)
-#define WINE_ERR(args...)       do { } while(0)
-#endif
 
 #define VARLIST_SPISPORT 0
 #define VARLIST_SPIMUL 1

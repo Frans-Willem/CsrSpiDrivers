@@ -9,9 +9,6 @@
 #include <math.h>
 #endif
 #include <sys/time.h>
-#ifdef __WINE__
-#include "wine/debug.h"
-#endif
 
 #include "spi.h"
 #include "compat.h"
@@ -98,14 +95,6 @@ static struct ftdi_device_ids ftdi_device_ids[] = {
 
 static char *spi_err_buf = NULL;
 static size_t spi_err_buf_sz = 0;
-
-#ifdef __WINE__
-WINE_DEFAULT_DEBUG_CHANNEL(spilpt);
-#else
-#define WINE_TRACE(args...)     do { } while(0)
-#define WINE_WARN(args...)      do { } while(0)
-#define WINE_ERR(args...)       do { } while(0)
-#endif
 
 void spi_set_err_buf(char *buf, size_t sz)
 {
