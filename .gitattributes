@@ -1,0 +1,13 @@
+* text=auto
+*.svg text eol=lf
+*.c text
+*.cpp text
+*.h text
+*.txt text
+*.md text
+Makefile* text
+*.def text eol=crlf
+*.spec text
+VERSION text
+*.psr text
+*.reg text eol=crlf
