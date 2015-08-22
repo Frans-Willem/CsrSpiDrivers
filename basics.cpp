@@ -189,12 +189,16 @@ DLLEXPORT const char* spifns_command(const char *szCmd) {
 }
 
 DLLEXPORT void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
+    struct spi_port *portlist;
+    int nports, nport;
     char port_desc[128];
-    int nport;
 
     LOG(DEBUG, "");
 
-    if (spi_nports == 0) {
+    if (spi_get_port_list(&portlist, &nports) < 0)
+        return;
+
+    if (nports == 0) {
         /* Some apps, CSR86XX ROM ConfigTool 3.0.48 in particular, crash when
          * no ports present. Return some dummy port for it if we can't find
          * any. */
@@ -204,9 +208,9 @@ DLLEXPORT void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback,
         return;
     }
 
-    for (nport = 0; nport < spi_nports; nport++) {
+    for (nport = 0; nport < nports; nport++) {
         snprintf(port_desc, sizeof(port_desc), "%d: %s %s",
-            nport + 1, spi_ports[nport].desc, spi_ports[nport].serial);
+            nport + 1, portlist[nport].desc, portlist[nport].serial);
         LOG(DEBUG, "Calling port enum callback (%d, \"%s\", %p)",
                 nport + 1, port_desc, pData);
         /* Ports start with 1 in spilpt */

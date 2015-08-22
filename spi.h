@@ -19,13 +19,11 @@ struct spi_port {
 extern "C" {
 #endif
 
-extern struct spi_port spi_ports[16];
-extern int spi_nports;
-
 void spi_set_err_buf(char *buf, size_t sz);
 
 int spi_init(void);
 int spi_deinit(void);
+int spi_get_port_list(struct spi_port **pportlist, int *pnports);
 
 int spi_open(int nport);
 int spi_isopen(void);
@@ -34,7 +32,7 @@ int spi_close(void);
 void spi_set_ftdi_base_clock(unsigned long ftdi_clk);
 int spi_set_clock(unsigned long spi_clk);
 void spi_set_max_clock(unsigned long clk);
-int spi_clock_slowdown();
+int spi_clock_slowdown(void);
 unsigned long spi_get_max_clock(void);
 unsigned long spi_get_clock(void);
 

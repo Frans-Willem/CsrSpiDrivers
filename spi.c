@@ -78,8 +78,8 @@ struct ftdi_device_ids {
 };
 
 #define SPI_MAX_PORTS   16
-struct spi_port spi_ports[SPI_MAX_PORTS];
-int spi_nports = 0;
+static struct spi_port spi_ports[SPI_MAX_PORTS];
+static int spi_nports = 0;
 
 unsigned long spi_clock = SPI_BASE_CLOCK, spi_max_clock = SPI_BASE_CLOCK;
 unsigned long spi_ftdi_base_clock = FTDI_BASE_CLOCK;
@@ -483,6 +483,7 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size)
     return size;
 }
 
+/* Fills spi_ports array with discovered devices, sets spi_nports */
 static int spi_enumerate_ports(void)
 {
     int id, rc;
@@ -540,6 +541,21 @@ int spi_init(void)
         return -1;
 
     spi_nrefs++;
+
+    return 0;
+}
+
+int spi_get_port_list(struct spi_port **pportlist, int *pnports)
+{
+    if (spi_nrefs < 1) {
+        SPI_ERR("FTDI: spi not initialized");
+        return -1;
+    }
+
+    if (pportlist)
+        *pportlist = spi_ports;
+    if (pnports)
+        *pnports = spi_nports;
 
     return 0;
 }
@@ -626,7 +642,7 @@ void spi_set_max_clock(unsigned long clk) {
     spi_max_clock = clk;
 }
 
-int spi_clock_slowdown() {
+int spi_clock_slowdown(void) {
     unsigned long clk = spi_clock;
 
     /* Slow SPI clock down by 1.5 */
