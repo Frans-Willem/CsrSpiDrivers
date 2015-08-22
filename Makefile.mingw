@@ -24,8 +24,6 @@ CPPFLAGS +=	-I$(LIBUSB)/include
 LDFLAGS  += -L$(LIBUSB)/MinGW32/static
 LDLIBS   += -lusb-1.0
 
-CPPFLAGS += -DSPILPT_SRC
-
 CPPFLAGS +=	-DSPI_STATS
 CPPFLAGS +=	-DCOMPAT_USLEEP
 # Fixes compilation on Debian/Ubuntu with mingw-w64 < 3.0.
@@ -62,7 +60,7 @@ all: $(OBJDIR)/spilpt.dll
 
 endif
 
-$(OBJDIR)/basics.o: spi.h basics.h spifns.h logging.h
+$(OBJDIR)/basics.o: spi.h spifns.h logging.h
 $(OBJDIR)/spi.o: spi.h compat.h
 $(OBJDIR)/logging.o: logging.h compat.h
 

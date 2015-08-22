@@ -53,7 +53,7 @@ install:
 
 endif
 
-$(OBJDIR)/basics.o: spi.h basics.h spifns.h logging.h
+$(OBJDIR)/basics.o: spi.h spifns.h logging.h
 $(OBJDIR)/spi.o: spi.h
 $(OBJDIR)/logging.o: logging.h compat.h
 

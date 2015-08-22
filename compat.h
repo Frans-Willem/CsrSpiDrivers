@@ -2,9 +2,7 @@
 #define _COMPAT_H
 
 #ifdef __WINE__
-# define _snprintf snprintf
 # define stricmp strcasecmp
-# define _stricmp strcasecmp
 #endif
 
 #ifdef COMPAT_USLEEP
