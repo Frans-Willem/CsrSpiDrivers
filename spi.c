@@ -107,13 +107,17 @@ void spi_set_err_buf(char *buf, size_t sz)
     }
 }
 
+#define SPI_ERR(...)   do { \
+        LOG(ERR, __VA_ARGS__); \
+        spi_err(__VA_ARGS__); \
+    } while (0)
+
 static void spi_err(const char *fmt, ...) {
     static char buf[256];
     va_list args;
 
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
-    LOG(ERR, buf);
     if (spi_err_buf) {
         strncpy(spi_err_buf, buf, spi_err_buf_sz);
         spi_err_buf[spi_err_buf_sz - 1] = '\0';
@@ -130,11 +134,11 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
 
     rc = ftdi_write_data(&ftdic, bufp, len);
     if (rc < 0) {
-        spi_err("FTDI: write data failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: write data failed: %s", ftdi_get_error_string(&ftdic));
         return -1;
     }
     if (rc != len) {
-        spi_err("FTDI: short write: need %d, got %d", len, rc);
+        SPI_ERR("FTDI: short write: need %d, got %d", len, rc);
         return -1;
     }
 
@@ -148,7 +152,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
         rc = ftdi_read_data(&ftdic, bufp, len);
 
         if (rc < 0) {
-            spi_err("FTDI: read data failed: %s", ftdi_get_error_string(&ftdic));
+            SPI_ERR("FTDI: read data failed: %s", ftdi_get_error_string(&ftdic));
             return -1;
         }
         if (rc == 0) {
@@ -490,7 +494,7 @@ static int spi_enumerate_ports(void)
         LOG(DEBUG, "find all: 0x%04x:0x%04x", ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         rc = ftdi_usb_find_all(&ftdic, &ftdevlist, ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         if (rc < 0) {
-            spi_err("FTDI: ftdi_usb_find_all() failed: %s", ftdi_get_error_string(&ftdic));
+            SPI_ERR("FTDI: ftdi_usb_find_all() failed: %s", ftdi_get_error_string(&ftdic));
             return -1;
         }
         if (rc == 0)
@@ -505,7 +509,7 @@ static int spi_enumerate_ports(void)
                         spi_ports[spi_nports].desc, sizeof(spi_ports[spi_nports].desc),
                         spi_ports[spi_nports].serial, sizeof(spi_ports[spi_nports].serial)) < 0)
             {
-                spi_err("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(&ftdic));
+                SPI_ERR("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(&ftdic));
                 return -1;
             }
             LOG(INFO, "Found device: dev=%p, manuf=\"%s\", desc=\"%s\", serial=\"%s\", vid=0x%04x, pid=0x%04x",
@@ -528,7 +532,7 @@ int spi_init(void)
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     if (ftdi_init(&ftdic) < 0) {
-        spi_err("FTDI: init failed");
+        SPI_ERR("FTDI: init failed");
         return -1;
     }
 
@@ -571,7 +575,7 @@ static int spi_set_ftdi_clock(unsigned long ftdi_clk)
 {
     LOG(DEBUG, "FTDI: FTDI clock: %lu", ftdi_clk);
     if (!spi_isopen()) {
-        LOG(ERR, "FTDI: setting FTDI clock failed: SPI device is not open");
+        SPI_ERR("FTDI: setting FTDI clock failed: SPI device is not open");
         return -1;
     }
 
@@ -585,7 +589,7 @@ static int spi_set_ftdi_clock(unsigned long ftdi_clk)
     LOG(INFO, "FTDI: clock: %lu, baudrate: %lu, FTDI_BASE_CLOCK: %lu",
             ftdi_clk, ftdi_clk / 16, spi_ftdi_base_clock);
     if (ftdi_set_baudrate(&ftdic, ftdi_clk / 16) < 0) {
-        spi_err("FTDI: set baudrate %lu failed: %s",
+        SPI_ERR("FTDI: set baudrate %lu failed: %s",
                 ftdi_clk / 16, ftdi_get_error_string(&ftdic));
         return -1;
     }
@@ -659,7 +663,7 @@ int spi_open(int nport)
     }
 
     if (spi_nports == 0 || nport < spi_nports - 1) {
-        spi_err("No FTDI device found");
+        SPI_ERR("No FTDI device found");
         goto open_err;
     }
 
@@ -677,7 +681,7 @@ int spi_open(int nport)
     if (ftdi_usb_open_desc(&ftdic, spi_ports[nport].vid, spi_ports[nport].pid,
                 NULL, spi_ports[nport].serial) < 0)
     {
-        spi_err("FTDI: ftdi_usb_open_desc() failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: ftdi_usb_open_desc() failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
@@ -687,28 +691,28 @@ int spi_open(int nport)
     spi_dev_open++;
 
     if (ftdi_usb_reset(&ftdic) < 0) {
-        spi_err("FTDI: reset failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: reset failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
     if (ftdi_usb_purge_buffers(&ftdic) < 0) {
-        spi_err("FTDI: purge buffers failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: purge buffers failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
     /* Set 1 ms latency timer, see FTDI AN232B-04 */
     if (ftdi_set_latency_timer(&ftdic, 1) < 0) {
-        spi_err("FTDI: setting latency timer failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: setting latency timer failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
     if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
-        spi_err("FTDI: reset bitmode failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: reset bitmode failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
     if (ftdi_set_bitmode(&ftdic, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
-        spi_err("FTDI: set synchronous bitbang mode failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: set synchronous bitbang mode failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
@@ -802,13 +806,13 @@ int spi_close(void)
         spi_led(SPI_LED_OFF);
 
         if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
-            spi_err("FTDI: reset bitmode failed: %s",
+            SPI_ERR("FTDI: reset bitmode failed: %s",
                     ftdi_get_error_string(&ftdic));
             return -1;
         }
 
         if (ftdi_usb_close(&ftdic) < 0) {
-            spi_err("FTDI: close failed: %s",
+            SPI_ERR("FTDI: close failed: %s",
                     ftdi_get_error_string(&ftdic));
             return -1;
         }
