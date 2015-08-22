@@ -8,11 +8,12 @@ LIBUSB ?=	./libusb
 
 CXX =	$(TOOLCHAIN)g++
 CC =	$(TOOLCHAIN)gcc
-LD =	$(TOOLCHAIN)g++
+LD =	$(TOOLCHAIN)gcc
 
 VERSION := $(shell cat VERSION)
 
 CFLAGS +=	-m32 -Wall
+CXXFLAGS += -fno-exceptions
 LDFLAGS +=	-shared -m32 -O2 -static -s
 
 CPPFLAGS +=	-I$(LIBFTDI)/include/libftdi1
@@ -75,7 +76,7 @@ $(OBJDIR)/%.o: %.c
 
 $(OBJDIR)/%.o: %.cpp
 	mkdir -p $(OBJDIR)
-	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
 	rm -fr spilpt-win32-api1.3 spilpt-win32-api1.4

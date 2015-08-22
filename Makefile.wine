@@ -9,8 +9,9 @@ VERSION := $(shell cat VERSION)
 
 CC =	winegcc
 CXX =	wineg++
-LD =	wineg++
+LD =	winegcc
 CFLAGS +=	-Wall -m32 -fPIC -DPIC
+CXXFLAGS += -fno-exceptions
 CPPFLAGS +=	-DSPI_STATS -DVERSION=\"$(VERSION)\"
 LDFLAGS +=	-shared -m32 -static-libgcc -s
 # 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
@@ -62,7 +63,7 @@ $(OBJDIR)/%.o: %.c
 
 $(OBJDIR)/%.o: %.cpp
 	mkdir -p $(OBJDIR)
-	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
 	rm -fr spilpt-wine-$(TARGET_PLATFORM)-api1.3 spilpt-wine-$(TARGET_PLATFORM)-api1.4
