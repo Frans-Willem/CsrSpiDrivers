@@ -109,7 +109,7 @@ enum spifns_xap_state
 };
 
 enum spifns_spi_errors
-{ 
+{
     SPIFNS_ERROR_NO_ERROR  = 0x000, /* tests equal to SPIFNS_SUCCESS and PTTRANS_SUCCESS */
     SPIFNS_ERROR_GENERAL_FAILURE = SPIFNS_FAILURE, /* tests equal to SPIFNS_FAILURE and PTTRANS_FAILURE */
     /* the spifns error range is 0x100-0x1FF */
@@ -124,65 +124,65 @@ enum spifns_spi_errors
     SPIFNS_ERROR_INVALID_ADDRESS = 0x109,
     SPIFNS_ERROR_INVALID_PARAMETER = 0x10A,
     SPIFNS_ERROR_TIMEOUT   = 0x10B,
-};  
+};
 
 
 #define SPIERR_NO_ERROR 0x100
 #define SPIERR_MALLOC_FAILED 0x101
-#define SPIERR_NO_LPT_PORT_SELECTED	0x102
+#define SPIERR_NO_LPT_PORT_SELECTED 0x102
 #define SPIERR_READ_FAILED 0x103
 #define SPIERR_IOCTL_FAILED 0x104
 
 struct SPIVARDEF {
-	const char *szName;
-	const char *szDefault;
-	int nUnknown;
+    const char *szName;
+    const char *szDefault;
+    int nUnknown;
 };
 
 struct SPISEQ {
-	enum {
-		TYPE_READ=0,
-		TYPE_WRITE,
-		TYPE_SETVAR,
-	} nType;
-	union {
-		struct {
-			unsigned short nAddress;
-			unsigned short nLength;
-			unsigned short *pnData;
-		} rw;
-		struct {
-			const char *szName;
-			const char *szValue;
-		} setvar;
-	};
+    enum {
+        TYPE_READ=0,
+        TYPE_WRITE,
+        TYPE_SETVAR,
+    } nType;
+    union {
+        struct {
+            unsigned short nAddress;
+            unsigned short nLength;
+            unsigned short *pnData;
+        } rw;
+        struct {
+            const char *szName;
+            const char *szValue;
+        } setvar;
+    };
 };
 
 #if SPIFNS_API == SPIFNS_API_1_4
 /* From BlueSuiteSource_V2_5.zip/CSRSource/result/include/spi/spifns.h */
 struct SPISEQ_1_4 {
-	enum {
-		TYPE_READ=0,
-		TYPE_WRITE,
-		TYPE_SETVAR,
+    enum {
+        TYPE_READ=0,
+        TYPE_WRITE,
+        TYPE_SETVAR,
         TYPE_READ_VERIFY,
         TYPE_WRITE_VERIFY,
         TYPE_READ_BYTE,
         TYPE_WRITE_BYTE,
         TYPE_READ_BYTE_VERIFY,
         TYPE_WRITE_BYTE_VERIFY,
-	} nType;
-	union {
-		struct {
-			uint32_t nAddress;
-			uint32_t nLength;
-			unsigned short *pnData;
-		} rw;
-		struct {
-			const char *szName;
-			const char *szValue;
-		} setvar;
-	};
+    } nType;
+    union {
+        struct {
+            uint32_t nAddress;
+            uint32_t nLength;
+            unsigned short *pnData;
+        } rw;
+        struct {
+            const char *szName;
+            const char *szValue;
+        } setvar;
+    };
 };
 #endif
 

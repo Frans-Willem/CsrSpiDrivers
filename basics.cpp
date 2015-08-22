@@ -29,17 +29,17 @@
 #define VARLIST_FTDI_LOG_FILE 10
 
 const SPIVARDEF g_pVarList[]={
-	{"SPIPORT","1",1},
-	{"SPIMUL","0",0},
-	{"SPISHIFTPERIOD","0",0},   /* Unused */
-	{"SPICLOCK","0",0},
-	{"SPICMDBITS","0",0},
-	{"SPICMDREADBITS","0",0},
-	{"SPICMDWRITEBITS","0",0},
-	{"SPIMAXCLOCK","1000",0},
-	{"FTDI_BASE_CLOCK","4000000",0},
-	{"FTDI_LOG_LEVEL","warn",0},
-	{"FTDI_LOG_FILE","stderr",0}
+    {"SPIPORT","1",1},
+    {"SPIMUL","0",0},
+    {"SPISHIFTPERIOD","0",0},   /* Unused */
+    {"SPICLOCK","0",0},
+    {"SPICMDBITS","0",0},
+    {"SPICMDREADBITS","0",0},
+    {"SPICMDWRITEBITS","0",0},
+    {"SPIMAXCLOCK","1000",0},
+    {"FTDI_BASE_CLOCK","4000000",0},
+    {"FTDI_LOG_LEVEL","warn",0},
+    {"FTDI_LOG_FILE","stderr",0}
 };
 
 unsigned int g_nSpiMulChipNum=-1;
@@ -69,8 +69,8 @@ int spifns_sequence_setvar(const char *szName, const char *szValue);
 void spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
     LOG(DEBUG, "");
 
-	*ppList=g_pVarList;
-	*pnCount=sizeof(g_pVarList)/sizeof(*g_pVarList);
+    *ppList=g_pVarList;
+    *pnCount=sizeof(g_pVarList)/sizeof(*g_pVarList);
 }
 
 /* Try to initialize variables from environment earlier than pttransport
@@ -98,52 +98,52 @@ int spifns_init() {
         return -1;
     if (spi_init() < 0)
         return -1;
-	return 0;
+    return 0;
 }
 //RE Check: Completely identical (one opcode off, jns should be jge, but shouldn't matter. Probably unsigned/signed issues)
 const char * spifns_getvar(const char *szName) {
     LOG(DEBUG, "(%s)", szName);
-	if (!szName) {
-		return "";
-	} else if (_stricmp(szName,"SPIPORT")==0) {
-		static char szReturn[20];
-		sprintf(szReturn,"%d",g_nSpiPort);
-		return szReturn;
-	} else if (_stricmp(szName,"SPIMUL")==0) {
-		static char szReturn[20];
-		sprintf(szReturn,"%d",g_nSpiMulChipNum);
-		return szReturn;
-	} else if (_stricmp(szName,"SPISHIFTPERIOD")==0) {
-		static char szReturn[20];
-		sprintf(szReturn,"%d",g_nSpiShiftPeriod);
-		return szReturn;
-	} else if (_stricmp(szName,"SPICLOCK")==0) {
-		static char szReturn[64];
-		sprintf(szReturn,"%lu",spi_get_clock());
-		return szReturn;
-	} else if (_stricmp(szName,"SPIMAXCLOCK")==0) {
-		static char szReturn[24];
-		sprintf(szReturn,"%lu",spi_get_max_clock());
-		return szReturn;
-	} else {
-		return "";
-	}
+    if (!szName) {
+        return "";
+    } else if (_stricmp(szName,"SPIPORT")==0) {
+        static char szReturn[20];
+        sprintf(szReturn,"%d",g_nSpiPort);
+        return szReturn;
+    } else if (_stricmp(szName,"SPIMUL")==0) {
+        static char szReturn[20];
+        sprintf(szReturn,"%d",g_nSpiMulChipNum);
+        return szReturn;
+    } else if (_stricmp(szName,"SPISHIFTPERIOD")==0) {
+        static char szReturn[20];
+        sprintf(szReturn,"%d",g_nSpiShiftPeriod);
+        return szReturn;
+    } else if (_stricmp(szName,"SPICLOCK")==0) {
+        static char szReturn[64];
+        sprintf(szReturn,"%lu",spi_get_clock());
+        return szReturn;
+    } else if (_stricmp(szName,"SPIMAXCLOCK")==0) {
+        static char szReturn[24];
+        sprintf(szReturn,"%lu",spi_get_max_clock());
+        return szReturn;
+    } else {
+        return "";
+    }
 }
 //RE Check: Completely identical
 unsigned int spifns_get_last_error(unsigned short *pnErrorAddress, const char **pszErrorString) {
     LOG(DEBUG, "");
-	if (pnErrorAddress)
-		*pnErrorAddress=g_nErrorAddress;
-	if (pszErrorString)
-		*pszErrorString=g_szErrorString;
-	return g_nError;
+    if (pnErrorAddress)
+        *pnErrorAddress=g_nErrorAddress;
+    if (pszErrorString)
+        *pszErrorString=g_szErrorString;
+    return g_nError;
 }
 
 void spifns_clear_last_error(void)
 {
     LOG(DEBUG, "");
-	static const char szError[]="No error";
-	memcpy(g_szErrorString,szError,sizeof(szError));
+    static const char szError[]="No error";
+    memcpy(g_szErrorString,szError,sizeof(szError));
     g_nErrorAddress=0;
     g_nError=SPIERR_NO_ERROR;
 }
@@ -151,12 +151,12 @@ void spifns_clear_last_error(void)
 //RE Check: Completely identical
 void spifns_set_debug_callback(spifns_debug_callback pCallback) {
     LOG(DEBUG, "");
-	g_pDebugCallback=pCallback;
+    g_pDebugCallback=pCallback;
 }
 //RE Check: Completely identical
 int spifns_get_version() {
     LOG(DEBUG, "returning 0x%02x", SPIFNS_VERSION);
-	return SPIFNS_VERSION;
+    return SPIFNS_VERSION;
 }
 
 HANDLE spifns_open_port(int nPort) {
@@ -178,45 +178,45 @@ void spifns_close_port() {
 //RE Check: Completely identical
 void spifns_debugout(const char *szFormat, ...) {
     LOG(DEBUG, "");
-	if (g_pDebugCallback) {
-		static char szDebugOutput[256];
-		va_list args;
-		va_start(args,szFormat);
-		vsprintf(szDebugOutput,szFormat,args);
-		g_pDebugCallback(szDebugOutput);
-		va_end(args);
-	}
+    if (g_pDebugCallback) {
+        static char szDebugOutput[256];
+        va_list args;
+        va_start(args,szFormat);
+        vsprintf(szDebugOutput,szFormat,args);
+        g_pDebugCallback(szDebugOutput);
+        va_end(args);
+    }
 }
 
 void spifns_close() {
     LOG(DEBUG, "");
-	spifns_close_port();
+    spifns_close_port();
 
     spi_deinit();
 }
 //RE Check: Completely identical
 void spifns_chip_select(int nChip) {
     LOG(DEBUG, "(%d)", nChip);
-	/*g_bCurrentOutput=g_bCurrentOutput&0xD3|0x10;
-	g_nSpiMul=0;
-	g_nSpiMulConfig=nChip;
-	g_nSpiMulChipNum=nChip;
-	spifns_debugout(
-		"ChipSelect: %04x mul:%d confog:%d chip_num:%d\n",
-		g_bCurrentOutput,
-		0,
-		nChip,
-		nChip);*/
+    /*g_bCurrentOutput=g_bCurrentOutput&0xD3|0x10;
+    g_nSpiMul=0;
+    g_nSpiMulConfig=nChip;
+    g_nSpiMulChipNum=nChip;
+    spifns_debugout(
+        "ChipSelect: %04x mul:%d confog:%d chip_num:%d\n",
+        g_bCurrentOutput,
+        0,
+        nChip,
+        nChip);*/
 }
 
 const char* spifns_command(const char *szCmd) {
-	if (stricmp(szCmd,"SPISLOWER")==0) {
+    if (stricmp(szCmd,"SPISLOWER")==0) {
         if (spi_clock_slowdown() < 0) {
             /* XXX */
             return 0;
         }
-	}
-	return 0;
+    }
+    return 0;
 }
 
 void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
@@ -248,45 +248,45 @@ void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pDa
 bool spifns_sequence_setvar_spiport(int nPort) {
     LOG(DEBUG, "(%d)", nPort);
 
-	spifns_close_port();
+    spifns_close_port();
     if (spifns_open_port(nPort) == INVALID_HANDLE_VALUE)
-		return false;
-	g_nSpiPort=nPort;
-	//TODO: Do this properly!
-	g_nSpiShiftPeriod=1;
-	return true;
+        return false;
+    g_nSpiPort=nPort;
+    //TODO: Do this properly!
+    g_nSpiShiftPeriod=1;
+    return true;
 }
 //RE Check: Functionally equivalent, but completely different ASM code 
 void spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
     LOG(DEBUG, "(0x%04x, '%c', %d, buf)", nAddress, cOperation, nLength);
-	if (g_pDebugCallback) {
-		static const char * const pszTable[]={
-			"%04X     %c ????\n",
-			"%04X     %c %04X\n",
-			"%04X-%04X%c %04X %04X\n",
-			"%04X-%04X%c %04X %04X %04X\n",
-			"%04X-%04X%c %04X %04X %04X %04X\n",
-			"%04X-%04X%c %04X %04X %04X %04X %04X\n",
-			"%04X-%04X%c %04X %04X %04X %04X %04X %04X\n",
-			"%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X\n",
-			"%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X %04X\n",
-			"%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X %04X ...\n"
-		};
-		unsigned short bCopy[8];
+    if (g_pDebugCallback) {
+        static const char * const pszTable[]={
+            "%04X     %c ????\n",
+            "%04X     %c %04X\n",
+            "%04X-%04X%c %04X %04X\n",
+            "%04X-%04X%c %04X %04X %04X\n",
+            "%04X-%04X%c %04X %04X %04X %04X\n",
+            "%04X-%04X%c %04X %04X %04X %04X %04X\n",
+            "%04X-%04X%c %04X %04X %04X %04X %04X %04X\n",
+            "%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X\n",
+            "%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X %04X\n",
+            "%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X %04X ...\n"
+        };
+        unsigned short bCopy[8];
 #define _MIN(x, y)  ( ((x) < (y)) ? (x) : (y) )
-		if (pnData)
-			memcpy(bCopy,pnData,sizeof(unsigned short)*_MIN(nLength,8));
-		else
-			memset(bCopy,0,sizeof(bCopy));
-		if (nLength<2) {
+        if (pnData)
+            memcpy(bCopy,pnData,sizeof(unsigned short)*_MIN(nLength,8));
+        else
+            memset(bCopy,0,sizeof(bCopy));
+        if (nLength<2) {
             LOG(DEBUG, pszTable[nLength],nAddress,cOperation,bCopy[0]);
-			spifns_debugout(pszTable[nLength],nAddress,cOperation,bCopy[0]);
-		} else {
+            spifns_debugout(pszTable[nLength],nAddress,cOperation,bCopy[0]);
+        } else {
             LOG(DEBUG, pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
-			spifns_debugout(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
-		}
+            spifns_debugout(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
+        }
 #undef _MIN
-	}
+    }
 }
 
 /* Reimplemented using our SPI impl. */
@@ -342,80 +342,80 @@ error:
 //RE Check: Functionally identical, register choice, calling convention, and some ordering changes.
 void spifns_sequence_setvar_spimul(unsigned int nMul) {
     LOG(DEBUG, "(%d)", nMul);
-/*	BYTE bNewOutput=g_bCurrentOutput&~BV_CLK;
-	if ((g_nSpiMulChipNum=nMul)<=16) {
-		//Left side
-		if (g_nSpiMulConfig != nMul || g_nSpiMul != 1)
-			g_nSpiShiftPeriod=1;
-		g_nSpiMulConfig=nMul;
-		g_nSpiMul=1;
-		bNewOutput=(bNewOutput&(BV_CLK|BV_MOSI|BV_CSB))|((BYTE)nMul<<1);
-	} else {
-		//Right side
-		//loc_10001995
-		if (g_nSpiMulConfig != 0 || g_nSpiMul!=0)
-			g_nSpiShiftPeriod=1;
-		g_nSpiMul=0;
-		g_nSpiMulConfig=0;
-		bNewOutput&=BV_CLK|BV_MOSI|BV_CSB;
-	}
-	g_bCurrentOutput=bNewOutput;
-	SPITransfer(0,2,0,0);
-	LARGE_INTEGER liFrequency,liPCStart,liPCEnd;
-	QueryPerformanceFrequency(&liFrequency);
-	QueryPerformanceCounter(&liPCStart);
-	do {
-		Sleep(0);
-		QueryPerformanceCounter(&liPCEnd);
-	} while (1000 * (liPCEnd.QuadPart - liPCStart.QuadPart) / liFrequency.QuadPart < 5);
-	spifns_debugout("MulitplexSelect: %04x mul:%d config:%d chip_num:%d\n",g_bCurrentOutput,g_nSpiMul,g_nSpiMulConfig,g_nSpiMulChipNum);*/
+/*  BYTE bNewOutput=g_bCurrentOutput&~BV_CLK;
+    if ((g_nSpiMulChipNum=nMul)<=16) {
+        //Left side
+        if (g_nSpiMulConfig != nMul || g_nSpiMul != 1)
+            g_nSpiShiftPeriod=1;
+        g_nSpiMulConfig=nMul;
+        g_nSpiMul=1;
+        bNewOutput=(bNewOutput&(BV_CLK|BV_MOSI|BV_CSB))|((BYTE)nMul<<1);
+    } else {
+        //Right side
+        //loc_10001995
+        if (g_nSpiMulConfig != 0 || g_nSpiMul!=0)
+            g_nSpiShiftPeriod=1;
+        g_nSpiMul=0;
+        g_nSpiMulConfig=0;
+        bNewOutput&=BV_CLK|BV_MOSI|BV_CSB;
+    }
+    g_bCurrentOutput=bNewOutput;
+    SPITransfer(0,2,0,0);
+    LARGE_INTEGER liFrequency,liPCStart,liPCEnd;
+    QueryPerformanceFrequency(&liFrequency);
+    QueryPerformanceCounter(&liPCStart);
+    do {
+        Sleep(0);
+        QueryPerformanceCounter(&liPCEnd);
+    } while (1000 * (liPCEnd.QuadPart - liPCStart.QuadPart) / liFrequency.QuadPart < 5);
+    spifns_debugout("MulitplexSelect: %04x mul:%d config:%d chip_num:%d\n",g_bCurrentOutput,g_nSpiMul,g_nSpiMulConfig,g_nSpiMulChipNum);*/
 }
 //RE Check: Functionally identical, register choice, calling convention, stack size, and some ordering changes.
 int spifns_sequence_setvar(const char *szName, const char *szValue) {
     LOG(DEBUG, "(%s, %s)", szName, szValue);
-	if (szName==0)
-		return 1;
-	if (szValue==0)
-		return 1;
-	long nValue=strtol(szValue,0,0);
-	for (unsigned int i=0; i<(sizeof(g_pVarList)/sizeof(*g_pVarList)); i++) {
-		if (stricmp(szName,g_pVarList[i].szName)==0) {
-			switch (i) {
-			case VARLIST_SPISPORT:{
-				if (!spifns_sequence_setvar_spiport(nValue)) {
-					const char szError[]="Couldn't find SPI port";
-					memcpy(g_szErrorString,szError,sizeof(szError));
-					return 1;
-				}
-								  }break;
-			case VARLIST_SPIMUL:{
-				spifns_sequence_setvar_spimul(nValue);
-								}break;
-			case VARLIST_SPICLOCK:
-				if (nValue <= 0)
-					return 1; //ERROR!
+    if (szName==0)
+        return 1;
+    if (szValue==0)
+        return 1;
+    long nValue=strtol(szValue,0,0);
+    for (unsigned int i=0; i<(sizeof(g_pVarList)/sizeof(*g_pVarList)); i++) {
+        if (stricmp(szName,g_pVarList[i].szName)==0) {
+            switch (i) {
+            case VARLIST_SPISPORT:{
+                if (!spifns_sequence_setvar_spiport(nValue)) {
+                    const char szError[]="Couldn't find SPI port";
+                    memcpy(g_szErrorString,szError,sizeof(szError));
+                    return 1;
+                }
+                                  }break;
+            case VARLIST_SPIMUL:{
+                spifns_sequence_setvar_spimul(nValue);
+                                }break;
+            case VARLIST_SPICLOCK:
+                if (nValue <= 0)
+                    return 1; //ERROR!
                 if (spi_set_clock((unsigned long)nValue) < 0) {
                     const char szError[]="Couldn't set SPI clock";
                     memcpy(g_szErrorString,szError,sizeof(szError));
                     return 1;
                 }
-				break;
-			case VARLIST_SPICMDBITS:
-			case VARLIST_SPICMDREADBITS:
-			case VARLIST_SPICMDWRITEBITS:{
-				if (i!=VARLIST_SPICMDREADBITS)
-					g_nCmdWriteBits=nValue;
-				if (i!=VARLIST_SPICMDWRITEBITS)
-					g_nCmdReadBits=nValue;
-										 }break;
-			case VARLIST_SPIMAXCLOCK:
+                break;
+            case VARLIST_SPICMDBITS:
+            case VARLIST_SPICMDREADBITS:
+            case VARLIST_SPICMDWRITEBITS:{
+                if (i!=VARLIST_SPICMDREADBITS)
+                    g_nCmdWriteBits=nValue;
+                if (i!=VARLIST_SPICMDWRITEBITS)
+                    g_nCmdReadBits=nValue;
+                                         }break;
+            case VARLIST_SPIMAXCLOCK:
                 if (nValue <= 0) {
                     const char szError[]="SPIMAXCLOCK value should be positive integer";
                     memcpy(g_szErrorString,szError,sizeof(szError));
                     return 1;
                 }
                 spi_set_max_clock((unsigned long)nValue);
-				break;
+                break;
 
             case VARLIST_FTDI_BASE_CLOCK:
                 if (nValue <= 0) {
@@ -480,10 +480,10 @@ int spifns_sequence_setvar(const char *szName, const char *szValue) {
                     }
                 }
                 break;
-			}
-		}
-	}
-	return 0;
+            }
+        }
+    }
+    return 0;
 }
 
 /* Reimplemented using our SPI impl. */
@@ -535,7 +535,7 @@ int spifns_sequence_read(unsigned short nAddress, unsigned short nLength, unsign
     DUMP(pnOutput, nLength << 1, "read16(addr=0x%04x, len16=%d)",
             nAddress, nLength);
 
-	return 0;
+    return 0;
 
 #undef _ERR_RETURN
 
@@ -548,25 +548,25 @@ error:
 }
 //RE Check: Functionally identical, can't get the ASM code to match.
 int spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
-	int nRetval=0;
+    int nRetval=0;
 
     LOG(DEBUG, "(%p, %d)", pSequence, nCount);
 
-	while (nCount--) {
+    while (nCount--) {
         LOG(DEBUG, "command %d", pSequence->nType);
-		switch (pSequence->nType) {
-		case SPISEQ::TYPE_READ:{
-			if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
-				nRetval=1;
-							   }break;
-		case SPISEQ::TYPE_WRITE:{
-			if (spifns_sequence_write(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
-				nRetval=1;
-								}break;
-		case SPISEQ::TYPE_SETVAR:{
-			if (spifns_sequence_setvar(pSequence->setvar.szName,pSequence->setvar.szValue)==1)
-				nRetval=1;
-								 }break;
+        switch (pSequence->nType) {
+        case SPISEQ::TYPE_READ:{
+            if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
+                nRetval=1;
+                               }break;
+        case SPISEQ::TYPE_WRITE:{
+            if (spifns_sequence_write(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
+                nRetval=1;
+                                }break;
+        case SPISEQ::TYPE_SETVAR:{
+            if (spifns_sequence_setvar(pSequence->setvar.szName,pSequence->setvar.szValue)==1)
+                nRetval=1;
+                                 }break;
         default:
             LOG(WARN, "Sequence command not implemented: %d", pSequence->nType);
             g_nError = SPIFNS_ERROR_INVALID_PARAMETER;
@@ -574,10 +574,10 @@ int spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
                     "sequence command %d not implemented", pSequence->nType);
             nRetval = 1;
 
-		}
-		pSequence++;
-	}
-	return nRetval;
+        }
+        pSequence++;
+    }
+    return nRetval;
 }
 
 /* Reimplemented using our own SPI driver */
@@ -647,35 +647,35 @@ unsigned int spifns_count_streams(void)
 
 int spifns_stream_sequence(spifns_stream_t stream, SPISEQ_1_4 *pSequence, int nCount)
 {
-	int nRetval=0;
+    int nRetval=0;
 
     LOG(DEBUG, "(%d, %p, %d)", stream, pSequence, nCount);
 
-	while (nCount--) {
+    while (nCount--) {
         LOG(DEBUG, "command %d", pSequence->nType);
-		switch (pSequence->nType) {
-		case SPISEQ_1_4::TYPE_READ:
-			if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
-				nRetval=1;
-			break;
-		case SPISEQ_1_4::TYPE_WRITE:
-			if (spifns_sequence_write(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
-				nRetval=1;
-			break;
-		case SPISEQ_1_4::TYPE_SETVAR:
-			if (spifns_sequence_setvar(pSequence->setvar.szName,pSequence->setvar.szValue)==1)
-				nRetval=1;
-			break;
+        switch (pSequence->nType) {
+        case SPISEQ_1_4::TYPE_READ:
+            if (spifns_sequence_read(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
+                nRetval=1;
+            break;
+        case SPISEQ_1_4::TYPE_WRITE:
+            if (spifns_sequence_write(pSequence->rw.nAddress,pSequence->rw.nLength,pSequence->rw.pnData)==1)
+                nRetval=1;
+            break;
+        case SPISEQ_1_4::TYPE_SETVAR:
+            if (spifns_sequence_setvar(pSequence->setvar.szName,pSequence->setvar.szValue)==1)
+                nRetval=1;
+            break;
         default:
             LOG(WARN, "Sequence command not implemented: %d", pSequence->nType);
             g_nError = SPIFNS_ERROR_INVALID_PARAMETER;
             snprintf(g_szErrorString, sizeof(g_szErrorString),
                     "sequence command %d not implemented", pSequence->nType);
             nRetval = 1;
-		}
-		pSequence++;
-	}
-	return nRetval;
+        }
+        pSequence++;
+    }
+    return nRetval;
 }
 
 const char* spifns_stream_command(spifns_stream_t stream, const char *command)
