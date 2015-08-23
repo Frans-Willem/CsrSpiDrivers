@@ -75,6 +75,7 @@ static struct spi_stats {
 
 struct ftdi_device_ids {
     uint16_t vid, pid;
+    char name[10];
 };
 
 #define SPI_MAX_PORTS   16
@@ -85,12 +86,12 @@ unsigned long spi_clock = SPI_BASE_CLOCK, spi_max_clock = SPI_BASE_CLOCK;
 unsigned long spi_ftdi_base_clock = FTDI_BASE_CLOCK;
 
 static struct ftdi_device_ids ftdi_device_ids[] = {
-    { 0x0403, 0x6001 }, /* FT232R */
-    { 0x0403, 0x0000 }, /* Counterfeit FT232RL bricked by FTDI driver */
+    { 0x0403, 0x6001, "FT232R" }, /* FT232R */
+    { 0x0403, 0x0000, "FT232R" }, /* Counterfeit FT232RL bricked by FTDI driver */
     /* Chips below are not tested. */
-    { 0x0403, 0x6010 }, /* FT2232H/C/D */
-    { 0x0403, 0x6011 }, /* FT4232H */
-    { 0x0403, 0x6014 }, /* FT232H */
+    { 0x0403, 0x6010, "FT2232" }, /* FT2232H/C/D */
+    { 0x0403, 0x6011, "FT4232" }, /* FT4232H */
+    { 0x0403, 0x6014, "FT232H" }, /* FT232H */
 };
 
 static char *spi_err_buf = NULL;
@@ -513,8 +514,10 @@ static int spi_enumerate_ports(void)
                 SPI_ERR("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(&ftdic));
                 return -1;
             }
-            LOG(INFO, "Found device: dev=%p, manuf=\"%s\", desc=\"%s\", serial=\"%s\", vid=0x%04x, pid=0x%04x",
-                    ftdev, spi_ports[spi_nports].manuf,
+            snprintf(spi_ports[spi_nports].name, sizeof(spi_ports[spi_nports].name),
+                    "%s %s", ftdi_device_ids[id].name, spi_ports[spi_nports].serial);
+            LOG(INFO, "Found device: name=\"%s\", manuf=\"%s\", desc=\"%s\", serial=\"%s\", vid=0x%04x, pid=0x%04x",
+                    spi_ports[spi_nports].name, spi_ports[spi_nports].manuf,
                     spi_ports[spi_nports].desc, spi_ports[spi_nports].serial,
                     ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
 
@@ -701,8 +704,7 @@ int spi_open(int nport)
         goto open_err;
     }
 
-    LOG(INFO, "FTDI: using FTDI device: \"%s:%s:%s\"", spi_ports[nport].manuf,
-            spi_ports[nport].desc, spi_ports[nport].serial);
+    LOG(INFO, "FTDI: using FTDI device: \"%s\"", spi_ports[nport].name);
 
     spi_dev_open++;
 

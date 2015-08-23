@@ -13,6 +13,7 @@
 struct spi_port {
     uint16_t vid, pid;
     char manuf[128], desc[128], serial[128];
+    char name[32];
 };
 
 #ifdef __cplusplus

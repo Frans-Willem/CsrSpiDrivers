@@ -191,7 +191,6 @@ DLLEXPORT const char* spifns_command(const char *szCmd) {
 DLLEXPORT void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback, void *pData) {
     struct spi_port *portlist;
     int nports, nport;
-    char port_desc[128];
 
     LOG(DEBUG, "");
 
@@ -209,12 +208,10 @@ DLLEXPORT void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback,
     }
 
     for (nport = 0; nport < nports; nport++) {
-        snprintf(port_desc, sizeof(port_desc), "%d: %s %s",
-            nport + 1, portlist[nport].desc, portlist[nport].serial);
         LOG(DEBUG, "Calling port enum callback (%d, \"%s\", %p)",
-                nport + 1, port_desc, pData);
+                nport + 1, portlist[nport].name, pData);
         /* Ports start with 1 in spilpt */
-        pCallback(nport + 1, port_desc, pData);
+        pCallback(nport + 1, portlist[nport].name, pData);
     }
 }
 
