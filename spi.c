@@ -535,15 +535,23 @@ int spi_init(void)
 {
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
+    spi_nrefs++;
+
+    if (spi_nrefs > 1) {
+        LOG(WARN, "Superfluos call to spi_init()");
+        return 0;
+    }
+
     if (ftdi_init(&ftdic) < 0) {
         SPI_ERR("FTDI: init failed");
+        spi_nrefs = 0;
         return -1;
     }
 
-    if (spi_enumerate_ports() < 0)
+    if (spi_enumerate_ports() < 0) {
+        spi_deinit();
         return -1;
-
-    spi_nrefs++;
+    }
 
     return 0;
 }
@@ -567,18 +575,10 @@ int spi_deinit(void)
 {
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
-    if (spi_nrefs == 0)
-        return 0;
-
-    spi_nrefs--;
-
-    if (spi_nrefs == 0) {
+    if (spi_nrefs) {
         if (spi_dev_open)
             if (spi_close() < 0)
                 return -1;
-    }
-    if (spi_nrefs < 0) {
-        LOG(WARN, "spi_nrefs < 0");
         spi_nrefs = 0;
     }
     return 0;
@@ -675,9 +675,10 @@ unsigned long spi_get_clock(void) {
 
 int spi_open(int nport)
 {
-    LOG(DEBUG, "(%d)", nport);
+    LOG(DEBUG, "(%d) spi_dev_open=%d", nport, spi_dev_open);
 
     if (spi_dev_open > 0) {
+        LOG(WARN, "Superfluos call to spi_open()");
         return 0;
     }
 
@@ -704,9 +705,9 @@ int spi_open(int nport)
         goto open_err;
     }
 
-    LOG(INFO, "FTDI: using FTDI device: \"%s\"", spi_ports[nport].name);
-
     spi_dev_open++;
+
+    LOG(INFO, "FTDI: using FTDI device: \"%s\"", spi_ports[nport].name);
 
     if (ftdi_usb_reset(&ftdic) < 0) {
         SPI_ERR("FTDI: reset failed: %s", ftdi_get_error_string(&ftdic));
@@ -761,6 +762,13 @@ int spi_isopen(void)
 void spi_output_stats(void)
 {
     double xfer_pct, avg_read, avg_write, rate;
+    struct timeval tv;
+
+    /* Calculate timeranges until now */
+    if (gettimeofday(&tv, NULL) < 0)
+        LOG(WARN, "gettimeofday failed: %s", strerror(errno));
+    timersub(&tv, &spi_stats.tv_open_begin, &tv);
+    timeradd(&spi_stats.tv_open, &tv, &spi_stats.tv_open);
 
     xfer_pct = avg_read = avg_write = rate = NAN;
 
@@ -816,11 +824,7 @@ int spi_close(void)
 {
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
-    if (spi_dev_open == 0)
-        return 0;
-
-    spi_dev_open--;
-    if (spi_dev_open == 0) {
+    if (spi_dev_open) {
         spi_led(SPI_LED_OFF);
 
         if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
@@ -835,17 +839,10 @@ int spi_close(void)
             return -1;
         }
 #ifdef SPI_STATS
-        {
-            struct timeval tv;
-
-            if (gettimeofday(&tv, NULL) < 0)
-                LOG(WARN, "gettimeofday failed: %s", strerror(errno));
-            timersub(&tv, &spi_stats.tv_open_begin, &tv);
-            timeradd(&spi_stats.tv_open, &tv, &spi_stats.tv_open);
-        }
-
         spi_output_stats();
 #endif
+        spi_dev_open = 0;
     }
+
     return 0;
 }

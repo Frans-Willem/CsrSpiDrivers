@@ -1,6 +1,8 @@
 #ifndef _SPI_H
 #define _SPI_H
 
+#include <stdint.h>
+
 /* Bit field */
 #define SPI_LED_OFF     (0)
 #define SPI_LED_READ    (1 << 0)
@@ -43,6 +45,10 @@ int spi_xfer_16(int cmd, uint16_t *buf, int size);
 int spi_xfer_end(void);
 
 void spi_led(int led);
+
+#ifdef SPI_STATS
+void spi_output_stats(void);
+#endif
 
 #ifdef __cplusplus
 } /* extern "C" */

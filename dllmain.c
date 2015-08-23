@@ -1,4 +1,5 @@
 #include <windows.h>
+#include "spi.h"
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
@@ -8,6 +9,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
             DisableThreadLibraryCalls(hinstDLL);
             break;
         case DLL_PROCESS_DETACH:
+            spi_deinit();
             break;
     }
 

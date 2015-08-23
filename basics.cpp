@@ -151,7 +151,12 @@ DLLEXPORT int spifns_get_version() {
 
 static void spifns_close_port() {
     LOG(DEBUG, "");
-    spi_close();
+    /*
+     * Some CSR apps (e.g. BlueFlash 2.6.0) init SPI and open/close SPI port in
+     * chaotic fashion. For now keep port always open until other port is
+     * selected or DLL is detached.
+     */
+    /*spi_close();*/
 }
 
 static void spifns_debugout(const char *szFormat, ...) {
@@ -170,7 +175,8 @@ DLLEXPORT void spifns_close() {
     LOG(DEBUG, "");
     spifns_close_port();
 
-    spi_deinit();
+    /* XXX See comment in spifns_close_port() */
+    /*spi_deinit();*/
 }
 
 DLLEXPORT void spifns_chip_select(int nChip) {
