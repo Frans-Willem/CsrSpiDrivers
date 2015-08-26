@@ -40,8 +40,7 @@ unsigned long spi_get_max_clock(void);
 unsigned long spi_get_clock(void);
 
 int spi_xfer_begin(void);
-int spi_xfer_8(int cmd, uint8_t *buf, int size);
-int spi_xfer_16(int cmd, uint16_t *buf, int size);
+int spi_xfer(int cmd, int iosize, void *buf, int size);
 int spi_xfer_end(void);
 
 void spi_led(int led);

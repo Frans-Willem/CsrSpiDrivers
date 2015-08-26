@@ -225,8 +225,8 @@ For other options see [misc/transport-options.md](misc/transport-options.md).
 
 #### Communication speed
 
-Reading a 1 MB flash on HC-05 module takes about 75 seconds and writing it takes
-about 130 seconds. Dumping HC-05 PS keys takes about 170 seconds.
+Reading a 1 MB flash on HC-05 module takes about 60 seconds and writing it takes
+about 90 seconds. Dumping HC-05 PS keys takes about 40 seconds.
 
 Running csr-spi-ftdi in a virtual machine slows things down presumably due to
 latency added by USB virtualization. E.g. running csr-spi-ftdi under VirtualBox

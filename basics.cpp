@@ -312,10 +312,10 @@ static int spifns_sequence_write(unsigned short nAddress, unsigned short nLength
     if (spi_xfer_begin() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
 
-    if (spi_xfer_8(SPI_XFER_WRITE, outbuf1, 3) < 0)
+    if (spi_xfer(SPI_XFER_WRITE, 8, outbuf1, 3) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to start write");
 
-    if (spi_xfer_16(SPI_XFER_WRITE, pnInput, nLength) < 0) {
+    if (spi_xfer(SPI_XFER_WRITE, 16, pnInput, nLength) < 0) {
         spifns_debugout_readwrite(nAddress,'w',nLength, pnInput);
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to write (writing buffer)");
     }
@@ -462,10 +462,10 @@ static int spifns_sequence_read(unsigned short nAddress, unsigned short nLength,
     if (spi_xfer_begin() < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
 
-    if (spi_xfer_8(SPI_XFER_WRITE, outbuf, 3) < 0)
+    if (spi_xfer(SPI_XFER_WRITE, 8, outbuf, 3) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to start read");
 
-    if (spi_xfer_8(SPI_XFER_READ, inbuf1, 2) < 0)
+    if (spi_xfer(SPI_XFER_READ, 8, inbuf1, 2) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED,
                 "Unable to start read (getting control data)");
 
@@ -475,7 +475,7 @@ static int spifns_sequence_read(unsigned short nAddress, unsigned short nLength,
         LOG(ERR, "Control data: 0x%02x 0x%02x", inbuf1[0], inbuf1[1]);
     }
 
-    if (spi_xfer_16(SPI_XFER_READ, pnOutput, nLength) < 0) {
+    if (spi_xfer(SPI_XFER_READ, 16, pnOutput, nLength) < 0) {
         spifns_debugout_readwrite(nAddress,'r', nLength, pnOutput);
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to read (reading buffer)");
     }
@@ -544,9 +544,9 @@ DLLEXPORT int spifns_bluecore_xap_stopped() {
 
     if (spi_xfer_begin() < 0)
         return SPIFNS_XAP_NO_REPLY;
-    if (spi_xfer_8(SPI_XFER_READ | SPI_XFER_WRITE, xferbuf, 3) < 0)
+    if (spi_xfer(SPI_XFER_READ | SPI_XFER_WRITE, 8, xferbuf, 3) < 0)
         return SPIFNS_XAP_NO_REPLY;
-    if (spi_xfer_8(SPI_XFER_READ, inbuf, 2) < 0)
+    if (spi_xfer(SPI_XFER_READ, 8, inbuf, 2) < 0)
         return SPIFNS_XAP_NO_REPLY;
     if (spi_xfer_end() < 0)
         return SPIFNS_XAP_NO_REPLY;

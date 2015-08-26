@@ -8,10 +8,10 @@ STDCXX_LIB ?=	/usr/lib/gcc/i686-linux-gnu/$(WINEGCC_VER)
 CPPFLAGS +=	-DSPI_STATS
 
 # Compile with debugging
-CFLAGS += -g -fno-inline
-LDFLAGS += -g -fno-inline
+#CFLAGS += -g -fno-inline
+#LDFLAGS += -g -fno-inline
 # Compile without debugging
-#LDFLAGS += -s
+LDFLAGS += -s
 
 WINEGCC_VER := $(shell env LC_ALL=C winegcc -v 2>&1 | awk '/^gcc version/ {print $$3}' | cut -d. -f1,2)
 VERSION := $(shell cat VERSION)

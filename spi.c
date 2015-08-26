@@ -50,6 +50,9 @@
 #define PIN_nLED_WR (1 << 3)    /* FT232RL pin 11 (CTS#/D3), output */
 #define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS | PIN_nLED_RD | PIN_nLED_WR)
 
+static uint8_t ftdi_buf[FTDI_MAX_XFER_SIZE];
+static unsigned int ftdi_buf_write_offset;
+
 static int spi_dev_open = 0;
 static int spi_nrefs = 0;
 
@@ -126,6 +129,10 @@ static void spi_err(const char *fmt, ...) {
     va_end(args);
 }
 
+/*
+ * FTDI transfer data forth and back in syncronous bitbang mode
+ */
+
 static int spi_ftdi_xfer(uint8_t *buf, int len)
 {
     int rc;
@@ -175,7 +182,19 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
 
 static inline int spi_set_pins(uint8_t byte)
 {
-    return spi_ftdi_xfer(&byte, 1);
+    /* Check if there is enough space in the buffer */
+    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 1) {
+        /* There is no room in the buffer for the following operations, flush
+         * the buffer */
+        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+            return -1;
+        /* The data in the buffer is useless, discard it */
+        ftdi_buf_write_offset = 0;
+    }
+
+    ftdi_buf[ftdi_buf_write_offset++] = byte;
+
+    return 0;
 }
 
 static int spi_led_tick(void)
@@ -226,50 +245,69 @@ void spi_led(int led)
     spi_led_tick();
 }
 
+/*
+ * spi_xfer_*() use a global read/write buffer ftdi_buf that is flushed on the
+ * following conditions:
+ *  * when buffer becomes full;
+ *  * on the clock change;
+ *  * before read operation;
+ *  * at the closure of FTDI device.
+ * Read operations are only done in spi_xfer(), in other situations we may
+ * safely discard what was read into the buffer by spi_ftdi_xfer().
+ */
+
 int spi_xfer_begin(void)
 {
-    uint8_t pin_states[32];
-    int state_offset;
-
     LOG(DEBUG, "");
+
+    spi_led_tick();
 
 #ifdef SPI_STATS
     if (gettimeofday(&spi_stats.tv_xfer_begin, NULL) < 0)
         LOG(WARN, "gettimeofday failed: %s", strerror(errno));
 #endif
 
-    state_offset = 0;
+    /* Check if there is enough space in the buffer */
+    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 11) {
+        /* There is no room in the buffer for the following operations, flush
+         * the buffer */
+        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+            return -1;
+        /* The data in the buffer is useless, discard it */
+        ftdi_buf_write_offset = 0;
+    }
 
     /* BlueCore chip SPI port reset sequence: deassert CS, wait at least two
      * clock cycles */
 
     ftdi_pin_state |= PIN_nCS;
-    pin_states[state_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_CLK;
-    pin_states[state_offset++] = ftdi_pin_state;
-    pin_states[state_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
-    pin_states[state_offset++] = ftdi_pin_state;
-    pin_states[state_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_CLK;
-    pin_states[state_offset++] = ftdi_pin_state;
-    pin_states[state_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
-    pin_states[state_offset++] = ftdi_pin_state;
-    pin_states[state_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     /* Start transfer */
 
     ftdi_pin_state &= ~PIN_nCS;
-    pin_states[state_offset++] = ftdi_pin_state;
-    pin_states[state_offset++] = ftdi_pin_state;
+    /* XXX Do we need to wait here? is this affects
+     * spifns_bluecore_xap_stopped()? */
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
-    if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-        return -1;
+    spi_led_tick();
 
     return 0;
 }
@@ -277,11 +315,23 @@ int spi_xfer_begin(void)
 int spi_xfer_end(void)
 {
     LOG(DEBUG, "");
-    ftdi_pin_state |= PIN_nCS;
-    if (spi_set_pins(ftdi_pin_state) < 0)
-        return -1;
 
-    spi_led(SPI_LED_OFF);
+    spi_led_tick();
+
+    /* Check if there is enough space in the buffer */
+    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 1) {
+        /* There is no room in the buffer for the following operations, flush
+         * the buffer */
+        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+            return -1;
+        /* The data in the buffer is useless, discard it */
+        ftdi_buf_write_offset = 0;
+    }
+
+    ftdi_pin_state |= PIN_nCS;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+
+    /* Buffer flush is done on close */
 
 #ifdef SPI_STATS
     {
@@ -293,6 +343,8 @@ int spi_xfer_end(void)
         timeradd(&spi_stats.tv_xfer, &tv, &spi_stats.tv_xfer);
     }
 #endif
+
+    spi_led(SPI_LED_OFF);
 
     return 0;
 }
@@ -306,45 +358,63 @@ int spi_xfer_end(void)
  * TIAO TUMPA), so it was disabled by default. You can enable such an
  * optimization by defining WRITE_OPTIMIZATION at compile time.
  */
-int spi_xfer_8(int cmd, uint8_t *buf, int size)
+int spi_xfer(int cmd, int iosize, void *buf, int size)
 {
-    int bytes_left, block_offset, block_size, state_offset;
-    uint8_t bit, byte, *bufp;
-    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
+    int ios_per_bit;
+    unsigned int write_offset, read_offset, ftdi_buf_read_offset;
+    uint16_t bit, word;
 
-    LOG(DEBUG, "(%d, %p, %d)", cmd, buf, size);
+    LOG(DEBUG, "(%d, %d, %p, %d)", cmd, iosize, buf, size);
 
-    spi_led_tick();
-
-    bytes_left = size;
-    bufp = buf;
-    do {
 #ifdef WRITE_OPTIMIZATION
-        block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
+    ios_per_bit = 2;
 #else
-        if (cmd & SPI_XFER_WRITE)
-            block_size = FTDI_MAX_XFER_SIZE / 8 / 3;
-        else
-            block_size = FTDI_MAX_XFER_SIZE / 8 / 2;
+    if (cmd & SPI_XFER_WRITE)
+        ios_per_bit = 3;
+    else
+        ios_per_bit = 2;
 #endif
-        if (block_size > bytes_left)
-            block_size = bytes_left;
+
+    write_offset = 0;
+    read_offset = 0;
+
+    do {
+        spi_led_tick();
 
         /* In FTDI sync bitbang mode we need to write something to device to
          * toggle a read. */
 
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            byte = bufp[block_offset];
-            for (bit = (1 << 7); bit != 0; bit >>= 1) {
+        /* The read, if any, will start at current point in buffer */
+        ftdi_buf_read_offset = ftdi_buf_write_offset;
+
+        while (write_offset < size) {
+            if (sizeof(ftdi_buf) - ftdi_buf_write_offset < ios_per_bit * iosize) {
+                /* There is no room in the buffer for following word write,
+                 * flush the buffer */
+                if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+                    return -1;
+                ftdi_buf_write_offset = 0;
+
+                /* Let following part to read from ftdi_buf if needed */
+                break;
+            }
+
+            if (iosize == 8)
+                word = ((uint8_t *)buf)[write_offset];
+            else
+                word = ((uint16_t *)buf)[write_offset];
+
+            /* MOSI is sensed by BlueCore on the rising edge of CLK, MISO is
+             * changed on the falling edge of CLK. */
+            for (bit = (1 << (iosize - 1)); bit != 0; bit >>= 1) {
                 if (cmd & SPI_XFER_WRITE) {
                     /* Set output bit */
-                    if (byte & bit)
+                    if (word & bit)
                         ftdi_pin_state |= PIN_MOSI;
                     else
                         ftdi_pin_state &= ~PIN_MOSI;
 #ifndef WRITE_OPTIMIZATION
-                    pin_states[state_offset++] = ftdi_pin_state;
+                    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 #endif
                 } else {
                     /* Write 0 during a read */
@@ -353,139 +423,55 @@ int spi_xfer_8(int cmd, uint8_t *buf, int size)
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
+                ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
                 /* Clock low */
                 ftdi_pin_state &= ~PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
+                ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
             }
+            write_offset++;
         }
-
-        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-            return -1;
-
-#ifdef SPI_STATS
-        if (cmd & SPI_XFER_WRITE) {
-            spi_stats.writes++;
-            spi_stats.write_bytes += block_size;
-        } else {
-            spi_stats.reads++;
-            spi_stats.read_bytes += block_size;
-        }
-#endif
 
         if (cmd & SPI_XFER_READ) {
-            state_offset = 0;
-            for (block_offset = 0; block_offset < block_size; block_offset++) {
-                byte = 0;
-                for (bit = (1 << 7); bit != 0; bit >>= 1) {
-                    /* Input bit */
-                    if (pin_states[state_offset] & PIN_MISO)
-                        byte |= bit;
-                    state_offset++;
-                    state_offset++;
-#ifndef WRITE_OPTIMIZATION
-                    if (cmd & SPI_XFER_WRITE)
-                        state_offset++;
-#endif
-                }
-                bufp[block_offset] = byte;
+            if (ftdi_buf_write_offset) {
+                if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+                    return -1;
+                ftdi_buf_write_offset = 0;
             }
+            while (read_offset < write_offset) {
+                word = 0;
+                for (bit = (1 << (iosize - 1)); bit != 0; bit >>= 1) {
+                    /* Input bit */
+                    if (ftdi_buf[ftdi_buf_read_offset] & PIN_MISO)
+                        word |= bit;
+                    ftdi_buf_read_offset += ios_per_bit;
+                }
+
+                if (iosize == 8)
+                    ((uint8_t *)buf)[read_offset] = (uint8_t)word;
+                else
+                    ((uint16_t *)buf)[read_offset] = word;
+
+                read_offset++;
+            }
+            /* Reading done, reset buffer */
+            ftdi_buf_write_offset = 0;
+            ftdi_buf_read_offset = 0;
         }
 
-        bytes_left -= block_size;
-        bufp += block_size;
-    } while (bytes_left > 0);
+    } while (write_offset < size);
 
-    return size;
-}
-
-int spi_xfer_16(int cmd, uint16_t *buf, int size)
-{
-    int words_left, block_offset, block_size, state_offset;
-    uint16_t word, bit, *bufp;
-    uint8_t pin_states[FTDI_MAX_XFER_SIZE];
-
-    LOG(DEBUG, "(%d, %p, %d)", cmd, buf, size);
+#ifdef SPI_STATS
+    if (cmd & SPI_XFER_WRITE) {
+        spi_stats.writes++;
+        spi_stats.write_bytes += size * iosize / 8;
+    } else {
+        spi_stats.reads++;
+        spi_stats.read_bytes += size * iosize / 8;
+    }
+#endif
 
     spi_led_tick();
-
-    words_left = size;
-    bufp = buf;
-    do {
-#ifdef WRITE_OPTIMIZATION
-        block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
-#else
-        if (cmd & SPI_XFER_WRITE)
-            block_size = FTDI_MAX_XFER_SIZE / 16 / 3;
-        else
-            block_size = FTDI_MAX_XFER_SIZE / 16 / 2;
-#endif
-        if (block_size > words_left)
-            block_size = words_left;
-
-        state_offset = 0;
-        for (block_offset = 0; block_offset < block_size; block_offset++) {
-            word = bufp[block_offset];
-            for (bit = (1 << 15); bit != 0; bit >>= 1) {
-                if (cmd & SPI_XFER_WRITE) {
-                    /* Set output bit */
-                    if (word & bit)
-                        ftdi_pin_state |= PIN_MOSI;
-                    else
-                        ftdi_pin_state &= ~PIN_MOSI;
-#ifndef WRITE_OPTIMIZATION
-                    pin_states[state_offset++] = ftdi_pin_state;
-#endif
-                } else {
-                    ftdi_pin_state &= ~PIN_MOSI;
-                }
-
-                /* Clock high */
-                ftdi_pin_state |= PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-
-                /* Clock low */
-                ftdi_pin_state &= ~PIN_CLK;
-                pin_states[state_offset++] = ftdi_pin_state;
-            }
-        }
-
-        if (spi_ftdi_xfer(pin_states, state_offset) < 0)
-            return -1;
-
-#ifdef SPI_STATS
-        if (cmd & SPI_XFER_WRITE) {
-            spi_stats.writes++;
-            spi_stats.write_bytes += block_size * 2;
-        } else {
-            spi_stats.reads++;
-            spi_stats.read_bytes += block_size * 2;
-        }
-#endif
-
-        if (cmd & SPI_XFER_READ) {
-            state_offset = 0;
-            for (block_offset = 0; block_offset < block_size; block_offset++) {
-                word = 0;
-                for (bit = (1 << 15); bit != 0; bit >>= 1) {
-                    /* Input bit */
-                    if (pin_states[state_offset] & PIN_MISO)
-                        word |= bit;
-                    state_offset++;
-                    state_offset++;
-#ifndef WRITE_OPTIMIZATION
-                    if (cmd & SPI_XFER_WRITE)
-                        state_offset++;
-#endif
-                }
-                bufp[block_offset] = word;
-            }
-        }
-
-        words_left -= block_size;
-        bufp += block_size;
-    } while (words_left > 0);
 
     return size;
 }
@@ -608,6 +594,14 @@ static int spi_set_ftdi_clock(unsigned long ftdi_clk)
     if (!spi_isopen()) {
         SPI_ERR("FTDI: setting FTDI clock failed: SPI device is not open");
         return -1;
+    }
+
+    /* Flush the buffer before setting clock */
+    if (ftdi_buf_write_offset) {
+        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+            return -1;
+        /* The data in the buffer is useless, discard it */
+        ftdi_buf_write_offset = 0;
     }
 
     /*
@@ -750,6 +744,9 @@ int spi_open(int nport)
     if (spi_set_ftdi_clock(spi_ftdi_base_clock) < 0)
         goto open_err;
 
+    /* Initialize xfer buffer */
+    ftdi_buf_write_offset = 0;
+
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
     ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
     if (spi_set_pins(ftdi_pin_state) < 0)
@@ -865,6 +862,13 @@ int spi_close(void)
 
     if (spi_dev_open) {
         spi_led(SPI_LED_OFF);
+
+        /* Flush and reset the buffer */
+        if (ftdi_buf_write_offset) {
+            if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+                return -1;
+            ftdi_buf_write_offset = 0;
+        }
 
         if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
             SPI_ERR("FTDI: reset bitmode failed: %s",
