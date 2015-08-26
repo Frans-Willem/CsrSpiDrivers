@@ -25,7 +25,6 @@ LDFLAGS  += -L$(LIBUSB)/MinGW32/static
 LDLIBS   += -lusb-1.0
 
 CPPFLAGS +=	-DSPI_STATS
-CPPFLAGS +=	-DCOMPAT_USLEEP
 # Fixes compilation on Debian/Ubuntu with mingw-w64 < 3.0.
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
 #CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF

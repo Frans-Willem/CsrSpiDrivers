@@ -17,7 +17,6 @@
 /* FTDI clock frequency. At maximum I got 15KB/s reads at 4 MHz clock. */
 #define FTDI_BASE_CLOCK    4000000
 #define SPI_BASE_CLOCK     1000
-#define SPI_READ_WAIT_INTVL_us   500    /* Microseconds */
 
 /*
  * FT232R (as the lowest FTDI chip supporting sync bitbang mode) has 128 byte
@@ -156,9 +155,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
             SPI_ERR("FTDI: read data failed: %s", ftdi_get_error_string(&ftdic));
             return -1;
         }
-        if (rc == 0) {
-            usleep(SPI_READ_WAIT_INTVL_us);
-        } else {
+        if (rc != 0) {
             len -= rc;
             bufp += rc;
         }

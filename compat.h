@@ -5,11 +5,6 @@
 # define stricmp strcasecmp
 #endif
 
-#ifdef COMPAT_USLEEP
-#include <sys/time.h>
-void usleep(int64_t usec);
-#endif
-
 #ifdef COMPAT_TIMER_MACROS
 /* MinGW has timerisset(), timercmp(), timerclear() defined, but not timeradd()
  * and timersub(). */
