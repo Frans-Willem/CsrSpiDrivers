@@ -2,7 +2,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <time.h>
-#include <sys/timeb.h>
+#include <sys/time.h>
 #include "logging.h"
 #include "compat.h"
 
@@ -68,6 +68,12 @@ void log_set_dest(FILE *fp)
         log_close_file = 0;
     }
     log_dest = fp;
+}
+
+FILE *log_get_dest(void)
+{
+    log_initialize();
+    return log_dest;
 }
 
 /*
@@ -206,30 +212,34 @@ static uint32_t crc32_tab[] = {
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d
 };
 
+/* CRC32, compatible with XAP flash reads/writes verification checksum */
 static uint32_t
-crc32(uint32_t crc, const void *buf, size_t size)
+xap_crc32(const void *buf, ssize_t size)
 {
     const uint8_t *p;
+    uint32_t crc = 0xffffffff;
 
     p = buf;
-    crc = crc ^ ~0U;
 
-    while (size--)
-        crc = crc32_tab[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
+    while (size > 0) {
+        if (size > 1)
+            crc = crc32_tab[(crc ^ *(p+1)) & 0xFF] ^ (crc >> 8);
+        crc = crc32_tab[(crc ^ *p) & 0xFF] ^ (crc >> 8);
+        p += 2;
+        size -= 2;
+    }
 
-    return crc ^ ~0U;
-}
+    /* Swap bytes in low and high words */
+    crc = ((crc & 0xff000000) >> 8) | ((crc & 0x00ff0000) << 8) |
+        ((crc & 0x0000ff00) >> 8) | ((crc & 0x000000ff) << 8);
 
-static uint32_t
-buf_crc32(const void *buf, size_t size)
-{
-    return crc32(0xffffffff, buf, size);
+    return crc;
 }
 
 void _log_msg(const char *func, const char *file, int line,
         uint32_t level, const char *fmt, ...)
 {
-    struct timeb tb;
+    struct timeval tv;
     static char strbuf[1024], timebuf[20], *optp;
     va_list args;
 
@@ -243,20 +253,20 @@ void _log_msg(const char *func, const char *file, int line,
 
     if (log_dest != NULL && level <= log_level)
     {
-        ftime(&tb);
-        strftime(timebuf, sizeof(timebuf), "%H:%M:%S", localtime(&tb.time));
+        gettimeofday(&tv, NULL);
+        strftime(timebuf, sizeof(timebuf), "%H:%M:%S", localtime(&tv.tv_sec));
 
         optp = log_level_strings[level];
 
         if (fmt == NULL || fmt[0] == '\0') {
-            fprintf(log_dest, "%s.%03d: %s:%s:%d:%s\n", timebuf, tb.millitm,
+            fprintf(log_dest, "%s.%06ld: %s:%s:%d:%s\n", timebuf, tv.tv_usec,
                     optp, file, line, func);
         } else {
             va_start(args, fmt);
             vsnprintf(strbuf, sizeof(strbuf), fmt, args);
             va_end(args);
 
-            fprintf(log_dest, "%s.%03d: %s:%s:%d:%s: %s\n", timebuf, tb.millitm,
+            fprintf(log_dest, "%s.%06ld: %s:%s:%d:%s: %s\n", timebuf, tv.tv_usec,
                     optp, file, line, func, strbuf);
         }
         fflush(log_dest);
@@ -266,7 +276,7 @@ void _log_msg(const char *func, const char *file, int line,
 void _log_hexdump(const char *func, const char *file, int line,
         const void *data, size_t len, const char *fmt, ...)
 {
-    struct timeb tb;
+    struct timeval tv;
     static char strbuf[1024], timebuf[20];
     va_list args;
 
@@ -277,18 +287,18 @@ void _log_hexdump(const char *func, const char *file, int line,
     if (log_dest == NULL)
         return;
 
-    ftime(&tb);
-    strftime(timebuf, sizeof(timebuf), "%H:%M:%S", localtime(&tb.time));
+    gettimeofday(&tv, NULL);
+    strftime(timebuf, sizeof(timebuf), "%H:%M:%S", localtime(&tv.tv_sec));
 
     if (fmt == NULL || fmt[0] == '\0') {
-        fprintf(log_dest, "%s.%03d: dump:%s:%d:%s (size=%d, crc32=0x%08x):\n", timebuf, tb.millitm,
-                file, line, func, (unsigned int)len, buf_crc32(data, len));
+        fprintf(log_dest, "%s.%06ld: dump:%s:%d:%s (size=%d, crc32=0x%08x):\n", timebuf, tv.tv_usec,
+                file, line, func, (unsigned int)len, xap_crc32(data, len));
     } else {
         va_start(args, fmt);
         vsnprintf(strbuf, sizeof(strbuf), fmt, args);
         va_end(args);
-        fprintf(log_dest, "%s.%03d: dump:%s:%d:%s: %s (size=%d, crc32=0x%08x):\n", timebuf, tb.millitm,
-                file, line, func, strbuf, (unsigned int)len, buf_crc32(data, len));
+        fprintf(log_dest, "%s.%06ld: dump:%s:%d:%s: %s (size=%d, crc32=0x%08x):\n", timebuf, tv.tv_usec,
+                file, line, func, strbuf, (unsigned int)len, xap_crc32(data, len));
     }
     hexdump(log_dest, data, len);
 

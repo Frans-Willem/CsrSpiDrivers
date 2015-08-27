@@ -6,15 +6,31 @@ TOOLCHAIN ?= i686-w64-mingw32-
 LIBFTDI ?=	./libftdi1
 LIBUSB ?=	./libusb
 
+# Print scr-spi-ftdi statistics before exit
+CPPFLAGS +=	-DSPI_STATS
+
+# Fixes compilation on Debian/Ubuntu with mingw-w64 < 3.0.
+# See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
+#CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
+CPPFLAGS +=	-DCOMPAT_TIMER_MACROS
+
+# Compile with debugging
+CFLAGS += -g -fno-inline
+LDFLAGS += -g -fno-inline
+# Compile without debugging
+#LDFLAGS += -s
+
 CXX =	$(TOOLCHAIN)g++
 CC =	$(TOOLCHAIN)gcc
 LD =	$(TOOLCHAIN)gcc
 
 VERSION := $(shell cat VERSION)
+GIT_REVISION := $(shell git log -1 --format=%h 2>/dev/null)
+CPPFLAGS +=	-DVERSION=\"$(VERSION)\" -DGIT_REVISION=\"$(GIT_REVISION)\"
 
 CFLAGS +=	-m32 -Wall
 CXXFLAGS += -fno-exceptions
-LDFLAGS +=	-shared -m32 -O2 -static -s
+LDFLAGS +=	-shared -m32 -O2 -static
 
 CPPFLAGS +=	-I$(LIBFTDI)/include/libftdi1
 LDFLAGS  += -L$(LIBFTDI)/lib
@@ -23,14 +39,6 @@ LDLIBS   += -lftdi1
 CPPFLAGS +=	-I$(LIBUSB)/include
 LDFLAGS  += -L$(LIBUSB)/MinGW32/static
 LDLIBS   += -lusb-1.0
-
-CPPFLAGS +=	-DSPI_STATS
-# Fixes compilation on Debian/Ubuntu with mingw-w64 < 3.0.
-# See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/
-#CPPFLAGS +=	-DCOMPAT_MINGW_MS_VSNPRINTF
-CPPFLAGS +=	-DCOMPAT_TIMER_MACROS
-
-CPPFLAGS += -DVERSION=\"$(VERSION)\"
 
 MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 
@@ -45,6 +53,8 @@ spiapi-1.4::
 	$(MAKE) -f $(MAKEFILE) SPIAPI=1.4 all
 
 else
+
+CPPFLAGS += -DSPIAPI_STR=\"$(SPIAPI)\"
 
 OBJDIR =	spilpt-win32-api$(SPIAPI)
 LIBRARY_DEF =	spilpt.dll-api$(SPIAPI).def

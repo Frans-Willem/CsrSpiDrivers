@@ -1,6 +1,8 @@
 #ifndef _LOGGING_H
 #define _LOGGING_H
 
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -24,6 +26,7 @@ enum {
 
 void log_set_options(uint32_t lvl);
 uint32_t log_get_options(void);
+FILE *log_get_dest(void);
 void log_set_dest(FILE *fp);
 int log_set_file(const char *filename);
 void _log_msg(const char *func, const char *file, int line, uint32_t level, const char *fmt, ...);

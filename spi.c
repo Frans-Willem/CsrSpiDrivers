@@ -64,6 +64,7 @@ static struct timeval spi_led_start_tv;
 static struct spi_stats {
     long reads, writes;
     long read_bytes, write_bytes;
+    long ftdi_xfers, ftdi_bytes, ftdi_short_reads;
     struct timeval tv_xfer_begin, tv_xfer;
     struct timeval tv_open_begin, tv_open;
     unsigned long ftdi_clock_min;
@@ -141,6 +142,10 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
         SPI_ERR("FTDI: short write: need %d, got %d", len, rc);
         return -1;
     }
+#ifdef SPI_STATS
+    spi_stats.ftdi_xfers++;
+    spi_stats.ftdi_bytes += len;
+#endif
 
     /* In FTDI sync bitbang mode every write is preceded by a read to internal
      * buffer. We need to issue read for every write.
@@ -155,10 +160,14 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
             SPI_ERR("FTDI: read data failed: %s", ftdi_get_error_string(&ftdic));
             return -1;
         }
-        if (rc != 0) {
-            len -= rc;
-            bufp += rc;
-        }
+        len -= rc;
+        bufp += rc;
+#ifdef SPI_STATS
+        spi_stats.ftdi_xfers++;
+        spi_stats.ftdi_bytes += rc;
+        if (len > 0)
+            spi_stats.ftdi_short_reads++;
+#endif
     }
 
     return 0;
@@ -530,6 +539,8 @@ static int spi_enumerate_ports(void)
 
 int spi_init(void)
 {
+    FILE *fp;
+
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     spi_nrefs++;
@@ -538,6 +549,11 @@ int spi_init(void)
         LOG(WARN, "Superfluos call to spi_init()");
         return 0;
     }
+
+    fp = log_get_dest();
+    if (fp)
+        fprintf(fp, "csr-spi-ftdi " VERSION ", SPI API " SPIAPI_STR
+                ", git rev " GIT_REVISION "\n");
 
     if (ftdi_init(&ftdic) < 0) {
         SPI_ERR("FTDI: init failed");
@@ -758,8 +774,15 @@ int spi_isopen(void)
 #ifdef SPI_STATS
 void spi_output_stats(void)
 {
-    double xfer_pct, avg_read, avg_write, rate;
+    double xfer_pct, avg_read, avg_write, rate, iops;
+    double ftdi_rate, ftdi_xfers_per_io, avg_ftdi_xfer, ftdi_short_rate;
     struct timeval tv;
+    long inxfer_ms;
+    FILE *fp;
+
+    fp = log_get_dest();
+    if (!fp)
+        return;
 
     /* Calculate timeranges until now */
     if (gettimeofday(&tv, NULL) < 0)
@@ -767,7 +790,8 @@ void spi_output_stats(void)
     timersub(&tv, &spi_stats.tv_open_begin, &tv);
     timeradd(&spi_stats.tv_open, &tv, &spi_stats.tv_open);
 
-    xfer_pct = avg_read = avg_write = rate = NAN;
+    xfer_pct = avg_read = avg_write = rate = iops = NAN;
+    ftdi_rate = ftdi_xfers_per_io = avg_ftdi_xfer = NAN;
 
     if (spi_stats.tv_open.tv_sec || spi_stats.tv_open.tv_usec) {
         xfer_pct = (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
@@ -785,35 +809,54 @@ void spi_output_stats(void)
         avg_write /= spi_stats.writes;
     }
 
-    if (spi_stats.tv_xfer.tv_sec || spi_stats.tv_xfer.tv_usec) {
+    inxfer_ms = spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000;
+    if (inxfer_ms > 0) {
         rate = ((spi_stats.read_bytes + spi_stats.write_bytes) * 1000) /
-            (spi_stats.tv_xfer.tv_sec * 1000 + spi_stats.tv_xfer.tv_usec / 1000);
-        rate /= 1024;
+            inxfer_ms;
+        rate /= 1024;   /* In KB/s */
+
+        iops = ((spi_stats.reads + spi_stats.writes) * 1000) / inxfer_ms;
+
+        ftdi_rate = (spi_stats.ftdi_xfers * 1000) / inxfer_ms;
+
+        ftdi_short_rate = (spi_stats.ftdi_short_reads * 1000) / inxfer_ms;
     }
 
-    if (stderr) {
-        fprintf(stderr,
-                "*** FTDI Statistics **************************************\n"
-                "csr-spi-ftdi version: %s\n"
-                "Time open: %ld.%03ld s\n"
-                "Time in xfer: %ld.%03ld s (%.2f%% of open time)\n"
-                "Reads: %ld (%ld bytes, %.2f bytes avg read size)\n"
-                "Writes: %ld (%ld bytes, %.2f bytes avg write size)\n"
-                "Xfer data rate: %.2f KB/s (%ld bytes in %ld.%03ld s)\n"
-                "FTDI base clock: %lu Hz, min clock: %lu Hz\n"
-                "SPI max clock: %lu, min clock: %lu, slowdowns: %lu\n"
-                "**********************************************************\n",
-                VERSION,
-                spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 1000,
-                spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000, xfer_pct,
-                spi_stats.reads, spi_stats.read_bytes, avg_read,
-                spi_stats.writes, spi_stats.write_bytes, avg_write,
-                rate, spi_stats.read_bytes + spi_stats.write_bytes,
-                    spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 1000,
-                spi_ftdi_base_clock, spi_stats.ftdi_clock_min,
-                spi_stats.spi_clock_max, spi_stats.spi_clock_min, spi_stats.slowdowns
-        );
-    }
+    if (spi_stats.reads || spi_stats.writes)
+        ftdi_xfers_per_io = spi_stats.ftdi_xfers / (spi_stats.reads + spi_stats.writes);
+
+    if (spi_stats.ftdi_xfers)
+        avg_ftdi_xfer = spi_stats.ftdi_bytes / spi_stats.ftdi_xfers;
+
+    fprintf(fp,
+            "*** FTDI Statistics ********************************************************\n"
+            "csr-spi-ftdi version: " VERSION " (SPI API " SPIAPI_STR ", git rev " GIT_REVISION ")\n"
+            "Time open: %ld.%02ld s\n"
+            "Time in xfer: %ld.%02ld s (%.2f%% of open time)\n"
+            "Reads: %ld (%ld bytes, %.2f bytes avg read size)\n"
+            "Writes: %ld (%ld bytes, %.2f bytes avg write size)\n"
+            "Xfer data rate: %.2f KB/s (%ld bytes in %ld.%02ld s)\n"
+            "IOPS: %.2f IO/s (%ld IOs in %ld.%02ld s)\n"
+            "FTDI stats: %.2f xfers/s (%.2f short reads/s,\n"
+            "            %ld xfers/%ld short reads in %ld.%02ld s,\n"
+            "            %.2f xfers/IO, %.2f bytes/xfer)\n"
+            "FTDI base clock: %lu Hz, min clock: %lu Hz\n"
+            "SPI max clock: %lu, min clock: %lu, slowdowns: %lu\n"
+            "****************************************************************************\n",
+            spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 10000,
+            spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 10000, xfer_pct,
+            spi_stats.reads, spi_stats.read_bytes, avg_read,
+            spi_stats.writes, spi_stats.write_bytes, avg_write,
+            rate, spi_stats.read_bytes + spi_stats.write_bytes,
+                spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 10000,
+            iops, spi_stats.reads + spi_stats.writes,
+                spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 10000,
+            ftdi_rate, ftdi_short_rate, spi_stats.ftdi_xfers,
+                spi_stats.ftdi_short_reads, spi_stats.tv_xfer.tv_sec,
+                spi_stats.tv_xfer.tv_usec / 10000, ftdi_xfers_per_io, avg_ftdi_xfer,
+            spi_ftdi_base_clock, spi_stats.ftdi_clock_min,
+            spi_stats.spi_clock_max, spi_stats.spi_clock_min, spi_stats.slowdowns
+    );
 }
 #endif
 

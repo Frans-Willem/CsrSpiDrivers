@@ -4,16 +4,26 @@ WINE_LIB ?=	/usr/lib/i386-linux-gnu/wine
 I386_LIB ?=	/usr/lib/i386-linux-gnu
 STDCXX_LIB ?=	/usr/lib/gcc/i686-linux-gnu/$(WINEGCC_VER)
 
+# Print scr-spi-ftdi statistics before exit
+CPPFLAGS +=	-DSPI_STATS
+
+# Compile with debugging
+CFLAGS += -g -fno-inline
+LDFLAGS += -g -fno-inline
+# Compile without debugging
+#LDFLAGS += -s
+
 WINEGCC_VER := $(shell env LC_ALL=C winegcc -v 2>&1 | awk '/^gcc version/ {print $$3}' | cut -d. -f1,2)
 VERSION := $(shell cat VERSION)
+GIT_REVISION := $(shell git log -1 --format=%h 2>/dev/null)
+CPPFLAGS +=	-DVERSION=\"$(VERSION)\" -DGIT_REVISION=\"$(GIT_REVISION)\"
 
 CC =	winegcc
 CXX =	wineg++
 LD =	winegcc
 CFLAGS +=	-Wall -m32 -fPIC -DPIC
 CXXFLAGS += -fno-exceptions
-CPPFLAGS +=	-DSPI_STATS -DVERSION=\"$(VERSION)\"
-LDFLAGS +=	-shared -m32 -static-libgcc -s
+LDFLAGS +=	-shared -m32 -static-libgcc
 # 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
 # Direct it to the 32bit libraries.
 LDFLAGS +=	-L$(WINE_LIB) -L$(I386_LIB) -L$(STDCXX_LIB)
@@ -34,6 +44,8 @@ spiapi-1.4::
 	$(MAKE) -f $(MAKEFILE) SPIAPI=1.4 all
 
 else
+
+CPPFLAGS += -DSPIAPI_STR=\"$(SPIAPI)\"
 
 OBJDIR = spilpt-wine-$(TARGET_PLATFORM)-api$(SPIAPI)
 
