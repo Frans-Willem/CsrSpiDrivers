@@ -33,40 +33,18 @@ LDLIBS +=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
 
 MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 
-ifeq ($(SPIAPI), )
-
-all: spiapi-1.3 spiapi-1.4
-
-spiapi-1.3::
-	$(MAKE) -f $(MAKEFILE) SPIAPI=1.3 all
-
-spiapi-1.4::
-	$(MAKE) -f $(MAKEFILE) SPIAPI=1.4 all
-
-else
-
-CPPFLAGS += -DSPIAPI_STR=\"$(SPIAPI)\"
-
-OBJDIR = spilpt-wine-$(TARGET_PLATFORM)-api$(SPIAPI)
-
-ifeq ($(SPIAPI), 1.3)
-CPPFLAGS +=  -DSPIFNS_API=SPIFNS_API_1_3
-else ifeq ($(SPIAPI), 1.4)
-CPPFLAGS +=  -DSPIFNS_API=SPIFNS_API_1_4
-endif
+OBJDIR = spilpt-wine-$(TARGET_PLATFORM)
 
 all: $(OBJDIR)/spilpt.dll.so
 
-$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/logging.o spilpt.dll-api$(SPIAPI).spec
+$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/logging.o spilpt.dll.spec
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 install:
 	install -m 0644 -o root -g root $(OBJDIR)/spilpt.dll.so $(WINE_LIB)/spilpt.dll.so
 
-endif
-
-$(OBJDIR)/basics.o: spi.h spifns.h logging.h
-$(OBJDIR)/spi.o: spi.h
+$(OBJDIR)/basics.o: spi.h spifns.h logging.h dllmain.h compat.h
+$(OBJDIR)/spi.o: spi.h compat.h logging.h
 $(OBJDIR)/logging.o: logging.h compat.h
 
 $(OBJDIR)/%.o: %.c
@@ -78,4 +56,4 @@ $(OBJDIR)/%.o: %.cpp
 	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr spilpt-wine-$(TARGET_PLATFORM)-api1.3 spilpt-wine-$(TARGET_PLATFORM)-api1.4
+	rm -fr spilpt-wine-$(TARGET_PLATFORM)

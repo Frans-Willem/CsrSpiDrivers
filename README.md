@@ -8,7 +8,7 @@
     * [Dedicated programmer](#dedicated-programmer)
     * [Counterfeit FT232RL chips](#counterfeit-ft232rl-chips)
   * [Software](#software)
-    * [CSR SPI API versions](#csr-spi-api-versions)
+    * [CSR software](#csr-software)
     * [Installing prebuilt drivers](#installing-prebuilt-drivers)
       * [Installing on Ubuntu/Debian Linux](#installing-on-ubuntudebian-linux)
       * [Installing on Windows](#installing-on-windows)
@@ -70,9 +70,8 @@ Programmer was tested with the following chips:
   disabling charger in [misc/](misc/).
 * BlueCore 2 chips (such as BC212015) are not supported in BlueSuite 2.4 and
   above. It's also reported that to flash/dump these chips it's required to
-  lower SPI speed. So for BC2 chips it's recommended to use BlueSuite 2.3 with
-  [API 1.3](#csr-spi-api-versions) driver and set `FTDI_BASE_CLOCK=400000`
-  [option](#options).
+  lower SPI speed. So for BC2 chips it's recommended to use BlueSuite 2.3 and
+  set `FTDI_BASE_CLOCK=400000` [option](#options).
 
 ## Programmer hardware
 
@@ -142,24 +141,13 @@ procedures, csr-spi-ftdi will work on the bricked chips too.
 
 ## Software
 
-### CSR SPI API versions
+### CSR software
 
-This driver implements CSR SPI API version 1.3 (used in CSR BlueSuite 2.1, 2.3,
-CSR BlueLab 4.1) and 1.4 (CSR BlueSuite 2.4, 2.5, 2.6.0). DLL is built for each
-API version during a compile time.
-
-You can check the API version of CSR package by inspecting original spilpt.dll
-with the following command on Linux:
-
-    winedump -j export spilpt.dll | grep spifns_stream_
-
-If the output is not empty, then the original DLL implements newer version of
-API (version 1.4).
-
-New versions of BlueSuite can be found at `https://www.csrsupport.com/PCSW`.
-Old versions of BlueSuite can be found at
-`https://www.csrsupport.com/PCSWArchive`. Access to these pages requires
-registration.
+This driver is tested with CSR BlueSuite 2.1 - 2.6.0 and with CSR BlueLab 4.1,
+but should work with other CSR software too. Newer versions of BlueSuite can be
+found at `https://www.csrsupport.com/PCSW`. Older versions of BlueSuite can be
+found at `https://www.csrsupport.com/PCSWArchive`. Access to these pages
+requires registration.
 
 ### Installing prebuilt drivers
 
@@ -177,13 +165,12 @@ move them out of the way:
 
     find ~/.wine -iname spilpt.dll -exec mv {} {}.orig \;
 
-Copy appropriate version of the .dll.so file to Wine system directory:
+Copy spilpt.dll.so to Wine system directory:
 
-    sudo cp -p spilpt-wine-linux-api<SPI_API_version>/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
+    sudo cp -p spilpt-wine-linux/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
 
-where `<SPI_API_version>` is one of `1.3` or `1.4`. Alternately You can specify
-location of the .dll.so file in WINEDLLPATH environment variable, see wine(1)
-man page for details.
+Alternately You can specify location of the .dll.so file in WINEDLLPATH
+environment variable, see wine(1) man page for details.
 
 Allow yourself access to FTDI device
 
@@ -200,9 +187,7 @@ After that You'll need to add yourself to `plugdev` group and relogin.
 1. Install CSR package such as BlueSuite;
 2. Make a backup of spilpt.dll in your application directory (e.g. in
    `C:\Program Files (x86)\CSR\BlueSuite 2.6.0\`);
-3. Copy appropriate version of spilpt.dll from `spilpt-win32-api1.4` or
-   `spilpt-win32-api1.3` directory (see [CSR SPI API
-   versions](#csr-spi-api-versions)) to your application directory;
+3. Copy spilpt-win32/spilpt.dll to your application directory;
 4. Connect Your FTDI device to computer;
 5. Download and run Zadig from <http://zadig.akeo.ie/>. In Options menu choose
    "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
@@ -349,11 +334,10 @@ move them out of the way:
 
 Install Wine dll into the Wine libraries directory:
 
-    sudo make -f Makefile.wine SPIAPI=<SPI_API_version> install
+    sudo make -f Makefile.wine install
 
-where `<SPI_API_version>` is one of `1.3` or `1.4` (see "CSR SPI API
-versions"). Alternately You can specify location of the .dll.so file in
-WINEDLLPATH environment variable, see wine(1) man page for details.
+Alternately You can specify location of the .dll.so file in WINEDLLPATH
+environment variable, see wine(1) man page for details.
 
 
 ### Building DLL for Windows
@@ -392,9 +376,10 @@ Build with command:
 
 * See [Issues on github](https://github.com/lorf/csr-spi-ftdi/issues) to list
   current bug reports or to report a bug.
-* Current implementation of 1.4 API is based on a wild guess and is just a
-  wrapper around 1.3 functions. It doesn't support multiple programmers
-  connected at the same time and may contain other bugs.
+* Current implementation of 1.4 SPI API (used in BlueSuite starting from 2.4)
+  is based on a wild guess and is just a wrapper around 1.3 functions. It
+  doesn't support multiple programmers connected at the same time and may
+  contain other bugs.
 
 
 ## Thanks

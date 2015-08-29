@@ -552,8 +552,7 @@ int spi_init(void)
 
     fp = log_get_dest();
     if (fp)
-        fprintf(fp, "csr-spi-ftdi " VERSION ", SPI API " SPIAPI_STR
-                ", git rev " GIT_REVISION "\n");
+        fprintf(fp, "csr-spi-ftdi " VERSION ", git rev " GIT_REVISION "\n");
 
     if (ftdi_init(&ftdic) < 0) {
         SPI_ERR("FTDI: init failed");
@@ -830,7 +829,7 @@ void spi_output_stats(void)
 
     fprintf(fp,
             "*** FTDI Statistics ********************************************************\n"
-            "csr-spi-ftdi version: " VERSION " (SPI API " SPIAPI_STR ", git rev " GIT_REVISION ")\n"
+            "csr-spi-ftdi version: " VERSION " (git rev " GIT_REVISION ")\n"
             "Time open: %ld.%02ld s\n"
             "Time in xfer: %ld.%02ld s (%.2f%% of open time)\n"
             "Reads: %ld (%ld bytes, %.2f bytes avg read size)\n"

@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "dllmain.h"
 #include "spifns.h"
 #include "spi.h"
 #include "compat.h"
@@ -45,6 +46,7 @@ char g_szErrorString[256]="No error";
 unsigned int g_nError=SPIERR_NO_ERROR;
 unsigned short g_nErrorAddress=0;
 spifns_debug_callback g_pDebugCallback=0;
+static uint32_t spifns_api_version = 0;
 
 /* We support only one stream currently - stream 0 */
 #define STREAM      ((spifns_stream_t)0)
@@ -87,11 +89,25 @@ static int spifns_init_vars_from_env(void)
 
 DLLEXPORT int DLLEXPORT spifns_init() {
     LOG(DEBUG, "");
+
     spi_set_err_buf(g_szErrorString, sizeof(g_szErrorString));
+
     if (spifns_init_vars_from_env() < 0)
         return -1;
+
+    if (!spifns_api_version) {
+        if (pttrans_api_version)
+            spifns_api_version = pttrans_api_version;
+        else
+            spifns_api_version = SPIFNS_API_1_4;
+    }
+
+    LOG(INFO, "Detected SPI API version 0x%04x, using version 0x%04x",
+            pttrans_api_version, spifns_api_version);
+
     if (spi_init() < 0)
         return -1;
+
     return 0;
 }
 
@@ -144,9 +160,16 @@ DLLEXPORT void spifns_set_debug_callback(spifns_debug_callback pCallback) {
     g_pDebugCallback=pCallback;
 }
 
-DLLEXPORT int spifns_get_version() {
-    LOG(DEBUG, "returning 0x%02x", SPIFNS_VERSION);
-    return SPIFNS_VERSION;
+/* In BlueSuite 2.6 this is called before spifns_init(), in BlueSuite 2.3 - after. */
+DLLEXPORT uint32_t spifns_get_version() {
+    if (!spifns_api_version) {
+        if (pttrans_api_version)
+            spifns_api_version = pttrans_api_version;
+        else
+            spifns_api_version = SPIFNS_API_1_4;
+    }
+
+    return spifns_api_version;
 }
 
 static void spifns_close_port() {
@@ -545,7 +568,6 @@ DLLEXPORT int spifns_bluecore_xap_stopped() {
     return SPIFNS_XAP_RUNNING;
 }
 
-#if SPIFNS_API == SPIFNS_API_1_4
 /* This is a limited implementation of CSR SPI API 1.4. It supports only 1
  * stream and does not support all of the features. */
 
@@ -671,5 +693,3 @@ DLLEXPORT void spifns_stream_unlock(spifns_stream_t stream)
 {
     LOG(DEBUG, "(%d)", stream);
 }
-
-#endif /* SPIFNS_API == SPIFNS_API_1_4 */
