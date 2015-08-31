@@ -61,7 +61,6 @@ static uint8_t ftdi_pin_state = 0;
 
 #define SPI_LED_FREQ  10   /* Hz */
 static int spi_led_state = 0;
-static struct timeval spi_led_start_tv;
 
 #ifdef SPI_STATS
 static struct spi_stats {
@@ -197,51 +196,34 @@ static inline int spi_set_pins(uint8_t byte)
     return 0;
 }
 
-static int spi_led_tick(void)
+static void spi_led_tick(void)
 {
     struct timeval tv;
 
-    if (spi_led_state == 0) {   /* Asked to turn LEDs off */
+    if (spi_led_state == SPI_LED_OFF) {
+        /* Asked to turn LEDs off */
         ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
-        if (spi_set_pins(ftdi_pin_state) < 0)
-            return -1;
-    } else {
-        if (gettimeofday(&tv, NULL) < 0) {
-            LOG(WARN, "gettimeofday failed: %s", strerror(errno));
-            return -1;
-        }
-        timersub(&tv, &spi_led_start_tv, &tv);
-        if (((tv.tv_sec * 1000 + tv.tv_usec / 1000) / (1000 / SPI_LED_FREQ / 2)) % 2 == 0) {
-            /* Some LED(s) should be on */
-            if ((ftdi_pin_state & (PIN_nLED_WR | PIN_nLED_RD)) == (PIN_nLED_WR | PIN_nLED_RD)) {
-                ftdi_pin_state ^= spi_led_state;
-                if (spi_set_pins(ftdi_pin_state) < 0)
-                    return -1;
-            }
-        } else {
-            /* All LEDs should be off */
-            if ((ftdi_pin_state & (PIN_nLED_WR | PIN_nLED_RD)) != (PIN_nLED_WR | PIN_nLED_RD)) {
-                ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
-                if (spi_set_pins(ftdi_pin_state) < 0)
-                    return -1;
-            }
-        }
+        return;
     }
 
-    return 0;
+    if (gettimeofday(&tv, NULL) < 0)
+        LOG(WARN, "gettimeofday failed: %s", strerror(errno));
+
+    if (((tv.tv_sec * 1000 + tv.tv_usec / 1000) /
+                (1000 / SPI_LED_FREQ / 2)) % 2 == 0)
+    {
+        if (spi_led_state & SPI_LED_READ)
+            ftdi_pin_state &= ~PIN_nLED_RD;
+        if (spi_led_state & SPI_LED_WRITE)
+            ftdi_pin_state &= ~PIN_nLED_WR;
+    } else {
+        ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
+    }
 }
 
 void spi_led(int led) 
 {
-    spi_led_state = 0;
-    if (led & SPI_LED_READ)
-        spi_led_state |= PIN_nLED_RD;
-    if (led & SPI_LED_WRITE)
-        spi_led_state |= PIN_nLED_WR;
-
-    if (spi_led_state)
-        if (gettimeofday(&spi_led_start_tv, NULL) < 0)
-            LOG(WARN, "gettimeofday failed: %s", strerror(errno));
+    spi_led_state = led;
     spi_led_tick();
 }
 
@@ -307,16 +289,12 @@ int spi_xfer_begin(void)
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
-    spi_led_tick();
-
     return 0;
 }
 
 int spi_xfer_end(void)
 {
     LOG(DEBUG, "");
-
-    spi_led_tick();
 
     /* Check if there is enough space in the buffer */
     if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 1) {
@@ -451,8 +429,6 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
         spi_stats.read_bytes += size * iosize / 8;
     }
 #endif
-
-    spi_led_tick();
 
     return size;
 }
