@@ -349,31 +349,12 @@ int spi_xfer_end(void)
     return 0;
 }
 
-/*
- * There is a write speed optimization, that is made in assumption that reading
- * from MOSI on the slave side occurs just a bit after slave sees positive CLK
- * edge, so we can drive MOSI and CLK lines together in one operation, which
- * requires less communication with FTDI chip and hence less time.  However,
- * Vladimir Zidar reported that this doesn't work in his case (BC57F687A via
- * TIAO TUMPA), so it was disabled by default. You can enable such an
- * optimization by defining WRITE_OPTIMIZATION at compile time.
- */
 int spi_xfer(int cmd, int iosize, void *buf, int size)
 {
-    int ios_per_bit;
     unsigned int write_offset, read_offset, ftdi_buf_read_offset;
     uint16_t bit, word;
 
     LOG(DEBUG, "(%d, %d, %p, %d)", cmd, iosize, buf, size);
-
-#ifdef WRITE_OPTIMIZATION
-    ios_per_bit = 2;
-#else
-    if (cmd & SPI_XFER_WRITE)
-        ios_per_bit = 3;
-    else
-        ios_per_bit = 2;
-#endif
 
     write_offset = 0;
     read_offset = 0;
@@ -388,7 +369,8 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
         ftdi_buf_read_offset = ftdi_buf_write_offset;
 
         while (write_offset < size) {
-            if (sizeof(ftdi_buf) - ftdi_buf_write_offset < ios_per_bit * iosize) {
+            /* 2 bytes per bit */
+            if (sizeof(ftdi_buf) - ftdi_buf_write_offset < iosize * 2) {
                 /* There is no room in the buffer for following word write,
                  * flush the buffer */
                 if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -413,13 +395,12 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
                         ftdi_pin_state |= PIN_MOSI;
                     else
                         ftdi_pin_state &= ~PIN_MOSI;
-#ifndef WRITE_OPTIMIZATION
-                    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
-#endif
                 } else {
                     /* Write 0 during a read */
                     ftdi_pin_state &= ~PIN_MOSI;
                 }
+
+                ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
@@ -427,7 +408,6 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
 
                 /* Clock low */
                 ftdi_pin_state &= ~PIN_CLK;
-                ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
             }
             write_offset++;
         }
@@ -442,9 +422,10 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
                 word = 0;
                 for (bit = (1 << (iosize - 1)); bit != 0; bit >>= 1) {
                     /* Input bit */
+                    ftdi_buf_read_offset++;
                     if (ftdi_buf[ftdi_buf_read_offset] & PIN_MISO)
                         word |= bit;
-                    ftdi_buf_read_offset += ios_per_bit;
+                    ftdi_buf_read_offset++;
                 }
 
                 if (iosize == 8)

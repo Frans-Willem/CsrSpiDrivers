@@ -225,8 +225,8 @@ For other options see [misc/transport-options.md](misc/transport-options.md).
 
 #### Communication speed
 
-Reading a 1 MB flash on HC-05 module takes about 60 seconds and writing it takes
-about 90 seconds. Dumping HC-05 PS keys takes about 40 seconds.
+Reading or writing a 1 MB flash on HC-05 module takes about 60 seconds. Dumping
+HC-05 PS keys takes about 40 seconds.
 
 Running csr-spi-ftdi in a virtual machine slows things down presumably due to
 latency added by USB virtualization. E.g. running csr-spi-ftdi under VirtualBox
@@ -234,10 +234,10 @@ slows transactions down about 4x times.
 
 #### SPI clock
 
-SPI clock run at 1/2 (when reading) or 1/3 (when writing) of FTDI clock rate.
-CSR app may automatically slow SPI clock down when read or write verification
-fails. Some commands are executed at the 1/50 of the base SPI clock rate. FTDI
-clock rate can be controlled with `FTDI_BASE_CLOCK` [option](#options).
+SPI clock run at 1/2 of FTDI clock rate. CSR app may automatically slow SPI
+clock down when read or write verification fails. Some commands are executed at
+the 1/50 of the base SPI clock rate. FTDI clock rate can be controlled with
+`FTDI_BASE_CLOCK` [option](#options).
 
 #### Useful commands
 
