@@ -1,4 +1,4 @@
-LIBRARY "spilpt"
+LIBRARY "usbspi"
 EXPORTS
 	spifns_bluecore_xap_stopped
 	spifns_chip_select

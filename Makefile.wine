@@ -33,15 +33,22 @@ LDLIBS +=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
 
 MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 
-OBJDIR = spilpt-wine-$(TARGET_PLATFORM)
+LIBDIR = lib-wine-$(TARGET_PLATFORM)
+OBJDIR = obj-wine-$(TARGET_PLATFORM)
+LIBNAME = usbspi.dll.so
+LIBRARY_SPEC = usbspi.dll.spec
 
-all: $(OBJDIR)/spilpt.dll.so
+all: $(LIBDIR)/$(LIBNAME)
 
-$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/logging.o spilpt.dll.spec
+$(LIBDIR)/$(LIBNAME): $(OBJDIR)/$(LIBNAME)
+	mkdir -p $(LIBDIR)
+	cp -p $< $@
+
+$(OBJDIR)/$(LIBNAME): $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/logging.o $(LIBRARY_SPEC)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 install:
-	install -m 0644 -o root -g root $(OBJDIR)/spilpt.dll.so $(WINE_LIB)/spilpt.dll.so
+	install -m 0644 -o root -g root $(OBJDIR)/$(LIBNAME) $(WINE_LIB)/$(LIBNAME)
 
 $(OBJDIR)/basics.o: spi.h spifns.h logging.h dllmain.h compat.h
 $(OBJDIR)/spi.o: spi.h compat.h logging.h
@@ -56,4 +63,4 @@ $(OBJDIR)/%.o: %.cpp
 	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr spilpt-wine-$(TARGET_PLATFORM)
+	rm -fr $(LIBDIR) $(OBJDIR)

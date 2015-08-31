@@ -13,7 +13,7 @@
       * [Installing on Ubuntu/Debian Linux](#installing-on-ubuntudebian-linux)
       * [Installing on Windows](#installing-on-windows)
     * [Using the driver](#using-the-driver)
-      * [Choosing LPT transport](#choosing-lpt-transport)
+      * [Choosing USB transport](#choosing-usb-transport)
       * [Options](#options)
       * [Communication speed](#communication-speed)
       * [SPI clock](#spi-clock)
@@ -35,7 +35,7 @@
 This is USB SPI programmer for CSR BlueCore chips, based on FTDI FT232R USB to
 UART converter chip. Programmer hardware can be made using simple FT232RL
 breakout board, or built as a dedicated programmer using included schematic.
-Programmer driver works by replacing SPI LPT programmer driver, spilpt.dll, in
+Programmer driver works by replacing USB SPI programmer driver, usbspi.dll, in
 CSR applications and is currently ported to Linux/Wine and Windows.
 
 Project home page: <https://github.com/lorf/csr-spi-ftdi>.
@@ -63,11 +63,8 @@ Programmer was tested with the following chips:
   may be shipped with battery configuration enabled. Such modules will shutdown
   shortly after power on if You don't connect charged battery. Battery charger
   configuration is defined in `PSKEY_USR0` and can be changed using appropriate
-  Configuration Tool or PSTool. Description of `PSKEY_USR0` can be found in
-  "Battery and Charger Configuration" section of "PS Key Bit Fields"
-  application note appropriate for your firmware, see [Other sources of
-  information](#other-sources-of-information). See sample PSR files for
-  disabling charger in [misc/](misc/).
+  Configuration Tool or PSTool. See sample PSR files for disabling charger in
+  [misc/](misc/).
 * BlueCore 2 chips (such as BC212015) are not supported in BlueSuite 2.4 and
   above. It's also reported that to flash/dump these chips it's required to
   lower SPI speed. So for BC2 chips it's recommended to use BlueSuite 2.3 and
@@ -160,14 +157,14 @@ Install Wine:
 
     sudo apt-get install wine
 
-Install CSR BlueSuite in Wine. Find all instances of spilpt.dll installed and
+Install CSR BlueSuite in Wine. Find all instances of usbspi.dll installed and
 move them out of the way:
 
-    find ~/.wine -iname spilpt.dll -exec mv {} {}.orig \;
+    find ~/.wine -iname usbspi.dll -exec mv {} {}.orig \;
 
-Copy spilpt.dll.so to Wine system directory:
+Copy usbspi.dll.so to Wine system directory:
 
-    sudo cp -p spilpt-wine-linux/spilpt.dll.so /usr/lib/i386-linux-gnu/wine/
+    sudo cp -p lib-wine-linux/usbspi.dll.so /usr/lib/i386-linux-gnu/wine/
 
 Alternately You can specify location of the .dll.so file in WINEDLLPATH
 environment variable, see wine(1) man page for details.
@@ -185,9 +182,9 @@ After that You'll need to add yourself to `plugdev` group and relogin.
 #### Installing on Windows
 
 1. Install CSR package such as BlueSuite;
-2. Make a backup of spilpt.dll in your application directory (e.g. in
+2. Make a backup of usbspi.dll in your application directory (e.g. in
    `C:\Program Files (x86)\CSR\BlueSuite 2.6.0\`);
-3. Copy spilpt-win32/spilpt.dll to your application directory;
+3. Copy lib-win32/usbspi.dll to your application directory;
 4. Connect Your FTDI device to computer;
 5. Download and run Zadig from <http://zadig.akeo.ie/>. In Options menu choose
    "List all devices", choose Your FTDI device ("FT232R USB UART" or similar),
@@ -199,12 +196,12 @@ After that You'll need to add yourself to `plugdev` group and relogin.
 
 ### Using the driver
 
-#### Choosing LPT transport
+#### Choosing USB transport
 
-Newer BlueSuite defaults to using CSR USB SPI programmer, to use csr-spi-ftdi
-as programmer You need to select LPT transport (sometimes called `SPI BCCMD` or
-just `SPI`). Use `-TRANS "SPITRANS=LPT SPIPORT=1"` option for command line
-tools.
+Older BlueSuite defaults to using CSR SPI LPT programmer, to use csr-spi-ftdi
+as programmer You need to select USB SPI transport. Use `-TRANS "SPITRANS=USB
+SPIPORT=1"` option for command line tools. Import
+`misc/spi-set-usb-transport.reg` to change the default.
 
 #### Options
 
@@ -246,37 +243,37 @@ or this directory should be in your PATH.
 
 * Display chip ID, firmware version and flash size:
 
-        blueflashcmd -trans "SPITRANS=LPT SPIPORT=1" -identify
+        blueflashcmd -trans "SPITRANS=USB SPIPORT=1" -identify
 
 * Save firmware backup (only for chips with flash, backup will include PS
   keys):
 
-        blueflashcmd -trans "SPITRANS=LPT SPIPORT=1" -dump csr-fw-backup
+        blueflashcmd -trans "SPITRANS=USB SPIPORT=1" -dump csr-fw-backup
 
   This creates two files, `csr-fw-backup.xpv` and `csr-fw-backup.xdv`.
 
 * Flash firmware from files `csr-fw-backup.xpv` and `csr-fw-backup.xdv`:
 
-        blueflashcmd -trans "SPITRANS=LPT SPIPORT=1" csr-fw-backup
+        blueflashcmd -trans "SPITRANS=USB SPIPORT=1" csr-fw-backup
 
 * Collect debug logs:
 
-        blueflashcmd -trans "SPITRANS=LPT SPIPORT=1 SPIDEBUG=ON \
+        blueflashcmd -trans "SPITRANS=USB SPIPORT=1 SPIDEBUG=ON \
             SPIDEBUG_FILE=C:\csr-debug.log FTDI_LOG_LEVEL=debug,dump \
             FTDI_LOG_FILE=C:\csr-spi-ftdi-debug.log" -identify
 
 * Lower SPI speed 10 times:
 
-        blueflashcmd -trans "SPITRANS=LPT SPIPORT=1 FTDI_BASE_CLOCK=400000" \
+        blueflashcmd -trans "SPITRANS=USB SPIPORT=1 FTDI_BASE_CLOCK=400000" \
             -dump csr-fw-backup
 
 * Save chip settings (PS Keys) backup into `csr-pskeys.psr`:
 
-        pscli -trans "SPITRANS=LPT SPIPORT=1" dump csr-pskeys.psr
+        pscli -trans "SPITRANS=USB SPIPORT=1" dump csr-pskeys.psr
 
 * Merge some settings from `pskeys.psr` to the chip:
 
-        pscli -trans "SPITRANS=LPT SPIPORT=1" merge pskeys.psr
+        pscli -trans "SPITRANS=USB SPIPORT=1" merge pskeys.psr
 
 #### Troubleshooting
 
@@ -289,10 +286,10 @@ or this directory should be in your PATH.
   [option](#options) may also help.
 * `WARNING: Attempt # to read sector #` warnings are also harmless if they are
   not result in error.
-* `Couldn't find device with id (0)` error means You are using uspspi.dll
-  driver instead of spilpt.dll. Try importing
-  [misc/spi-set-lpt-transport.reg](misc/spi-set-lpt-transport.reg) or adding
-  `-trans "SPITRANS=LPT SPIPORT=1"` option on command line.
+* `Couldn't find LPT port` error means You are using spilpt.dll driver instead
+  of usbspi.dll. Try importing
+  [misc/spi-set-usb-transport.reg](misc/spi-set-usb-transport.reg) or adding
+  `-trans "SPITRANS=USB SPIPORT=1"` option on command line.
 
 ### Building for Wine
 
@@ -327,10 +324,10 @@ Build with command:
 
 #### Installing
 
-Install CSR BlueSuite in Wine. Find all instances of spilpt.dll installed and
+Install CSR BlueSuite in Wine. Find all instances of usbspi.dll installed and
 move them out of the way:
 
-    find ~/.wine -iname spilpt.dll -exec mv {} {}.orig \;
+    find ~/.wine -iname usbspi.dll -exec mv {} {}.orig \;
 
 Install Wine dll into the Wine libraries directory:
 
@@ -384,7 +381,7 @@ Build with command:
 
 ## Thanks
 * This project is a derivative of Frans-Willem Hardijzer's [reverse-engineered
-  spilpt.dll drivers](https://github.com/Frans-Willem/CsrSpiDrivers);
+  usbspi.dll drivers](https://github.com/Frans-Willem/CsrSpiDrivers);
 * Thanks to **unicorn** from <http://www.nebo-forum.kiev.ua/> for the idea of a
   DLL for Wine.
 
@@ -420,7 +417,3 @@ Build with command:
   source code for SPI drivers but at least development header files in
   CSRSource/result/include/ are of some help.~~ It seems CSR removed it from
   download.
-* PS keys documentation:
-  * "BlueTunes ROM Configuration PS Key Bit Fields" (CS-126076-AN);
-  * "BlueCore ADK Sink Application Configuration PS Key Bit Fields" (CS-236873-ANP2);
-  * "CSR8600 ROM Charger Configuration" (CS-223677-ANP1).

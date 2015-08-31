@@ -7,9 +7,9 @@ this post
   `XAPSIM`, `SDIOCEV5`, `KALSIM`, `SDIOCE`, `SDIO`, `TRB` or any custom
   transport name (e.g. using `sometrans` name will instruct PTTransport.dll to
   use `sometrans.dll` as a driver). Only `USB` and `LPT` drivers are available
-  in BlueSuite, other drivers are available in other CSR packages.  Use `LPT`
+  in BlueSuite, other drivers are available in other CSR packages.  Use `USB`
   transport for csr-spi-ftdi;
-* `SPIPORT` - transport port identifier, usually an integer. Default: `0` for
+* `SPIPORT` - transport port identifier, usually an integer. Default: `1` for
   `USB`, `1` for `LPT`, `remote` for `REMOTE`. Use `1` for csr-spi-ftdi;
 * `SPIREMOTEIP` - IP address of the remote SPI programmer for `REMOTE`
   transport, default: `127.0.0.1`. Remote programmer TCP port number is

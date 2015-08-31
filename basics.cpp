@@ -239,7 +239,7 @@ DLLEXPORT void spifns_enumerate_ports(spifns_enumerate_ports_callback pCallback,
     for (nport = 0; nport < nports; nport++) {
         LOG(DEBUG, "Calling port enum callback (%d, \"%s\", %p)",
                 nport + 1, portlist[nport].name, pData);
-        /* Ports start with 1 in spilpt */
+        /* Ports start with 1 */
         pCallback(nport + 1, portlist[nport].name, pData);
     }
 }

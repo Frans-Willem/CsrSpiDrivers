@@ -1,7 +1,6 @@
 VERSION :=	$(shell cat VERSION)
 ZIP_NAME ?=	csr-spi-ftdi-$(VERSION)
-ZIP_FILES +=	spilpt-win32/spilpt.dll spilpt-wine-linux/spilpt.dll.so \
-	README.md hardware misc utils
+ZIP_FILES +=	lib-win32 lib-wine-linux README.md hardware misc utils
 
 all: win32 wine
 

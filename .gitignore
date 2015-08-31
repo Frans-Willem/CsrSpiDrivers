@@ -1,5 +1,5 @@
 libftdi1*
 libusb*
-spilpt-win32
-spilpt-wine-linux
+lib-*
+obj-*
 csr-spi-ftdi-*
