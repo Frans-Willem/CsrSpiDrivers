@@ -179,23 +179,6 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
     return 0;
 }
 
-static inline int spi_set_pins(uint8_t byte)
-{
-    /* Check if there is enough space in the buffer */
-    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 1) {
-        /* There is no room in the buffer for the following operations, flush
-         * the buffer */
-        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
-            return -1;
-        /* The data in the buffer is useless, discard it */
-        ftdi_buf_write_offset = 0;
-    }
-
-    ftdi_buf[ftdi_buf_write_offset++] = byte;
-
-    return 0;
-}
-
 static void spi_led_tick(void)
 {
     struct timeval tv;
@@ -250,7 +233,7 @@ int spi_xfer_begin(void)
 #endif
 
     /* Check if there is enough space in the buffer */
-    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 11) {
+    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 6) {
         /* There is no room in the buffer for the following operations, flush
          * the buffer */
         if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -267,26 +250,19 @@ int spi_xfer_begin(void)
 
     ftdi_pin_state |= PIN_CLK;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_CLK;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     /* Start transfer */
 
     ftdi_pin_state &= ~PIN_nCS;
-    /* XXX Do we need to wait here? is this affects
-     * spifns_bluecore_xap_stopped()? */
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     return 0;
@@ -706,8 +682,7 @@ int spi_open(int nport)
 
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
     ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
-    if (spi_set_pins(ftdi_pin_state) < 0)
-        goto open_err;
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     return 0;
 
