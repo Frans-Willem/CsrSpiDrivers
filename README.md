@@ -16,7 +16,6 @@
       * [Choosing USB transport](#choosing-usb-transport)
       * [Options](#options)
       * [Communication speed](#communication-speed)
-      * [SPI clock](#spi-clock)
       * [Useful commands](#useful-commands)
       * [Troubleshooting](#troubleshooting)
     * [Building for Wine](#building-for-wine)
@@ -68,7 +67,7 @@ Programmer was tested with the following chips:
 * BlueCore 2 chips (such as BC212015) are not supported in BlueSuite 2.4 and
   above. It's also reported that to flash/dump these chips it's required to
   lower SPI speed. So for BC2 chips it's recommended to use BlueSuite 2.3 and
-  set `FTDI_BASE_CLOCK=400000` [option](#options).
+  set `SPIMAXCLOCK=200` [option](#options).
 
 ## Programmer hardware
 
@@ -208,8 +207,10 @@ SPIPORT=1"` option for command line tools. Import
 Csr-spi-ftdi driver supports several options, that can be set as environment
 variables or using the -TRANS option to most CSR commandline apps.
 
-* `FTDI_BASE_CLOCK` - Base clock frequency in Hz, default is 4 MHz. Changing
-  this value proportionally changes all SPI clock rates.
+* `SPIMAXCLOCK` - Maximum SPI clock frequency in kHz, default is 1000.
+  Practical values range from 20 to 2000. CSR app may automatically slow SPI
+  clock down when read or write verification fails. Some commands are always
+  executed at 20 kHz.
 * `FTDI_LOG_LEVEL` - sets csr-spi-ftdi log level, available log levels:
   `quiet`, `err`, `warn`, `info`, `debug`. Adding a `,dump` option provides hex
   dumps of transferred data. Example: `FTDI_LOG_LEVEL=info,dump`. Default:
@@ -228,13 +229,6 @@ HC-05 PS keys takes about 40 seconds.
 Running csr-spi-ftdi in a virtual machine slows things down presumably due to
 latency added by USB virtualization. E.g. running csr-spi-ftdi under VirtualBox
 slows transactions down about 4x times.
-
-#### SPI clock
-
-SPI clock run at 1/2 of FTDI clock rate. CSR app may automatically slow SPI
-clock down when read or write verification fails. Some commands are executed at
-the 1/50 of the base SPI clock rate. FTDI clock rate can be controlled with
-`FTDI_BASE_CLOCK` [option](#options).
 
 #### Useful commands
 
@@ -262,9 +256,9 @@ or this directory should be in your PATH.
             SPIDEBUG_FILE=C:\csr-debug.log FTDI_LOG_LEVEL=debug,dump \
             FTDI_LOG_FILE=C:\csr-spi-ftdi-debug.log" -identify
 
-* Lower SPI speed 10 times:
+* Lower SPI speed 5 times:
 
-        blueflashcmd -trans "SPITRANS=USB SPIPORT=1 FTDI_BASE_CLOCK=400000" \
+        blueflashcmd -trans "SPITRANS=USB SPIPORT=1 SPIMAXCLOCK=200" \
             -dump csr-fw-backup
 
 * Save chip settings (PS Keys) backup into `csr-pskeys.psr`:
@@ -277,12 +271,12 @@ or this directory should be in your PATH.
 
 #### Troubleshooting
 
-* Decreasing SPI speed using `FTDI_BASE_CLOCK` [option](#options) may help in
-  case of communication failures.
+* Decreasing SPI speed using `SPIMAXCLOCK` [option](#options) may help in case
+  of communication failures.
 * `Unable to start read (invalid control data)` errors are usually harmless,
   since read attempts are retried. If You've got a pile of theese errors and
   programmer doesn't work - check connections, voltage levels, try to lower SPI
-  connection resistor values. Decreasing SPI speed using `FTDI_BASE_CLOCK`
+  connection resistor values. Decreasing SPI speed using `SPIMAXCLOCK`
   [option](#options) may also help.
 * `WARNING: Attempt # to read sector #` warnings are also harmless if they are
   not result in error.

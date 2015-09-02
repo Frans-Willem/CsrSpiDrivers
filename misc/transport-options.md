@@ -29,9 +29,6 @@ this post
 * `SPIDEBUG_FILE` - output file name, can be `CON:` to output to a terminal;
 * `SPISLOW` - perform at slowest clock speed, valid values are `ON`, `OFF`, not
   applicable to csr-spi-ftdi;
-* `SPICLOCK` - integer, default 20, not applicable to csr-spi-ftdi;
-* `SPIMAXCLOCK` - integer, default is 1000. In csr-spi-ftdi it limits maximum
-  FTDI clock frequency to a specified number of thousandth fractions of
-  `FTDI_BASE_CLOCK`. E.g. setting `SPIMAXCLOCK` to 100 will give maximum FTDI clock
-  frequency of `FTDI_BASE_CLOCK/10`, setting it to 1000 will give maximum FTDI
-  clock frequency of `FTDI_BASE_CLOCK`.
+* `SPICLOCK` - SPI clock rate, in kHz, used internally to control clock rate in
+  SPI driver.
+* `SPIMAXCLOCK` - maximum SPI clock rate in kHz, default is 1000.

@@ -14,9 +14,8 @@
 #include "compat.h"
 #include "logging.h"
 
-/* FTDI clock frequency. At maximum I got 15KB/s reads at 4 MHz clock. */
-#define FTDI_BASE_CLOCK    4000000
-#define SPI_BASE_CLOCK     1000
+/* Default SPI clock rate, in kHz */
+#define SPIMAXCLOCK     1000
 
 /*
  * FT232R (as the lowest FTDI chip supporting sync bitbang mode) has 128 byte
@@ -69,7 +68,6 @@ static struct spi_stats {
     long ftdi_xfers, ftdi_bytes, ftdi_short_reads;
     struct timeval tv_xfer_begin, tv_xfer;
     struct timeval tv_open_begin, tv_open;
-    unsigned long ftdi_clock_min;
     unsigned long spi_clock_max, spi_clock_min;
     unsigned long slowdowns;
 } spi_stats;
@@ -84,8 +82,7 @@ struct ftdi_device_ids {
 static struct spi_port spi_ports[SPI_MAX_PORTS];
 static int spi_nports = 0;
 
-unsigned long spi_clock = SPI_BASE_CLOCK, spi_max_clock = SPI_BASE_CLOCK;
-unsigned long spi_ftdi_base_clock = FTDI_BASE_CLOCK;
+unsigned long spi_clock = 0, spi_max_clock = SPIMAXCLOCK;
 
 static struct ftdi_device_ids ftdi_device_ids[] = {
     { 0x0403, 0x6001, "FT232R" }, /* FT232R */
@@ -224,6 +221,11 @@ void spi_led(int led)
 int spi_xfer_begin(void)
 {
     LOG(DEBUG, "");
+
+    if (spi_clock == 0) {
+        SPI_ERR("SPI clock not initialized");
+        return -1;
+    }
 
     spi_led_tick();
 
@@ -515,19 +517,22 @@ int spi_deinit(void)
     return 0;
 }
 
-void spi_set_ftdi_base_clock(unsigned long ftdi_clk)
-{
-    LOG(INFO, "FTDI: setting FTDI_BASE_CLOCK: %lu", ftdi_clk);
-    spi_ftdi_base_clock = ftdi_clk;
-}
+int spi_set_clock(unsigned long spi_clk) {
+    unsigned long ftdi_clk;
 
-static int spi_set_ftdi_clock(unsigned long ftdi_clk)
-{
-    LOG(DEBUG, "FTDI: FTDI clock: %lu", ftdi_clk);
+    LOG(DEBUG, "(%lu)", spi_clk);
+
     if (!spi_isopen()) {
-        SPI_ERR("FTDI: setting FTDI clock failed: SPI device is not open");
+        SPI_ERR("FTDI: setting SPI clock failed: SPI device is not open");
         return -1;
     }
+
+    if (spi_clk > spi_max_clock)
+        spi_clk = spi_max_clock;
+
+    spi_clock = spi_clk;
+    /* FTDI clock in Hz is 2 * SPI clock, FTDI clock in Hz */
+    ftdi_clk = spi_clock * 2000;
 
     /* Flush the buffer before setting clock */
     if (ftdi_buf_write_offset) {
@@ -544,39 +549,24 @@ static int spi_set_ftdi_clock(unsigned long ftdi_clk)
      * syncbb mode?):
      * http://developer.intra2net.com/mailarchive/html/libftdi/2010/msg00240.html
      */
-    LOG(INFO, "FTDI: clock: %lu, baudrate: %lu, FTDI_BASE_CLOCK: %lu",
-            ftdi_clk, ftdi_clk / 16, spi_ftdi_base_clock);
+    LOG(INFO, "FTDI: setting SPI clock to %lu (FTDI baudrate %lu)", spi_clk, ftdi_clk / 16);
     if (ftdi_set_baudrate(&ftdic, ftdi_clk / 16) < 0) {
         SPI_ERR("FTDI: set baudrate %lu failed: %s",
                 ftdi_clk / 16, ftdi_get_error_string(&ftdic));
         return -1;
     }
 
-    return 0;
-}
-
-int spi_set_clock(unsigned long spi_clk) {
-    unsigned long ftdi_clk;
-    int rv;
-
-    if (spi_clk > spi_max_clock)
-        spi_clk = spi_max_clock;
-    LOG(INFO, "FTDI: setting SPI clock: %lu", spi_clk);
-    spi_clock = spi_clk;
-    ftdi_clk = (spi_clock * spi_ftdi_base_clock) / SPI_BASE_CLOCK;
-    rv = spi_set_ftdi_clock(ftdi_clk);
 #ifdef SPI_STATS
-    if (rv >= 0) {
-        /* Don't account for slow cmds, that are executing at SPI clock 20,
-         * they are short and not representative */
-        if (spi_clock > 20) {
-            if (spi_stats.ftdi_clock_min == 0 ||
-                        ftdi_clk < spi_stats.ftdi_clock_min)
-                spi_stats.ftdi_clock_min = ftdi_clk;
-        }
-    }
+    if (spi_stats.spi_clock_max == 0)
+        spi_stats.spi_clock_max = spi_max_clock;
+    if (spi_stats.spi_clock_min == 0)
+        spi_stats.spi_clock_min = spi_max_clock;
+    /* Don't account for slow cmds, that are executing at 20 kHz,
+     * they are short and not representative */
+    if (spi_clock > 20 && spi_clock < spi_stats.spi_clock_min)
+            spi_stats.spi_clock_min = spi_clock;
 #endif
-    return rv;
+    return 0;
 }
 
 void spi_set_max_clock(unsigned long clk) {
@@ -594,10 +584,6 @@ int spi_clock_slowdown(void) {
 
 #ifdef SPI_STATS
     spi_stats.slowdowns++;
-    if(spi_stats.spi_clock_max == 0 || clk > spi_stats.spi_clock_max)
-        spi_stats.spi_clock_max = clk;
-    if(spi_stats.spi_clock_min == 0 || clk < spi_stats.spi_clock_min)
-        spi_stats.spi_clock_min = clk;
 #endif
 
     LOG(INFO, "FTDI: SPI clock slowdown, set SPI clock to %lu", clk);
@@ -630,9 +616,6 @@ int spi_open(int nport)
     memset(&spi_stats, 0, sizeof(spi_stats));
     if (gettimeofday(&spi_stats.tv_open_begin, NULL) < 0)
         LOG(WARN, "gettimeofday failed: %s", strerror(errno));
-    spi_stats.spi_clock_max = SPI_BASE_CLOCK;
-    spi_stats.spi_clock_min = SPI_BASE_CLOCK;
-    spi_stats.ftdi_clock_min = spi_ftdi_base_clock;
 #endif
 
     /*ftdi_set_interface(&ftdic, INTERFACE_A);*/ /* XXX for multichannel chips */
@@ -673,9 +656,6 @@ int spi_open(int nport)
         SPI_ERR("FTDI: set synchronous bitbang mode failed: %s", ftdi_get_error_string(&ftdic));
         goto open_err;
     }
-
-    if (spi_set_ftdi_clock(spi_ftdi_base_clock) < 0)
-        goto open_err;
 
     /* Initialize xfer buffer */
     ftdi_buf_write_offset = 0;
@@ -768,8 +748,7 @@ void spi_output_stats(void)
             "FTDI stats: %.2f xfers/s (%.2f short reads/s,\n"
             "            %ld xfers/%ld short reads in %ld.%02ld s,\n"
             "            %.2f xfers/IO, %.2f bytes/xfer)\n"
-            "FTDI base clock: %lu Hz, min clock: %lu Hz\n"
-            "SPI max clock: %lu, min clock: %lu, slowdowns: %lu\n"
+            "SPI max clock: %lu kHz, min clock: %lu kHz, slowdowns: %lu\n"
             "****************************************************************************\n",
             spi_stats.tv_open.tv_sec, spi_stats.tv_open.tv_usec / 10000,
             spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 10000, xfer_pct,
@@ -782,7 +761,6 @@ void spi_output_stats(void)
             ftdi_rate, ftdi_short_rate, spi_stats.ftdi_xfers,
                 spi_stats.ftdi_short_reads, spi_stats.tv_xfer.tv_sec,
                 spi_stats.tv_xfer.tv_usec / 10000, ftdi_xfers_per_io, avg_ftdi_xfer,
-            spi_ftdi_base_clock, spi_stats.ftdi_clock_min,
             spi_stats.spi_clock_max, spi_stats.spi_clock_min, spi_stats.slowdowns
     );
 }

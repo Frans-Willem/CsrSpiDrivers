@@ -36,7 +36,7 @@ const SPIVARDEF g_pVarList[]={
     {"SPICMDREADBITS","0",0},
     {"SPICMDWRITEBITS","0",0},
     {"SPIMAXCLOCK","1000",0},
-    {"FTDI_BASE_CLOCK","4000000",0},
+    {"FTDI_BASE_CLOCK","2000000",0},
     {"FTDI_LOG_LEVEL","warn",0},
     {"FTDI_LOG_FILE","stderr",0}
 };
@@ -371,12 +371,13 @@ static int spifns_sequence_setvar(const char *szName, const char *szValue) {
                 break;
 
             case VARLIST_FTDI_BASE_CLOCK:
+                LOG(WARN, "Setting FTDI_BASE_CLOCK is deprecated, use SPIMAXCLOCK instead");
                 if (nValue <= 0) {
                     const char szError[]="FTDI_BASE_CLOCK value should be positive integer";
                     memcpy(g_szErrorString,szError,sizeof(szError));
                     return 1;
                 }
-                spi_set_ftdi_base_clock((unsigned long)nValue);
+                spi_set_max_clock((unsigned long)nValue / 2000);
                 break;
             case VARLIST_FTDI_LOG_LEVEL:
                 {
