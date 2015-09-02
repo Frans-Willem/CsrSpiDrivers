@@ -17,15 +17,6 @@
 /* Default SPI clock rate, in kHz */
 #define SPIMAXCLOCK     1000
 
-/*
- * FT232R (as the lowest FTDI chip supporting sync bitbang mode) has 128 byte
- * receive buffer and 256 byte transmit buffer. It works like 384 byte buffer.
- * See:
- * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00410.html
- * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00413.html
- * http://jdelfes.blogspot.ru/2014/03/ft232r-bitbang-spi-part-2.html
- */
-#define FTDI_MAX_XFER_SIZE      (128 + 256)
 
 /*
  * FTDI bitbang pins:
@@ -49,7 +40,10 @@
 #define PIN_nLED_WR (1 << 3)    /* FT232RL pin 11 (CTS#/D3), output */
 #define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS | PIN_nLED_RD | PIN_nLED_WR)
 
-static uint8_t ftdi_buf[FTDI_MAX_XFER_SIZE];
+static char *ftdi_type_str = NULL;
+
+static uint8_t *ftdi_buf = NULL;
+static size_t ftdi_buf_size = 0;
 static unsigned int ftdi_buf_write_offset;
 
 static int spi_dev_open = 0;
@@ -91,6 +85,7 @@ static struct ftdi_device_ids ftdi_device_ids[] = {
     { 0x0403, 0x6010, "FT2232" }, /* FT2232H/C/D */
     { 0x0403, 0x6011, "FT4232" }, /* FT4232H */
     { 0x0403, 0x6014, "FT232H" }, /* FT232H */
+    /*{ 0x0403, 0x6015, "FT230X" },*/ /* FT230X, only since libftdi1-1.2 */
 };
 
 static char *spi_err_buf = NULL;
@@ -235,7 +230,7 @@ int spi_xfer_begin(void)
 #endif
 
     /* Check if there is enough space in the buffer */
-    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 6) {
+    if (ftdi_buf_size - ftdi_buf_write_offset < 6) {
         /* There is no room in the buffer for the following operations, flush
          * the buffer */
         if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -275,7 +270,7 @@ int spi_xfer_end(void)
     LOG(DEBUG, "");
 
     /* Check if there is enough space in the buffer */
-    if (sizeof(ftdi_buf) - ftdi_buf_write_offset < 1) {
+    if (ftdi_buf_size - ftdi_buf_write_offset < 1) {
         /* There is no room in the buffer for the following operations, flush
          * the buffer */
         if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -326,7 +321,7 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
 
         while (write_offset < size) {
             /* 2 bytes per bit */
-            if (sizeof(ftdi_buf) - ftdi_buf_write_offset < iosize * 2) {
+            if (ftdi_buf_size - ftdi_buf_write_offset < iosize * 2) {
                 /* There is no room in the buffer for following word write,
                  * flush the buffer */
                 if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -657,7 +652,74 @@ int spi_open(int nport)
         goto open_err;
     }
 
+    /*
+     * Note on buffer sizes:
+     *
+     * FT232R has 256 byte receive buffer and 128 byte transmit buffer. It works
+     * like 384 byte buffer. See:
+     * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00410.html
+     * http://developer.intra2net.com/mailarchive/html/libftdi/2011/msg00413.html
+     * http://jdelfes.blogspot.ru/2014/03/ft232r-bitbang-spi-part-2.html
+     *
+     * FT2232C has 128 byte TX and 384 byte RX buffers per channel.
+     * FT2232H has 4kB RX and TX buffers per channel.
+     * FT4232H has 2kB RX and TX buffers per channel.
+     * FT232H has 1 kB RX and TX buffers.
+     * FT230X has 512 byte TX and RX buffers.
+     */
+    switch (ftdic.type) {
+        case TYPE_AM:
+            ftdi_type_str = "FT232AM";
+            SPI_ERR("This chip type is not supported: %s", ftdi_type_str);
+            goto open_err;
+            break;
+        case TYPE_BM:
+            ftdi_type_str = "FT232BM";
+            SPI_ERR("This chip type is not supported: %s", ftdi_type_str);
+            goto open_err;
+            break;
+        case TYPE_2232C:
+            ftdi_type_str = "FT2232C/D";
+            ftdi_buf_size = 512;
+            break;
+        case TYPE_R:
+            ftdi_type_str = "FT232R";
+            ftdi_buf_size = 384;
+            break;
+        case TYPE_2232H:
+            ftdi_type_str = "FT2232H";
+            ftdi_buf_size = 8192;
+            break;
+        case TYPE_4232H:
+            ftdi_type_str = "FT4232H";
+            ftdi_buf_size = 4096;
+            break;
+        case TYPE_232H:
+            ftdi_type_str = "FT232H";
+            ftdi_buf_size = 2048;
+            break;
+        /* TYPE_230X is supported since libftdi1-1.2 */
+        /*case TYPE_230X:
+            ftdi_type_str = "FT230X";
+            ftdi_buf_size = 1024;
+            break;
+        */
+        default:
+            LOG(WARN, "Unknown FTDI chip type, assuming FT232R");
+            ftdi_type_str = "Unknown";
+            ftdi_buf_size = 384;
+            break;
+    }
+
+    LOG(INFO, "Detected %s type programmer chip, buffer size: %u",
+            ftdi_type_str, ftdi_buf_size);
+
     /* Initialize xfer buffer */
+    ftdi_buf = malloc(ftdi_buf_size);
+    if (ftdi_buf == NULL) {
+        SPI_ERR("Not enough memory");
+        goto open_err;
+    }
     ftdi_buf_write_offset = 0;
 
     /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
@@ -745,6 +807,7 @@ void spi_output_stats(void)
             "Writes: %ld (%ld bytes, %.2f bytes avg write size)\n"
             "Xfer data rate: %.2f KB/s (%ld bytes in %ld.%02ld s)\n"
             "IOPS: %.2f IO/s (%ld IOs in %ld.%02ld s)\n"
+            "FTDI chip: %s (%d), buffer size: %u bytes\n"
             "FTDI stats: %.2f xfers/s (%.2f short reads/s,\n"
             "            %ld xfers/%ld short reads in %ld.%02ld s,\n"
             "            %.2f xfers/IO, %.2f bytes/xfer)\n"
@@ -758,6 +821,7 @@ void spi_output_stats(void)
                 spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 10000,
             iops, spi_stats.reads + spi_stats.writes,
                 spi_stats.tv_xfer.tv_sec, spi_stats.tv_xfer.tv_usec / 10000,
+            ftdi_type_str, ftdic.type, ftdi_buf_size,
             ftdi_rate, ftdi_short_rate, spi_stats.ftdi_xfers,
                 spi_stats.ftdi_short_reads, spi_stats.tv_xfer.tv_sec,
                 spi_stats.tv_xfer.tv_usec / 10000, ftdi_xfers_per_io, avg_ftdi_xfer,
@@ -794,6 +858,11 @@ int spi_close(void)
 #ifdef SPI_STATS
         spi_output_stats();
 #endif
+
+        free(ftdi_buf);
+        ftdi_buf = NULL;
+        ftdi_buf_size = 0;
+
         spi_dev_open = 0;
     }
 
