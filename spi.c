@@ -414,7 +414,7 @@ static int spi_enumerate_ports(void)
 
     spi_nports = 0;
 
-    for (id = 0; id < sizeof(ftdi_device_ids) / sizeof(ftdi_device_ids[0]); id++) {
+    for (id = 0; id < sizeof(ftdi_device_ids) / sizeof(ftdi_device_ids[0]) && spi_nports < SPI_MAX_PORTS; id++) {
         LOG(DEBUG, "find all: 0x%04x:0x%04x", ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         rc = ftdi_usb_find_all(&ftdic, &ftdevlist, ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         if (rc < 0) {
@@ -424,7 +424,7 @@ static int spi_enumerate_ports(void)
         if (rc == 0)
             continue;
 
-        for (ftdev = ftdevlist; ftdev; ftdev = ftdev->next) {
+        for (ftdev = ftdevlist; ftdev && spi_nports < SPI_MAX_PORTS; ftdev = ftdev->next) {
             spi_ports[spi_nports].vid = ftdi_device_ids[id].vid;
             spi_ports[spi_nports].pid = ftdi_device_ids[id].pid;
 
@@ -444,8 +444,6 @@ static int spi_enumerate_ports(void)
                     ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
 
             spi_nports++;
-            if (spi_nports >= SPI_MAX_PORTS)
-                return 0;
         }
         ftdi_list_free(&ftdevlist);
     }
