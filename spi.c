@@ -124,12 +124,15 @@ static void spi_err(const char *fmt, ...) {
  * FTDI transfer data forth and back in syncronous bitbang mode
  */
 
-static int spi_ftdi_xfer(uint8_t *buf, int len)
+static int spi_ftdi_xfer(uint8_t *buf, int size)
 {
     int rc;
     uint8_t *bufp;
+    int len;
+    int lost_buffer_counter = 0;
 
     bufp = buf;
+    len = size;
 
     rc = ftdi_write_data(&ftdic, bufp, len);
     if (rc < 0) {
@@ -158,6 +161,35 @@ static int spi_ftdi_xfer(uint8_t *buf, int len)
             SPI_ERR("FTDI: read data failed: %s", ftdi_get_error_string(&ftdic));
             return -1;
         }
+
+        /*
+         * I've encountered a bug with Gen2 counterfeit FT232RL (S/N A50285BI)
+         * in SyncBB mode connected to ASM1042 USB 3.0 controller (on Asus
+         * M5A78L-M/USB3 motherboard), Linux 3.13.0: sometimes, when flashing
+         * or erasing a flash on HC-05 module, after ftdi_write_data(), the
+         * next ftdi_read_data() returns less amount of data than it should.
+         * The maximum lost data size seen is 62 bytes, that size combined with
+         * 2 byte FTDI overhead gives 64 bytes which is FT232R max packet size.
+         * Dumping USB traffic shows missing packet while in ftdi_read_data().
+         * The bug is clearly in counterfeit FT232RL. The strange thing is that
+         * it only occurs while flashing or erasing, not when dumping.
+         *
+         * The workaround is to connect FTDI adapter to USB 2.0 socket or hub.
+         */
+        if (rc == 0)
+            lost_buffer_counter++;
+        else
+            lost_buffer_counter = 0;
+        if (lost_buffer_counter > 50) {
+            LOG(ERR, "***************************************************");
+            LOG(ERR, "Lost %d of %d bytes of data in transit", len, size);
+            LOG(ERR, "Probably a counterfeit FT232RL in USB3.0 socket.");
+            LOG(ERR, "Try to plug programmer into USB 2.0 socket.");
+            LOG(ERR, "***************************************************");
+            ftdi_buf_write_offset = 0;
+            return -1;
+        }
+
         len -= rc;
         bufp += rc;
 #ifdef SPI_STATS

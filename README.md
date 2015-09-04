@@ -107,6 +107,8 @@ pins. Wire LED anodes to FTDI 3V3 pin.
 Don't power BlueCore chip from FT232R internal 3.3V regulator! It's current
 draw may exceed FT232R 50mA limit, which may cause communication errors.
 
+Also see notes on [Counterfeit FT232RL chips](#counterfeit-ft232rl-chips).
+
 ### Dedicated programmer
 
 KiCad schematic for a dedicated programmer can be found in
@@ -122,8 +124,12 @@ usually get counterfeit FT232RL chip
 
 I've got such a chip (this one has read-only EEPROM, S/N A50285BI, probably
 it's a [generation 2 counterfeit](https://blog.cesanta.com/FTDI-adventures)),
-and verified csr-spi-ftdi to work with it. It may produce some communication
-errors (but they are automatically retried), but in general it works.
+and verified csr-spi-ftdi to work with it.
+
+There is a known data loss issue with counterfeit FT232RL chip plugged in USB
+3.0 socket. If You encounter it (You'll get a warning on stderr), try to replug
+the programmer to USB 2.0 socket. It also may produce some communication
+errors, but they are automatically retried, so in general it works.
 
 Some versions of Windows FTDI driver tend to intentionally
 [brick](https://hackaday.com/2014/10/22/watch-that-windows-update-ftdi-drivers-are-killing-fake-chips/)
@@ -278,12 +284,16 @@ or this directory should be in your PATH.
   programmer doesn't work - check connections, voltage levels, try to lower SPI
   connection resistor values. Decreasing SPI speed using `SPIMAXCLOCK`
   [option](#options) may also help.
-* `WARNING: Attempt # to read sector #` warnings are also harmless if they are
+* `WARNING: Attempt %d to read sector %d` warnings are also harmless if they are
   not result in error.
 * `Couldn't find LPT port` error means You are using spilpt.dll driver instead
   of usbspi.dll. Try importing
   [misc/spi-set-usb-transport.reg](misc/spi-set-usb-transport.reg) or adding
   `-trans "SPITRANS=USB SPIPORT=1"` option on command line.
+* `Lost %d of %d bytes of data in transit` or `ERROR: Download Failed, Sector
+  %d` - probably an indication of counterfeit FT232RL plugged into USB3.0
+  socket. Try to replug into USB 2.0 socket. See [Counterfeit FT232RL
+  chips](#counterfeit-ft232rl-chips).
 
 ### Building for Wine
 
