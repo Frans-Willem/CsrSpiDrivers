@@ -45,7 +45,6 @@ int g_nSpiPort=1;
 char g_szErrorString[256]="No error";
 unsigned int g_nError=SPIERR_NO_ERROR;
 unsigned short g_nErrorAddress=0;
-spifns_debug_callback g_pDebugCallback=0;
 static uint32_t spifns_api_version = 0;
 
 /* We support only one stream currently - stream 0 */
@@ -58,8 +57,6 @@ static uint32_t spifns_api_version = 0;
         g_szErrorString[sizeof(g_szErrorString) - 1] = '\0'; \
     } while (0)
 
-static void spifns_debugout(const char *szFormat, ...);
-static void spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData);
 static int spifns_sequence_setvar(const char *szName, const char *szValue);
 
 DLLEXPORT void spifns_getvarlist(const SPIVARDEF **ppList, unsigned int *pnCount) {
@@ -154,10 +151,8 @@ DLLEXPORT void spifns_clear_last_error(void)
     g_nError=SPIERR_NO_ERROR;
 }
 
-
+/* Don't use pttransport's debug callback, causes crash in pttransport.dll */
 DLLEXPORT void spifns_set_debug_callback(spifns_debug_callback pCallback) {
-    LOG(DEBUG, "");
-    g_pDebugCallback=pCallback;
 }
 
 /* In BlueSuite 2.6 this is called before spifns_init(), in BlueSuite 2.3 - after. */
@@ -180,18 +175,6 @@ static void spifns_close_port() {
      * selected or DLL is detached.
      */
     /*spi_close();*/
-}
-
-static void spifns_debugout(const char *szFormat, ...) {
-    LOG(DEBUG, "");
-    if (g_pDebugCallback) {
-        static char szDebugOutput[256];
-        va_list args;
-        va_start(args,szFormat);
-        vsnprintf(szDebugOutput, sizeof(szDebugOutput), szFormat, args);
-        g_pDebugCallback(szDebugOutput);
-        va_end(args);
-    }
 }
 
 DLLEXPORT void spifns_close() {
@@ -255,38 +238,6 @@ static bool spifns_sequence_setvar_spiport(int nPort) {
     return true;
 }
 
-static void spifns_debugout_readwrite(unsigned short nAddress, char cOperation, unsigned short nLength, unsigned short *pnData) {
-    LOG(DEBUG, "(0x%04x, '%c', %d, buf)", nAddress, cOperation, nLength);
-    if (g_pDebugCallback) {
-        static const char * const pszTable[]={
-            "%04X     %c ????\n",
-            "%04X     %c %04X\n",
-            "%04X-%04X%c %04X %04X\n",
-            "%04X-%04X%c %04X %04X %04X\n",
-            "%04X-%04X%c %04X %04X %04X %04X\n",
-            "%04X-%04X%c %04X %04X %04X %04X %04X\n",
-            "%04X-%04X%c %04X %04X %04X %04X %04X %04X\n",
-            "%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X\n",
-            "%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X %04X\n",
-            "%04X-%04X%c %04X %04X %04X %04X %04X %04X %04X %04X ...\n"
-        };
-        unsigned short bCopy[8];
-#define _MIN(x, y)  ( ((x) < (y)) ? (x) : (y) )
-        if (pnData)
-            memcpy(bCopy,pnData,sizeof(unsigned short)*_MIN(nLength,8));
-        else
-            memset(bCopy,0,sizeof(bCopy));
-        if (nLength<2) {
-            LOG(DEBUG, pszTable[nLength],nAddress,cOperation,bCopy[0]);
-            spifns_debugout(pszTable[nLength],nAddress,cOperation,bCopy[0]);
-        } else {
-            LOG(DEBUG, pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
-            spifns_debugout(pszTable[_MIN(nLength, 9)],nAddress,nAddress+nLength-1,cOperation,bCopy[0],bCopy[1],bCopy[2],bCopy[3],bCopy[4],bCopy[5],bCopy[6],bCopy[7]);
-        }
-#undef _MIN
-    }
-}
-
 static int spifns_sequence_write(unsigned short nAddress, unsigned short nLength, unsigned short *pnInput) {
     uint8_t outbuf1[] = {
         0x02,                       /* Command: write */
@@ -316,7 +267,6 @@ static int spifns_sequence_write(unsigned short nAddress, unsigned short nLength
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to start write");
 
     if (spi_xfer(SPI_XFER_WRITE, 16, pnInput, nLength) < 0) {
-        spifns_debugout_readwrite(nAddress,'w',nLength, pnInput);
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to write (writing buffer)");
     }
 
@@ -477,7 +427,6 @@ static int spifns_sequence_read(unsigned short nAddress, unsigned short nLength,
     }
 
     if (spi_xfer(SPI_XFER_READ, 16, pnOutput, nLength) < 0) {
-        spifns_debugout_readwrite(nAddress,'r', nLength, pnOutput);
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to read (reading buffer)");
     }
 
