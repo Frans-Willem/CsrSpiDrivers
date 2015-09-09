@@ -239,14 +239,19 @@ void spi_led(int led)
  * following conditions:
  *  * when buffer becomes full;
  *  * on the clock change;
- *  * before read operation;
+ *  * before read operation in spi_xfer();
+ *  * if the running status of the CPU is requested from spi_xfer_begin();
  *  * at the closure of FTDI device.
- * Read operations are only done in spi_xfer(), in other situations we may
- * safely discard what was read into the buffer by spi_ftdi_xfer().
+ * Read operations are only done in spi_xfer() and spi_xfer_begin(), in other
+ * situations we may safely discard what was read into the buffer by
+ * spi_ftdi_xfer().
  */
 
-int spi_xfer_begin(void)
+int spi_xfer_begin(int get_status)
 {
+    unsigned int status_offset = 0;
+    int status;
+
     LOG(DEBUG, "");
 
     if (spi_clock == 0) {
@@ -262,7 +267,7 @@ int spi_xfer_begin(void)
 #endif
 
     /* Check if there is enough space in the buffer */
-    if (ftdi_buf_size - ftdi_buf_write_offset < 6) {
+    if (ftdi_buf_size - ftdi_buf_write_offset < 7) {
         /* There is no room in the buffer for the following operations, flush
          * the buffer */
         if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -293,6 +298,36 @@ int spi_xfer_begin(void)
 
     ftdi_pin_state &= ~PIN_nCS;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+
+    if (get_status) {
+        /*
+         * Read the stopped status of the CPU. From CSR8645 datasheet: "When
+         * CSR8645 BGA is deselected (SPI_CS# = 1), the SPI_MISO line does not
+         * float. Instead, CSR8645 BGA outputs 0 if the processor is running or
+         * 1 if it is stopped". However in practice this is not entirely true.
+         * Reading MISO while the CPU is deselected gives wrong result. But
+         * reading it just after selecting gives the actual status. Also both
+         * sources I consulted (CsrSpiDrivers and CsrUsbSpiDeviceRE) are
+         * reading the status after setting CS# to 0.
+         */
+
+        status_offset = ftdi_buf_write_offset;
+
+        ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+
+        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+            return -1;
+
+        if (ftdi_buf[status_offset] & PIN_MISO)
+            status = SPI_CPU_STOPPED;
+        else
+            status = SPI_CPU_RUNNING;
+
+        /* Other data in the buffer is useless, discard it */
+        ftdi_buf_write_offset = 0;
+
+        return status;
+    }
 
     return 0;
 }

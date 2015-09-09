@@ -12,6 +12,10 @@
 #define SPI_XFER_READ   (1 << 0)
 #define SPI_XFER_WRITE  (1 << 1)
 
+/* XAP CPU running status */
+#define SPI_CPU_STOPPED 1
+#define SPI_CPU_RUNNING 0
+
 struct spi_port {
     uint16_t vid, pid;
     char manuf[128], desc[128], serial[128];
@@ -38,7 +42,7 @@ int spi_clock_slowdown(void);
 unsigned long spi_get_max_clock(void);
 unsigned long spi_get_clock(void);
 
-int spi_xfer_begin(void);
+int spi_xfer_begin(int get_status);
 int spi_xfer(int cmd, int iosize, void *buf, int size);
 int spi_xfer_end(void);
 

@@ -260,7 +260,7 @@ static int spifns_sequence_write(unsigned short nAddress, unsigned short nLength
 
     spi_led(SPI_LED_WRITE);
 
-    if (spi_xfer_begin() < 0)
+    if (spi_xfer_begin(0) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
 
     if (spi_xfer(SPI_XFER_WRITE, 8, outbuf1, 3) < 0)
@@ -410,7 +410,7 @@ static int spifns_sequence_read(unsigned short nAddress, unsigned short nLength,
 
     spi_led(SPI_LED_READ);
 
-    if (spi_xfer_begin() < 0)
+    if (spi_xfer_begin(0) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
 
     if (spi_xfer(SPI_XFER_WRITE, 8, outbuf, 3) < 0)
@@ -483,18 +483,20 @@ DLLEXPORT int spifns_sequence(SPISEQ *pSequence, unsigned int nCount) {
 
 DLLEXPORT int spifns_bluecore_xap_stopped() {
     /* Read chip version */
-    uint8_t xferbuf[] = {
+    uint8_t outbuf[] = {
         3,      /* Command: read */
         GBL_CHIP_VERSION_GEN1_ADDR >> 8,   /* Address high byte */
         GBL_CHIP_VERSION_GEN1_ADDR & 0xff,   /* Address low byte */
     };
     uint8_t inbuf[2];
+    int status;
 
     LOG(DEBUG, "");
 
-    if (spi_xfer_begin() < 0)
+    status = spi_xfer_begin(1);
+    if (status < 0)
         return SPIFNS_XAP_NO_REPLY;
-    if (spi_xfer(SPI_XFER_READ | SPI_XFER_WRITE, 8, xferbuf, 3) < 0)
+    if (spi_xfer(SPI_XFER_WRITE, 8, outbuf, 3) < 0)
         return SPIFNS_XAP_NO_REPLY;
     if (spi_xfer(SPI_XFER_READ, 8, inbuf, 2) < 0)
         return SPIFNS_XAP_NO_REPLY;
@@ -502,20 +504,19 @@ DLLEXPORT int spifns_bluecore_xap_stopped() {
         return SPIFNS_XAP_NO_REPLY;
     DUMP(inbuf, 2, "read8(addr=0x%04x, len=%d)", GBL_CHIP_VERSION_GEN1_ADDR, 3);
 
+    if (status == SPI_CPU_RUNNING) {
+        LOG(DEBUG, "CPU is running");
+        return SPIFNS_XAP_RUNNING;
+    }
+
     if (inbuf[0] != 3 || inbuf[1] != (GBL_CHIP_VERSION_GEN1_ADDR >> 8)) {
         /* No chip present or not responding correctly, no way to find out. */
         LOG(ERR, "No reply from XAP");
         return SPIFNS_XAP_NO_REPLY;
     }
 
-    /* Check the response to read command */
-    /* From CSR8645 datasheet: "When CSR8645 BGA is deselected (SPI_CS# = 1),
-     * the SPI_MISO line does not float. Instead, CSR8645 BGA outputs 0 if the
-     * processor is running or 1 if it is stopped. */
-    LOG(DEBUG, "CPU is %s", xferbuf[0] ? "stopped" : "running");
-    if (xferbuf[0])
-        return SPIFNS_XAP_STOPPED;
-    return SPIFNS_XAP_RUNNING;
+    LOG(DEBUG, "CPU is stopped");
+    return SPIFNS_XAP_STOPPED;
 }
 
 /* This is a limited implementation of CSR SPI API 1.4. It supports only 1
