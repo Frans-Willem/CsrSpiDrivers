@@ -1,0 +1,5 @@
+libftdi1*
+libusb*
+lib-*
+obj-*
+csr-spi-ftdi-*

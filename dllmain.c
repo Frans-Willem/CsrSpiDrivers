@@ -1,22 +1,34 @@
 #include <windows.h>
-/*#include "wine/debug.h"*/
+#include "spi.h"
 
-/*WINE_DEFAULT_DEBUG_CHANNEL(spilpt);*/
+typedef uint32_t (pttrans_get_version_t)(void);
+
+/* Public variable */
+uint32_t pttrans_api_version = 0;
 
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
-    /*TRACE("(0x%p, %d, %p)\n", hinstDLL, fdwReason, lpvReserved);*/
+    HMODULE pttdll;
+    pttrans_get_version_t *pttrans_get_version;
 
     switch (fdwReason)
     {
-#ifdef __WINESRC__
-        case DLL_WINE_PREATTACH:
-            return FALSE;    /* prefer native version */
-#endif
         case DLL_PROCESS_ATTACH:
             DisableThreadLibraryCalls(hinstDLL);
+
+            /* Detect SPI API version by calling a function from pttransport.dll */
+            if ((pttdll = GetModuleHandle("pttransport.dll"))) {
+                if ((pttrans_get_version = (pttrans_get_version_t *)GetProcAddress(pttdll,
+                                "pttrans_get_version")))
+                {
+                    pttrans_api_version = pttrans_get_version();
+                    pttrans_get_version = NULL;
+                    pttdll = NULL;
+                }
+            }
             break;
         case DLL_PROCESS_DETACH:
+            spi_deinit();
             break;
     }
 

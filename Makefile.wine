@@ -4,56 +4,54 @@ WINE_LIB ?=	/usr/lib/i386-linux-gnu/wine
 I386_LIB ?=	/usr/lib/i386-linux-gnu
 STDCXX_LIB ?=	/usr/lib/gcc/i686-linux-gnu/$(WINEGCC_VER)
 
+# Print scr-spi-ftdi statistics before exit
+CPPFLAGS +=	-DSPI_STATS
+
+# Compile with debugging
+#CFLAGS += -g -fno-inline
+#LDFLAGS += -g -fno-inline
+# Compile without debugging
+LDFLAGS += -s
+
 WINEGCC_VER := $(shell env LC_ALL=C winegcc -v 2>&1 | awk '/^gcc version/ {print $$3}' | cut -d. -f1,2)
+VERSION := $(shell cat VERSION)
+GIT_REVISION := $(shell git log -1 --format=%h 2>/dev/null)
+CPPFLAGS +=	-DVERSION=\"$(VERSION)\" -DGIT_REVISION=\"$(GIT_REVISION)\"
 
 CC =	winegcc
 CXX =	wineg++
-LD =	wineg++
+LD =	winegcc
 CFLAGS +=	-Wall -m32 -fPIC -DPIC
-CPPFLAGS +=	-D__WINESRC__
-CPPFLAGS +=	-DSPI_STATS
-LDFLAGS +=	-shared -m32 -static-libgcc -s
+CXXFLAGS += -fno-exceptions
+LDFLAGS +=	-shared -m32 -static-libgcc
 # 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
 # Direct it to the 32bit libraries.
 LDFLAGS +=	-L$(WINE_LIB) -L$(I386_LIB) -L$(STDCXX_LIB)
-#LDLIBS=	-lftdi -lusb
+#LDLIBS=	-lftdi -lusb-1.0
 # Build with static versions of libraries
 LDLIBS +=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
 
 MAKEFILE =	$(firstword $(MAKEFILE_LIST))
 
-ifeq ($(SPIAPI), )
+LIBDIR = lib-wine-$(TARGET_PLATFORM)
+OBJDIR = obj-wine-$(TARGET_PLATFORM)
+LIBNAME = usbspi.dll.so
+LIBRARY_SPEC = usbspi.dll.spec
 
-all: spiapi-1.3 spiapi-1.4
+all: $(LIBDIR)/$(LIBNAME)
 
-spiapi-1.3::
-	$(MAKE) -f $(MAKEFILE) SPIAPI=1.3 all
+$(LIBDIR)/$(LIBNAME): $(OBJDIR)/$(LIBNAME)
+	mkdir -p $(LIBDIR)
+	cp -p $< $@
 
-spiapi-1.4::
-	$(MAKE) -f $(MAKEFILE) SPIAPI=1.4 all
-
-else
-
-OBJDIR = spilpt-wine-$(TARGET_PLATFORM)-api$(SPIAPI)
-
-ifeq ($(SPIAPI), 1.3)
-CPPFLAGS +=  -DSPIFNS_API=SPIFNS_API_1_3
-else ifeq ($(SPIAPI), 1.4)
-CPPFLAGS +=  -DSPIFNS_API=SPIFNS_API_1_4
-endif
-
-all: $(OBJDIR)/spilpt.dll.so
-
-$(OBJDIR)/spilpt.dll.so: $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/logging.o spilpt.dll-api$(SPIAPI).spec
+$(OBJDIR)/$(LIBNAME): $(OBJDIR)/dllmain.o $(OBJDIR)/basics.o $(OBJDIR)/spi.o $(OBJDIR)/logging.o $(LIBRARY_SPEC)
 	$(LD) $(LDFLAGS) $^ -o $@ $(LDLIBS)
 
 install:
-	install -m 0644 -o root -g root $(OBJDIR)/spilpt.dll.so $(WINE_LIB)/spilpt.dll.so
+	install -m 0644 -o root -g root $(OBJDIR)/$(LIBNAME) $(WINE_LIB)/$(LIBNAME)
 
-endif
-
-$(OBJDIR)/basics.o: spi.h basics.h spifns.h logging.h
-$(OBJDIR)/spi.o: spi.h
+$(OBJDIR)/basics.o: spi.h spifns.h logging.h dllmain.h compat.h
+$(OBJDIR)/spi.o: spi.h compat.h logging.h
 $(OBJDIR)/logging.o: logging.h compat.h
 
 $(OBJDIR)/%.o: %.c
@@ -62,7 +60,7 @@ $(OBJDIR)/%.o: %.c
 
 $(OBJDIR)/%.o: %.cpp
 	mkdir -p $(OBJDIR)
-	$(CXX) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+	$(CXX) -c $(CFLAGS) $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 clean:
-	rm -fr spilpt-wine-$(TARGET_PLATFORM)-api1.3 spilpt-wine-$(TARGET_PLATFORM)-api1.4
+	rm -fr $(LIBDIR) $(OBJDIR)

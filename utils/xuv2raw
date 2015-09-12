@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+=head1 NAME
+
+xuv2raw
+
+=head1 SYNOPSIS
+
+xuv2raw dump.xdv dump.xpv > dump.raw
+
+=head1 DESCRIPTION
+
+Converts XUV format files to raw format (produced by
+C<blueflashcmd -dump -raw>).
+
+=cut
+
+use warnings;
+use strict;
+
+print pack "n*", map { /^\s*\@([\da-f]+)\s+([\da-f]+)\s*$/i ? hex $2 : () } <>;

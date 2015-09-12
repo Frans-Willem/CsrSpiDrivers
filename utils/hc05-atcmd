@@ -1,5 +1,22 @@
 #!/usr/bin/perl
 
+=head1 NAME
+
+hc05-atcmd
+
+=head1 SYNOPSIS
+
+hc05-atcmd <tty> [<AT_command> [...]]
+
+=head1 DESCRIPTION
+
+Issue AT commands to HC05 Bluetooth module and print the result.
+
+If no I<AT_command> is given, it issues series of predefined commands to query
+current configuration and state and prints the result.
+
+=cut
+
 use strict;
 use warnings;
 

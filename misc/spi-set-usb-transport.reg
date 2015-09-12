@@ -1,0 +1,9 @@
+REGEDIT4
+;
+; Use this regestry file to set default transport for SPI communication to USB,
+; which is needed for csr-spi-ftdi driver.
+;
+
+[HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager\Environment]
+;"SPITRANS"="LPT"
+"SPITRANS"="USB"

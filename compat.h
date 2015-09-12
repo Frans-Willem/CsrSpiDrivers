@@ -2,14 +2,7 @@
 #define _COMPAT_H
 
 #ifdef __WINE__
-# define _snprintf snprintf
 # define stricmp strcasecmp
-# define _stricmp strcasecmp
-#endif
-
-#ifdef COMPAT_USLEEP
-#include <sys/time.h>
-void usleep(int64_t usec);
 #endif
 
 #ifdef COMPAT_TIMER_MACROS

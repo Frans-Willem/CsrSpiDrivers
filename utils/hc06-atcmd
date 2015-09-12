@@ -1,5 +1,22 @@
 #!/usr/bin/perl
 
+=head1 NAME
+
+hc06-atcmd
+
+=head1 SYNOPSIS
+
+hc06-atcmd <tty> [<AT_command>]
+
+=head1 DESCRIPTION
+
+Issue AT command to HC06 Bluetooth module and print the result.
+
+If no I<AT_command> is given, it issues C<AT+VERSION> command and prints the
+result.
+
+=cut
+
 use strict;
 use warnings;
 
