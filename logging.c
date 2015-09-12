@@ -7,7 +7,7 @@
 #include "compat.h"
 
 static char *log_level_strings[] = {
-    "quiet",
+    "all",
     "err",
     "warn",
     "info",

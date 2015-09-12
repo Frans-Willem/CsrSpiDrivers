@@ -522,8 +522,6 @@ static int spi_enumerate_ports(void)
 
 int spi_init(void)
 {
-    FILE *fp;
-
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     spi_nrefs++;
@@ -533,9 +531,7 @@ int spi_init(void)
         return 0;
     }
 
-    fp = log_get_dest();
-    if (fp)
-        fprintf(fp, "csr-spi-ftdi " VERSION ", git rev " GIT_REVISION "\n");
+    LOG(ALL, "csr-spi-ftdi " VERSION ", git rev " GIT_REVISION "\n");
 
     if (ftdi_init(&ftdic) < 0) {
         SPI_ERR("FTDI: init failed");

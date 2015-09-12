@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 enum {
-    LOG_LEVEL_QUIET = 0,
+    LOG_LEVEL_ALL = 0,
     LOG_LEVEL_ERR,
     LOG_LEVEL_WARN,
     LOG_LEVEL_INFO,
@@ -17,6 +17,7 @@ enum {
     /* Special */
     LOG_FLAGS_DUMP = 1 << 8
 };
+#define LOG_LEVEL_QUIET (LOG_LEVEL_ALL)
 
 #define LOG_LEVEL_MASK  0xff
 #define LOG_MAX_LEVEL   LOG_LEVEL_DEBUG
