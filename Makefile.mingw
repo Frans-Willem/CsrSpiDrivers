@@ -15,10 +15,10 @@ CPPFLAGS +=	-DSPI_STATS
 CPPFLAGS +=	-DCOMPAT_TIMER_MACROS
 
 # Compile with debugging
-CFLAGS += -g -fno-inline
-LDFLAGS += -g -fno-inline
+#CFLAGS += -g -fno-inline
+#LDFLAGS += -g -fno-inline
 # Compile without debugging
-#LDFLAGS += -s
+LDFLAGS += -s
 
 CXX =	$(TOOLCHAIN)g++
 CC =	$(TOOLCHAIN)gcc
