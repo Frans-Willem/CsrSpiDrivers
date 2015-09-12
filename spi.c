@@ -312,7 +312,6 @@ int spi_xfer_begin(int get_status)
          */
 
         status_offset = ftdi_buf_write_offset;
-
         ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
         if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -337,7 +336,7 @@ int spi_xfer_end(void)
     LOG(DEBUG, "");
 
     /* Check if there is enough space in the buffer */
-    if (ftdi_buf_size - ftdi_buf_write_offset < 1) {
+    if (ftdi_buf_size - ftdi_buf_write_offset < 2) {
         /* There is no room in the buffer for the following operations, flush
          * the buffer */
         if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
@@ -345,6 +344,9 @@ int spi_xfer_end(void)
         /* The data in the buffer is useless, discard it */
         ftdi_buf_write_offset = 0;
     }
+
+    /* Commit the last ftdi_pin_state after spi_xfer() */
+    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_nCS;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
