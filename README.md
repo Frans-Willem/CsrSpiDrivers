@@ -385,7 +385,7 @@ Build with command:
 
 ## Thanks
 * This project is a derivative of Frans-Willem Hardijzer's [reverse-engineered
-  usbspi.dll drivers](https://github.com/Frans-Willem/CsrSpiDrivers);
+  spilpt.dll drivers](https://github.com/Frans-Willem/CsrSpiDrivers);
 * Thanks to **unicorn** from <http://www.nebo-forum.kiev.ua/> for the idea of a
   DLL for Wine.
 
