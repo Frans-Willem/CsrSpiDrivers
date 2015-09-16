@@ -258,7 +258,9 @@ static int spifns_sequence_write(unsigned short nAddress, unsigned short nLength
     DUMP(pnInput, nLength << 1, "write16(addr=0x%04x, len16=%d)",
             nAddress, nLength);
 
+#ifdef ENABLE_LEDS
     spi_led(SPI_LED_WRITE);
+#endif
 
     if (spi_xfer_begin(0) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");
@@ -408,7 +410,9 @@ static int spifns_sequence_read(unsigned short nAddress, unsigned short nLength,
     if (!spi_isopen())
         _ERR_RETURN(SPIERR_NO_LPT_PORT_SELECTED, "No FTDI device selected");
 
+#ifdef ENABLE_LEDS
     spi_led(SPI_LED_READ);
+#endif
 
     if (spi_xfer_begin(0) < 0)
         _ERR_RETURN(SPIERR_READ_FAILED, "Unable to begin transfer");

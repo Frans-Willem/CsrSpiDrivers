@@ -8,6 +8,8 @@ LIBUSB ?=	./libusb
 
 # Print scr-spi-ftdi statistics before exit
 CPPFLAGS +=	-DSPI_STATS
+# Enable LEDs
+CPPFLAGS += -DENABLE_LEDS
 
 # Fixes compilation on Debian/Ubuntu with mingw-w64 < 3.0.
 # See: http://sourceforge.net/p/mingw-w64/mailman/mingw-w64-public/thread/4F8CA26A.70103@users.sourceforge.net/

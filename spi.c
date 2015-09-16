@@ -36,9 +36,16 @@
 #define PIN_CLK     (1 << 2)    /* FT232RL pin 3 (RTS#/D2), output */
 #define PIN_MOSI    (1 << 7)    /* FT232RL pin 6 (RI#/D7), output */
 #define PIN_MISO    (1 << 5)    /* FT232RL pin 9 (DSR#/D5), input */
+#ifdef ENABLE_LEDS
 #define PIN_nLED_RD (1 << 6)    /* FT232RL pin 10 (DCD#/D6), output */
 #define PIN_nLED_WR (1 << 3)    /* FT232RL pin 11 (CTS#/D3), output */
 #define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS | PIN_nLED_RD | PIN_nLED_WR)
+/* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
+#define PINS_INIT   (PIN_nCS | PIN_MISO | PIN_nLED_WR | PIN_nLED_RD)
+#else
+#define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS)
+#define PINS_INIT   (PIN_nCS | PIN_MISO)
+#endif
 
 static char *ftdi_type_str = NULL;
 
@@ -52,8 +59,10 @@ static int spi_nrefs = 0;
 static struct ftdi_context ftdic;
 static uint8_t ftdi_pin_state = 0;
 
+#ifdef ENABLE_LEDS
 #define SPI_LED_FREQ  10   /* Hz */
 static int spi_led_state = 0;
+#endif
 
 #ifdef SPI_STATS
 static struct spi_stats {
@@ -203,6 +212,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int size)
     return 0;
 }
 
+#ifdef ENABLE_LEDS
 static void spi_led_tick(void)
 {
     struct timeval tv;
@@ -233,6 +243,7 @@ void spi_led(int led)
     spi_led_state = led;
     spi_led_tick();
 }
+#endif
 
 /*
  * spi_xfer_*() use a global read/write buffer ftdi_buf that is flushed on the
@@ -259,7 +270,9 @@ int spi_xfer_begin(int get_status)
         return -1;
     }
 
+#ifdef ENABLE_LEDS
     spi_led_tick();
+#endif
 
 #ifdef SPI_STATS
     if (gettimeofday(&spi_stats.tv_xfer_begin, NULL) < 0)
@@ -364,7 +377,9 @@ int spi_xfer_end(void)
     }
 #endif
 
+#ifdef ENABLE_LEDS
     spi_led(SPI_LED_OFF);
+#endif
 
     return 0;
 }
@@ -380,7 +395,9 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
     read_offset = 0;
 
     do {
+#ifdef ENABLE_LEDS
         spi_led_tick();
+#endif
 
         /* In FTDI sync bitbang mode we need to write something to device to
          * toggle a read. */
@@ -785,8 +802,7 @@ int spi_open(int nport)
     }
     ftdi_buf_write_offset = 0;
 
-    /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
-    ftdi_pin_state = (~(PIN_MOSI | PIN_CLK) & (PIN_nCS | PIN_MISO)) | PIN_nLED_WR | PIN_nLED_RD;
+    ftdi_pin_state = PINS_INIT;
     ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
 
     return 0;
@@ -898,7 +914,9 @@ int spi_close(void)
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     if (spi_dev_open) {
+#ifdef ENABLE_LEDS
         spi_led(SPI_LED_OFF);
+#endif
 
         /* Flush and reset the buffer */
         if (ftdi_buf_write_offset) {

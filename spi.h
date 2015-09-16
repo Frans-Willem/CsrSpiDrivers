@@ -3,10 +3,12 @@
 
 #include <stdint.h>
 
+#ifdef ENABLE_LEDS
 /* Bit field */
 #define SPI_LED_OFF     (0)
 #define SPI_LED_READ    (1 << 0)
 #define SPI_LED_WRITE   (1 << 1)
+#endif
 
 /* Bit field */
 #define SPI_XFER_READ   (1 << 0)
@@ -46,7 +48,9 @@ int spi_xfer_begin(int get_status);
 int spi_xfer(int cmd, int iosize, void *buf, int size);
 int spi_xfer_end(void);
 
+#ifdef ENABLE_LEDS
 void spi_led(int led);
+#endif
 
 #ifdef SPI_STATS
 void spi_output_stats(void);
