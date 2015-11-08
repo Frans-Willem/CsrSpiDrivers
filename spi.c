@@ -17,36 +17,6 @@
 /* Default SPI clock rate, in kHz */
 #define SPIMAXCLOCK     1000
 
-
-/*
- * FTDI bitbang pins:
- * D0 - TXD
- * D1 - RXD
- * D2 - RTS#
- * D3 - CTS#
- * D4 - DTR#
- * D5 - DSR#
- * D6 - DCD#
- * D7 - RI#
- */
-
-/* Pinout. Change it at will. Beware that FTDI adapters provide 5V or 3V3 I/O
- * levels, but CSR chips require 3V3 or 1V8 I/O level. */
-#define PIN_nCS     (1 << 4)    /* FT232RL pin 2 (DTR#/D4), output */
-#define PIN_CLK     (1 << 2)    /* FT232RL pin 3 (RTS#/D2), output */
-#define PIN_MOSI    (1 << 7)    /* FT232RL pin 6 (RI#/D7), output */
-#define PIN_MISO    (1 << 5)    /* FT232RL pin 9 (DSR#/D5), input */
-#ifdef ENABLE_LEDS
-#define PIN_nLED_RD (1 << 6)    /* FT232RL pin 10 (DCD#/D6), output */
-#define PIN_nLED_WR (1 << 3)    /* FT232RL pin 11 (CTS#/D3), output */
-#define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS | PIN_nLED_RD | PIN_nLED_WR)
-/* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
-#define PINS_INIT   (PIN_nCS | PIN_MISO | PIN_nLED_WR | PIN_nLED_RD)
-#else
-#define PINS_OUTPUT (PIN_MOSI | PIN_CLK | PIN_nCS)
-#define PINS_INIT   (PIN_nCS | PIN_MISO)
-#endif
-
 static char *ftdi_type_str = NULL;
 
 static uint8_t *ftdi_out_buf = NULL, *ftdi_in_buf = NULL;
@@ -57,12 +27,11 @@ static int spi_dev_open = 0;
 static int spi_nrefs = 0;
 
 static struct ftdi_context ftdic;
+static enum ftdi_interface ftdi_intf = INTERFACE_A;
 static uint8_t ftdi_pin_state = 0;
 
-#ifdef ENABLE_LEDS
 #define SPI_LED_FREQ  10   /* Hz */
 static int spi_led_state = 0;
-#endif
 
 #ifdef SPI_STATS
 static struct spi_stats {
@@ -99,6 +68,10 @@ static struct ftdi_device_ids ftdi_device_ids[] = {
 
 static char *spi_err_buf = NULL;
 static size_t spi_err_buf_sz = 0;
+
+static struct spi_pins *spi_pins;
+static struct spi_pins spi_pin_presets[] = SPI_PIN_PRESETS;
+static enum spi_pinouts spi_pinout = SPI_PINOUT_DEFAULT;
 
 void spi_set_err_buf(char *buf, size_t sz)
 {
@@ -212,14 +185,16 @@ static int spi_ftdi_xfer(uint8_t *out_buf, uint8_t *in_buf, int size)
     return 0;
 }
 
-#ifdef ENABLE_LEDS
 static void spi_led_tick(void)
 {
     struct timeval tv;
 
     if (spi_led_state == SPI_LED_OFF) {
         /* Asked to turn LEDs off */
-        ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
+        if (spi_pins->nledr)
+            ftdi_pin_state |= spi_pins->nledr;
+        if (spi_pins->nledw)
+            ftdi_pin_state |= spi_pins->nledw;
         return;
     }
 
@@ -229,12 +204,15 @@ static void spi_led_tick(void)
     if (((tv.tv_sec * 1000 + tv.tv_usec / 1000) /
                 (1000 / SPI_LED_FREQ / 2)) % 2 == 0)
     {
-        if (spi_led_state & SPI_LED_READ)
-            ftdi_pin_state &= ~PIN_nLED_RD;
-        if (spi_led_state & SPI_LED_WRITE)
-            ftdi_pin_state &= ~PIN_nLED_WR;
+        if (spi_led_state & SPI_LED_READ && spi_pins->nledr)
+            ftdi_pin_state &= ~spi_pins->nledr;
+        if (spi_led_state & SPI_LED_WRITE && spi_pins->nledw)
+            ftdi_pin_state &= ~spi_pins->nledw;
     } else {
-        ftdi_pin_state |= PIN_nLED_WR | PIN_nLED_RD;
+        if (spi_pins->nledr)
+            ftdi_pin_state |= spi_pins->nledr;
+        if (spi_pins->nledw)
+            ftdi_pin_state |= spi_pins->nledw;
     }
 }
 
@@ -243,7 +221,6 @@ void spi_led(int led)
     spi_led_state = led;
     spi_led_tick();
 }
-#endif
 
 /*
  * spi_xfer_*() use global output and input buffers. Output buffer is flushed
@@ -270,9 +247,7 @@ int spi_xfer_begin(int get_status)
         return -1;
     }
 
-#ifdef ENABLE_LEDS
     spi_led_tick();
-#endif
 
 #ifdef SPI_STATS
     if (gettimeofday(&spi_stats.tv_xfer_begin, NULL) < 0)
@@ -292,24 +267,24 @@ int spi_xfer_begin(int get_status)
     /* BlueCore chip SPI port reset sequence: deassert CS, wait at least two
      * clock cycles */
 
-    ftdi_pin_state |= PIN_nCS;
+    ftdi_pin_state |= spi_pins->ncs;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
-    ftdi_pin_state |= PIN_CLK;
+    ftdi_pin_state |= spi_pins->clk;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
-    ftdi_pin_state &= ~PIN_CLK;
+    ftdi_pin_state &= ~spi_pins->clk;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
-    ftdi_pin_state |= PIN_CLK;
+    ftdi_pin_state |= spi_pins->clk;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
-    ftdi_pin_state &= ~PIN_CLK;
+    ftdi_pin_state &= ~spi_pins->clk;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     /* Start transfer */
 
-    ftdi_pin_state &= ~PIN_nCS;
+    ftdi_pin_state &= ~spi_pins->ncs;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     if (get_status) {
@@ -330,7 +305,7 @@ int spi_xfer_begin(int get_status)
         if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
             return -1;
 
-        if (ftdi_in_buf[status_offset] & PIN_MISO)
+        if (ftdi_in_buf[status_offset] & spi_pins->miso)
             status = SPI_CPU_STOPPED;
         else
             status = SPI_CPU_RUNNING;
@@ -361,7 +336,7 @@ int spi_xfer_end(void)
     /* Commit the last ftdi_pin_state after spi_xfer() */
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
-    ftdi_pin_state |= PIN_nCS;
+    ftdi_pin_state |= spi_pins->ncs;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     /* Buffer flush is done on close */
@@ -377,9 +352,7 @@ int spi_xfer_end(void)
     }
 #endif
 
-#ifdef ENABLE_LEDS
     spi_led(SPI_LED_OFF);
-#endif
 
     return 0;
 }
@@ -395,9 +368,7 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
     read_offset = 0;
 
     do {
-#ifdef ENABLE_LEDS
         spi_led_tick();
-#endif
 
         /* In FTDI sync bitbang mode we need to write something to device to
          * toggle a read. */
@@ -429,22 +400,22 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
                 if (cmd & SPI_XFER_WRITE) {
                     /* Set output bit */
                     if (word & bit)
-                        ftdi_pin_state |= PIN_MOSI;
+                        ftdi_pin_state |= spi_pins->mosi;
                     else
-                        ftdi_pin_state &= ~PIN_MOSI;
+                        ftdi_pin_state &= ~spi_pins->mosi;
                 } else {
                     /* Write 0 during a read */
-                    ftdi_pin_state &= ~PIN_MOSI;
+                    ftdi_pin_state &= ~spi_pins->mosi;
                 }
 
                 ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
                 /* Clock high */
-                ftdi_pin_state |= PIN_CLK;
+                ftdi_pin_state |= spi_pins->clk;
                 ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
                 /* Clock low */
-                ftdi_pin_state &= ~PIN_CLK;
+                ftdi_pin_state &= ~spi_pins->clk;
             }
             write_offset++;
         }
@@ -460,7 +431,7 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
                 for (bit = (1 << (iosize - 1)); bit != 0; bit >>= 1) {
                     /* Input bit */
                     ftdi_in_buf_offset++;
-                    if (ftdi_in_buf[ftdi_in_buf_offset] & PIN_MISO)
+                    if (ftdi_in_buf[ftdi_in_buf_offset] & spi_pins->miso)
                         word |= bit;
                     ftdi_in_buf_offset++;
                 }
@@ -546,6 +517,33 @@ static int spi_enumerate_ports(void)
     return 0;
 }
 
+void spi_set_pinout(enum spi_pinouts pinout)
+{
+    spi_pinout = pinout;
+}
+
+int spi_set_interface(const char *intf)
+{
+    enum ftdi_interface eintf;
+
+    if (intf[1] != '\0')
+        return -1;
+    if (intf[0] == 'a' || intf[0] == 'A' || intf[0] == '0') {
+        eintf = INTERFACE_A;
+    } else if (intf[0] == 'b' || intf[0] == 'B' || intf[0] == '1') {
+        eintf = INTERFACE_B;
+    } else if (intf[0] == 'c' || intf[0] == 'C' || intf[0] == '2') {
+        eintf = INTERFACE_C;
+    } else if (intf[0] == 'd' || intf[0] == 'D' || intf[0] == '3') {
+        eintf = INTERFACE_D;
+    } else {
+        return -1;
+    }
+
+    ftdi_intf = eintf;
+    return 0;
+}
+
 int spi_init(void)
 {
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
@@ -569,6 +567,8 @@ int spi_init(void)
         spi_deinit();
         return -1;
     }
+
+    spi_pins = &spi_pin_presets[spi_pinout];
 
     return 0;
 }
@@ -688,6 +688,7 @@ int spi_open(int nport)
 {
     int rc;
     char *serial;
+    uint8_t output_pins;
 
     LOG(DEBUG, "(%d) spi_dev_open=%d", nport, spi_dev_open);
 
@@ -707,7 +708,12 @@ int spi_open(int nport)
         LOG(WARN, "gettimeofday failed: %s", strerror(errno));
 #endif
 
-    /*ftdi_set_interface(&ftdic, INTERFACE_A);*/ /* XXX for multichannel chips */
+    rc = ftdi_set_interface(&ftdic, ftdi_intf);
+    if (rc < 0)
+    {
+        SPI_ERR("FTDI: ftdi_set_interface() failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
+        goto open_err;
+    }
 
     /* Serial number can be unavailable due to SerNumEnable* settings in FTDI
      * EEPROM. Don't try to pass a serial number pointer for such a device to
@@ -752,7 +758,13 @@ int spi_open(int nport)
         goto open_err;
     }
 
-    rc = ftdi_set_bitmode(&ftdic, PINS_OUTPUT, BITMODE_SYNCBB);
+    /* Set pins direction */
+    output_pins = spi_pins->mosi | spi_pins->clk | spi_pins->ncs;
+    if (spi_pins->nledr)
+        output_pins |= spi_pins->nledr;
+    if (spi_pins->nledw)
+        output_pins |= spi_pins->nledw;
+    rc = ftdi_set_bitmode(&ftdic, output_pins, BITMODE_SYNCBB);
     if (rc < 0) {
         SPI_ERR("FTDI: set synchronous bitbang mode failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         goto open_err;
@@ -829,7 +841,12 @@ int spi_open(int nport)
     }
     ftdi_out_buf_offset = 0;
 
-    ftdi_pin_state = PINS_INIT;
+    /* Set initial pin state: CS high, MISO high as pullup, MOSI and CLK low, LEDs off */
+    ftdi_pin_state = spi_pins->ncs | spi_pins->miso;
+    if (spi_pins->nledr)
+        ftdi_pin_state |= spi_pins->nledr;
+    if (spi_pins->nledw)
+        ftdi_pin_state |= spi_pins->nledw;
     ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     return 0;
@@ -943,9 +960,7 @@ int spi_close(void)
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     if (spi_dev_open) {
-#ifdef ENABLE_LEDS
         spi_led(SPI_LED_OFF);
-#endif
 
         /* Flush and reset the buffers */
         if (ftdi_out_buf_offset) {

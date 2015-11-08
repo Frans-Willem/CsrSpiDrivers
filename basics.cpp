@@ -26,6 +26,8 @@
 #define VARLIST_FTDI_BASE_CLOCK 8
 #define VARLIST_FTDI_LOG_LEVEL 9
 #define VARLIST_FTDI_LOG_FILE 10
+#define VARLIST_FTDI_PINOUT 11
+#define VARLIST_FTDI_INTERFACE 12
 
 const SPIVARDEF g_pVarList[]={
     {"SPIPORT","1",1},
@@ -38,7 +40,9 @@ const SPIVARDEF g_pVarList[]={
     {"SPIMAXCLOCK","1000",0},
     {"FTDI_BASE_CLOCK","2000000",0},
     {"FTDI_LOG_LEVEL","warn",0},
-    {"FTDI_LOG_FILE","stderr",0}
+    {"FTDI_LOG_FILE","stderr",0},
+    {"FTDI_PINOUT","0",0},
+    {"FTDI_INTERFACE","A",0}
 };
 
 int g_nSpiPort=1;
@@ -386,6 +390,31 @@ static int spifns_sequence_setvar(const char *szName, const char *szValue) {
                     }
                 }
                 break;
+            case VARLIST_FTDI_PINOUT:
+                {
+                    enum spi_pinouts pinout;
+
+                    if (!stricmp(szValue, "default")) {
+                        pinout = SPI_PINOUT_DEFAULT;
+                    } else if (!stricmp(szValue, "noleds")) {
+                        pinout = SPI_PINOUT_NOLEDS;
+                    } else if (!stricmp(szValue, "hwspi+leds")) {
+                        pinout = SPI_PINOUT_HWSPI_LEDS;
+                    } else if (!stricmp(szValue, "hwspi")) {
+                        pinout = SPI_PINOUT_HWSPI;
+                    } else {
+                        const char szError[]="Invalid pinout specified in FTDI_PINOUT";
+                        memcpy(g_szErrorString,szError,sizeof(szError));
+                        return 1;
+                    }
+                    spi_set_pinout(pinout);
+                }
+            case VARLIST_FTDI_INTERFACE:
+                if (spi_set_interface(szValue) < 0) {
+                    const char szError[]="Invalid channel specified in FTDI_INTERFACE";
+                    memcpy(g_szErrorString,szError,sizeof(szError));
+                    return 1;
+                }
             }
         }
     }

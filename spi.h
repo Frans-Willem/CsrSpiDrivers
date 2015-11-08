@@ -24,12 +24,69 @@ struct spi_port {
     char name[32];
 };
 
+struct spi_pins {
+    uint8_t ncs, clk, mosi, miso;
+    uint8_t nledr, nledw;
+};
+
+/*
+ * Pinouts. Change at will. Beware that FTDI adapters provide 5V or 3V3 I/O
+ * levels, but CSR chips require 3V3 or 1V8 I/O level.
+ */
+
+/*
+ * Default pinout, this leaves TX and RX pins free for UART connection.
+ *
+ * CS - DBUS4 (DTR#), CLK - DBUS2 (RTS#), MOSI - DBUS7 (RI#),
+ * MISO - DBUS5 (DSR#), R_LED - DBUS6 (DCD#), W_LED - DBUS3 (CTS#).
+ */
+#define SPI_PIN_PRESET_DEFAULT \
+    { (1 << 4), (1 << 2), (1 << 7), (1 << 5), (1 << 6), (1 << 3) }
+
+/*
+ * Same as above, but without LEDs.
+ */
+#define SPI_PIN_PRESET_NOLEDS \
+    { (1 << 4), (1 << 2), (1 << 7), (1 << 5), 0, 0 }
+
+/*
+ * Pinout for use with MPSSE chips, uses the same pins as hardware SPI.
+ * Note that hardware SPI capability is not used, just the same pinout for
+ * convenience. This pinout can be used with adapters like TIAO TUMPA.
+ *
+ * CS - DBUS3, CLK - DBUS0, MOSI - DBUS1, MISO - DBUS2, R_LED - DBUS4,
+ * W_LED - DBUS5.
+ */
+#define SPI_PIN_PRESET_HWSPI_LEDS \
+    { (1 << 3), (1 << 0), (1 << 1), (1 << 2), (1 << 4), (1 << 5) }
+
+/*
+ * Same as above, but without LEDs.
+ */
+#define SPI_PIN_PRESET_HWSPI \
+    { (1 << 3), (1 << 0), (1 << 1), (1 << 2), 0, 0 }
+
+#define SPI_PIN_PRESETS { \
+        SPI_PIN_PRESET_DEFAULT, \
+        SPI_PIN_PRESET_NOLEDS, \
+        SPI_PIN_PRESET_HWSPI_LEDS, \
+        SPI_PIN_PRESET_HWSPI, \
+    }
+
+enum spi_pinouts {
+    SPI_PINOUT_DEFAULT = 0,
+    SPI_PINOUT_NOLEDS,
+    SPI_PINOUT_HWSPI_LEDS,
+    SPI_PINOUT_HWSPI,
+};
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void spi_set_err_buf(char *buf, size_t sz);
-
+void spi_set_pinout(enum spi_pinouts pinout);
+int spi_set_interface(const char *intf);
 int spi_init(void);
 int spi_deinit(void);
 int spi_get_port_list(struct spi_port **pportlist, int *pnports);
