@@ -84,6 +84,8 @@ while CSR chips require 3.3V or 1.8V I/O level. You may supply appropriate
 VCCIO to FTDI chip or use logic level converter if levels don't match. See
 description of VCCIO pin in FTDI chip datasheet for details.
 
+This is a default pinout:
+
 | Signal | FT232RL pin | FTDI pin name | FTDI GPIO bit | CSR pin  |
 |--------|-------------|---------------|---------------|----------|
 | CS#    | 2           | DTR#          | D4            | SPI_CS#  |
@@ -104,6 +106,8 @@ TX and RX connections are optional and provide connectivity to BlueCore UART.
 LED connections are optional. Wire LED cathodes through the current limiting
 resistors (330 Ohm works fine) to the appropriate FTDI
 pins. Wire LED anodes to FTDI 3V3 pin.
+
+Other pinouts can be specified with `FTDI_PINOUT` [Option](#options).
 
 Don't power BlueCore chip from FT232R internal 3.3V regulator! It's current
 draw may exceed FT232R 50mA limit, which may cause communication errors.
@@ -228,6 +232,22 @@ variables or using the -TRANS option to most CSR commandline apps.
 * `FTDI_LOG_FILE` - specify log file name. Can be set to `stdout` to log to
   standard output, or to `stderr` to log to standard error stream. Default:
   `stderr`.
+* `FTDI_INTERFACE` (since version 0.5.1) - specify interface on multi-interface
+  chips (FT2232, FT4232). Default: `A`.
+* `FTDI_PINOUT` (since version 0.5.1) - specify a pinout. Available pinouts:
+  * `default` - default pinout as described in
+    [Using FT232RL breakout board as a programmer]
+    (#using-ft232rl-breakout-board-as-a-programmer).
+  * `noleds` - this is the same as `default` but without LEDs.
+  * `hwspi` - pinout for use with MPSSE chips (FT2232, FT4232, FT232H), uses
+    the same pins as hardware SPI. Note that hardware SPI capability is not
+    used, just the same pinout is used for convenience. This pinout can be used
+    with adapters like [TIAO TUMPA]
+    (http://www.tiaowiki.com/w/TIAO_USB_Multi_Protocol_Adapter_User's_Manual).
+    The pinout is as follows: `CS` - `DBUS3`, `CLK` - `DBUS0`, `MOSI` -
+    `DBUS1`, `MISO` - `DBUS2`.
+  * `hwspi+leds` - this is the same as `hwspi` but adds read and write LEDs on
+    `DBUS4` and `DBUS5` pins respectively.
 
 For other options see [misc/transport-options.md](misc/transport-options.md).
 
