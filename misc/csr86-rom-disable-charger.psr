@@ -1,3 +1,4 @@
+// CSR86XX ROM configuration for disabling charger.
 // Please, make a configuration backup before performing any other actions!
 
 // CSR86XX PSKEY_USR0 - PSKEY_BATTERY_CONFIG
