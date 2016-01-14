@@ -49,9 +49,9 @@
 
 static char *ftdi_type_str = NULL;
 
-static uint8_t *ftdi_buf = NULL;
+static uint8_t *ftdi_out_buf = NULL, *ftdi_in_buf = NULL;
 static size_t ftdi_buf_size = 0;
-static unsigned int ftdi_buf_write_offset;
+static unsigned int ftdi_out_buf_offset;
 
 static int spi_dev_open = 0;
 static int spi_nrefs = 0;
@@ -133,28 +133,25 @@ static void spi_err(const char *fmt, ...) {
  * FTDI transfer data forth and back in syncronous bitbang mode
  */
 
-static int spi_ftdi_xfer(uint8_t *buf, int size)
+static int spi_ftdi_xfer(uint8_t *out_buf, uint8_t *in_buf, int size)
 {
     int rc;
     uint8_t *bufp;
     int len;
     int lost_buffer_counter = 0;
 
-    bufp = buf;
-    len = size;
-
-    rc = ftdi_write_data(&ftdic, bufp, len);
+    rc = ftdi_write_data(&ftdic, out_buf, size);
     if (rc < 0) {
         SPI_ERR("FTDI: write data failed: %s", ftdi_get_error_string(&ftdic));
         return -1;
     }
-    if (rc != len) {
-        SPI_ERR("FTDI: short write: need %d, got %d", len, rc);
+    if (rc != size) {
+        SPI_ERR("FTDI: short write: need %d, got %d", size, rc);
         return -1;
     }
 #ifdef SPI_STATS
     spi_stats.ftdi_xfers++;
-    spi_stats.ftdi_bytes += len;
+    spi_stats.ftdi_bytes += size;
 #endif
 
     /* In FTDI sync bitbang mode every write is preceded by a read to internal
@@ -162,6 +159,9 @@ static int spi_ftdi_xfer(uint8_t *buf, int size)
      *
      * The data in the read buffer may not be immediately available. Wait for
      * it if needed. */
+
+    bufp = in_buf;
+    len = size;
 
     while (len > 0) {
         rc = ftdi_read_data(&ftdic, bufp, len);
@@ -195,7 +195,7 @@ static int spi_ftdi_xfer(uint8_t *buf, int size)
             LOG(ERR, "Probably a counterfeit FT232RL in USB3.0 socket.");
             LOG(ERR, "Try to plug programmer into USB 2.0 socket.");
             LOG(ERR, "***************************************************");
-            ftdi_buf_write_offset = 0;
+            ftdi_out_buf_offset = 0;
             return -1;
         }
 
@@ -246,16 +246,16 @@ void spi_led(int led)
 #endif
 
 /*
- * spi_xfer_*() use a global read/write buffer ftdi_buf that is flushed on the
- * following conditions:
+ * spi_xfer_*() use global output and input buffers. Output buffer is flushed
+ * on the following conditions:
  *  * when buffer becomes full;
  *  * on the clock change;
  *  * before read operation in spi_xfer();
  *  * if the running status of the CPU is requested from spi_xfer_begin();
  *  * at the closure of FTDI device.
  * Read operations are only done in spi_xfer() and spi_xfer_begin(), in other
- * situations we may safely discard what was read into the buffer by
- * spi_ftdi_xfer().
+ * situations we may safely discard what was read into the input buffer buffer
+ * by spi_ftdi_xfer().
  */
 
 int spi_xfer_begin(int get_status)
@@ -280,37 +280,37 @@ int spi_xfer_begin(int get_status)
 #endif
 
     /* Check if there is enough space in the buffer */
-    if (ftdi_buf_size - ftdi_buf_write_offset < 7) {
+    if (ftdi_buf_size - ftdi_out_buf_offset < 7) {
         /* There is no room in the buffer for the following operations, flush
          * the buffer */
-        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+        if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
             return -1;
         /* The data in the buffer is useless, discard it */
-        ftdi_buf_write_offset = 0;
+        ftdi_out_buf_offset = 0;
     }
 
     /* BlueCore chip SPI port reset sequence: deassert CS, wait at least two
      * clock cycles */
 
     ftdi_pin_state |= PIN_nCS;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_CLK;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_CLK;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     ftdi_pin_state &= ~PIN_CLK;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     /* Start transfer */
 
     ftdi_pin_state &= ~PIN_nCS;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     if (get_status) {
         /*
@@ -324,19 +324,19 @@ int spi_xfer_begin(int get_status)
          * reading the status after setting CS# to 0.
          */
 
-        status_offset = ftdi_buf_write_offset;
-        ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+        status_offset = ftdi_out_buf_offset;
+        ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
-        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+        if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
             return -1;
 
-        if (ftdi_buf[status_offset] & PIN_MISO)
+        if (ftdi_in_buf[status_offset] & PIN_MISO)
             status = SPI_CPU_STOPPED;
         else
             status = SPI_CPU_RUNNING;
 
         /* Other data in the buffer is useless, discard it */
-        ftdi_buf_write_offset = 0;
+        ftdi_out_buf_offset = 0;
 
         return status;
     }
@@ -349,20 +349,20 @@ int spi_xfer_end(void)
     LOG(DEBUG, "");
 
     /* Check if there is enough space in the buffer */
-    if (ftdi_buf_size - ftdi_buf_write_offset < 2) {
+    if (ftdi_buf_size - ftdi_out_buf_offset < 2) {
         /* There is no room in the buffer for the following operations, flush
          * the buffer */
-        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+        if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
             return -1;
         /* The data in the buffer is useless, discard it */
-        ftdi_buf_write_offset = 0;
+        ftdi_out_buf_offset = 0;
     }
 
     /* Commit the last ftdi_pin_state after spi_xfer() */
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     ftdi_pin_state |= PIN_nCS;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     /* Buffer flush is done on close */
 
@@ -386,7 +386,7 @@ int spi_xfer_end(void)
 
 int spi_xfer(int cmd, int iosize, void *buf, int size)
 {
-    unsigned int write_offset, read_offset, ftdi_buf_read_offset;
+    unsigned int write_offset, read_offset, ftdi_in_buf_offset;
     uint16_t bit, word;
 
     LOG(DEBUG, "(%d, %d, %p, %d)", cmd, iosize, buf, size);
@@ -402,19 +402,19 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
         /* In FTDI sync bitbang mode we need to write something to device to
          * toggle a read. */
 
-        /* The read, if any, will start at current point in buffer */
-        ftdi_buf_read_offset = ftdi_buf_write_offset;
+        /* The read, if any, will start at current buffer offset */
+        ftdi_in_buf_offset = ftdi_out_buf_offset;
 
         while (write_offset < size) {
             /* 2 bytes per bit */
-            if (ftdi_buf_size - ftdi_buf_write_offset < iosize * 2) {
+            if (ftdi_buf_size - ftdi_out_buf_offset < iosize * 2) {
                 /* There is no room in the buffer for following word write,
                  * flush the buffer */
-                if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+                if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
                     return -1;
-                ftdi_buf_write_offset = 0;
+                ftdi_out_buf_offset = 0;
 
-                /* Let following part to read from ftdi_buf if needed */
+                /* Let following part to parse from ftdi_in_buf if needed */
                 break;
             }
 
@@ -437,11 +437,11 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
                     ftdi_pin_state &= ~PIN_MOSI;
                 }
 
-                ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+                ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
                 /* Clock high */
                 ftdi_pin_state |= PIN_CLK;
-                ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+                ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
                 /* Clock low */
                 ftdi_pin_state &= ~PIN_CLK;
@@ -450,19 +450,19 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
         }
 
         if (cmd & SPI_XFER_READ) {
-            if (ftdi_buf_write_offset) {
-                if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+            if (ftdi_out_buf_offset) {
+                if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
                     return -1;
-                ftdi_buf_write_offset = 0;
+                ftdi_out_buf_offset = 0;
             }
             while (read_offset < write_offset) {
                 word = 0;
                 for (bit = (1 << (iosize - 1)); bit != 0; bit >>= 1) {
                     /* Input bit */
-                    ftdi_buf_read_offset++;
-                    if (ftdi_buf[ftdi_buf_read_offset] & PIN_MISO)
+                    ftdi_in_buf_offset++;
+                    if (ftdi_in_buf[ftdi_in_buf_offset] & PIN_MISO)
                         word |= bit;
-                    ftdi_buf_read_offset++;
+                    ftdi_in_buf_offset++;
                 }
 
                 if (iosize == 8)
@@ -473,8 +473,8 @@ int spi_xfer(int cmd, int iosize, void *buf, int size)
                 read_offset++;
             }
             /* Reading done, reset buffer */
-            ftdi_buf_write_offset = 0;
-            ftdi_buf_read_offset = 0;
+            ftdi_out_buf_offset = 0;
+            ftdi_in_buf_offset = 0;
         }
 
     } while (write_offset < size);
@@ -609,12 +609,12 @@ int spi_set_clock(unsigned long spi_clk) {
     /* FTDI clock in Hz is 2 * SPI clock, FTDI clock in Hz */
     ftdi_clk = spi_clock * 2000;
 
-    /* Flush the buffer before setting clock */
-    if (ftdi_buf_write_offset) {
-        if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+    /* Flush the write buffer before setting clock */
+    if (ftdi_out_buf_offset) {
+        if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
             return -1;
         /* The data in the buffer is useless, discard it */
-        ftdi_buf_write_offset = 0;
+        ftdi_out_buf_offset = 0;
     }
 
     /*
@@ -794,16 +794,17 @@ int spi_open(int nport)
     LOG(INFO, "Detected %s type programmer chip, buffer size: %u",
             ftdi_type_str, ftdi_buf_size);
 
-    /* Initialize xfer buffer */
-    ftdi_buf = malloc(ftdi_buf_size);
-    if (ftdi_buf == NULL) {
+    /* Initialize xfer buffers */
+    ftdi_out_buf = malloc(ftdi_buf_size);
+    ftdi_in_buf = malloc(ftdi_buf_size);
+    if (ftdi_out_buf == NULL || ftdi_in_buf == NULL) {
         SPI_ERR("Not enough memory");
         goto open_err;
     }
-    ftdi_buf_write_offset = 0;
+    ftdi_out_buf_offset = 0;
 
     ftdi_pin_state = PINS_INIT;
-    ftdi_buf[ftdi_buf_write_offset++] = ftdi_pin_state;
+    ftdi_out_buf[ftdi_out_buf_offset++] = ftdi_pin_state;
 
     return 0;
 
@@ -918,11 +919,11 @@ int spi_close(void)
         spi_led(SPI_LED_OFF);
 #endif
 
-        /* Flush and reset the buffer */
-        if (ftdi_buf_write_offset) {
-            if (spi_ftdi_xfer(ftdi_buf, ftdi_buf_write_offset) < 0)
+        /* Flush and reset the buffers */
+        if (ftdi_out_buf_offset) {
+            if (spi_ftdi_xfer(ftdi_out_buf, ftdi_in_buf, ftdi_out_buf_offset) < 0)
                 return -1;
-            ftdi_buf_write_offset = 0;
+            ftdi_out_buf_offset = 0;
         }
 
         if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
@@ -940,8 +941,9 @@ int spi_close(void)
         spi_output_stats();
 #endif
 
-        free(ftdi_buf);
-        ftdi_buf = NULL;
+        free(ftdi_out_buf);
+        free(ftdi_in_buf);
+        ftdi_out_buf = ftdi_in_buf = NULL;
         ftdi_buf_size = 0;
 
         spi_dev_open = 0;
