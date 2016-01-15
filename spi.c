@@ -548,7 +548,7 @@ int spi_init(void)
         return 0;
     }
 
-    LOG(ALL, "csr-spi-ftdi " VERSION ", git rev " GIT_REVISION "\n");
+    LOG(ALL, "csr-spi-ftdi " VERSION ", git rev " GIT_REVISION);
 
     if (ftdi_init(&ftdic) < 0) {
         SPI_ERR("FTDI: init failed");
