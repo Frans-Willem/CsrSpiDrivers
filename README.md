@@ -369,8 +369,8 @@ Download [precompiled libusb for
 windows](http://sourceforge.net/projects/libusb/files/) and extract it to the
 libusb directory:
 
-    wget http://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.19/libusb-1.0.19.7z
-    7z x -olibusb libusb-1.0.19.7z
+    wget https://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.20/libusb-1.0.20.7z
+    7z x -olibusb libusb-1.0.20.7z
 
 Build [libftdi](http://www.intra2net.com/en/developer/libftdi/) from source:
 
