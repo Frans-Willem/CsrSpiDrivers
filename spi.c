@@ -142,7 +142,7 @@ static int spi_ftdi_xfer(uint8_t *out_buf, uint8_t *in_buf, int size)
 
     rc = ftdi_write_data(&ftdic, out_buf, size);
     if (rc < 0) {
-        SPI_ERR("FTDI: write data failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: write data failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         return -1;
     }
     if (rc != size) {
@@ -167,7 +167,7 @@ static int spi_ftdi_xfer(uint8_t *out_buf, uint8_t *in_buf, int size)
         rc = ftdi_read_data(&ftdic, bufp, len);
 
         if (rc < 0) {
-            SPI_ERR("FTDI: read data failed: %s", ftdi_get_error_string(&ftdic));
+            SPI_ERR("FTDI: read data failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
             return -1;
         }
 
@@ -504,7 +504,7 @@ static int spi_enumerate_ports(void)
         LOG(DEBUG, "find all: 0x%04x:0x%04x", ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         rc = ftdi_usb_find_all(&ftdic, &ftdevlist, ftdi_device_ids[id].vid, ftdi_device_ids[id].pid);
         if (rc < 0) {
-            SPI_ERR("FTDI: ftdi_usb_find_all() failed: %s", ftdi_get_error_string(&ftdic));
+            SPI_ERR("FTDI: ftdi_usb_find_all() failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
             return -1;
         }
         if (rc == 0)
@@ -513,14 +513,23 @@ static int spi_enumerate_ports(void)
         for (ftdev = ftdevlist; ftdev && spi_nports < SPI_MAX_PORTS; ftdev = ftdev->next) {
             spi_ports[spi_nports].vid = ftdi_device_ids[id].vid;
             spi_ports[spi_nports].pid = ftdi_device_ids[id].pid;
+            memset(spi_ports[spi_nports].manuf, 0, sizeof(spi_ports[spi_nports].manuf));
+            memset(spi_ports[spi_nports].desc, 0, sizeof(spi_ports[spi_nports].desc));
+            memset(spi_ports[spi_nports].serial, 0, sizeof(spi_ports[spi_nports].serial));
 
-            if (ftdi_usb_get_strings(&ftdic, ftdev->dev,
-                        spi_ports[spi_nports].manuf, sizeof(spi_ports[spi_nports].manuf),
-                        spi_ports[spi_nports].desc, sizeof(spi_ports[spi_nports].desc),
-                        spi_ports[spi_nports].serial, sizeof(spi_ports[spi_nports].serial)) < 0)
-            {
-                SPI_ERR("FTDI: ftdi_usb_get_strings() failed: %s", ftdi_get_error_string(&ftdic));
-                return -1;
+            rc = ftdi_usb_get_strings(&ftdic, ftdev->dev,
+                    spi_ports[spi_nports].manuf, sizeof(spi_ports[spi_nports].manuf),
+                    spi_ports[spi_nports].desc, sizeof(spi_ports[spi_nports].desc),
+                    spi_ports[spi_nports].serial, sizeof(spi_ports[spi_nports].serial));
+            if (rc < 0) {
+                /* It's not critical to have these strings, make it a warning. */
+                LOG(WARN, "FTDI: ftdi_usb_get_strings() failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
+                if (rc == -9) { /* "\retval  -9: get serial number failed" */
+                    /* Serial number can be unavailable due to SerNumEnable*
+                     * settings in FTDI EEPROM. */
+                    LOG(WARN, "FTDI: getting serial number failed, probably SerNumEnable* is off in EEPROM");
+                    spi_ports[spi_nports].serial[0] = '\0';
+                }
             }
             snprintf(spi_ports[spi_nports].name, sizeof(spi_ports[spi_nports].name),
                     "%s %s", ftdi_device_ids[id].name, spi_ports[spi_nports].serial);
@@ -594,6 +603,7 @@ int spi_deinit(void)
 
 int spi_set_clock(unsigned long spi_clk) {
     unsigned long ftdi_clk;
+    int rc;
 
     LOG(DEBUG, "(%lu)", spi_clk);
 
@@ -625,9 +635,10 @@ int spi_set_clock(unsigned long spi_clk) {
      * http://developer.intra2net.com/mailarchive/html/libftdi/2010/msg00240.html
      */
     LOG(INFO, "FTDI: setting SPI clock to %lu (FTDI baudrate %lu)", spi_clk, ftdi_clk / 16);
-    if (ftdi_set_baudrate(&ftdic, ftdi_clk / 16) < 0) {
-        SPI_ERR("FTDI: set baudrate %lu failed: %s",
-                ftdi_clk / 16, ftdi_get_error_string(&ftdic));
+    rc = ftdi_set_baudrate(&ftdic, ftdi_clk / 16);
+    if (rc < 0) {
+        SPI_ERR("FTDI: set baudrate %lu failed: [%d] %s",
+                ftdi_clk / 16, rc, ftdi_get_error_string(&ftdic));
         return -1;
     }
 
@@ -675,6 +686,9 @@ unsigned long spi_get_clock(void) {
 
 int spi_open(int nport)
 {
+    int rc;
+    char *serial;
+
     LOG(DEBUG, "(%d) spi_dev_open=%d", nport, spi_dev_open);
 
     if (spi_dev_open > 0) {
@@ -695,10 +709,17 @@ int spi_open(int nport)
 
     /*ftdi_set_interface(&ftdic, INTERFACE_A);*/ /* XXX for multichannel chips */
 
-    if (ftdi_usb_open_desc(&ftdic, spi_ports[nport].vid, spi_ports[nport].pid,
-                NULL, spi_ports[nport].serial) < 0)
+    /* Serial number can be unavailable due to SerNumEnable* settings in FTDI
+     * EEPROM. Don't try to pass a serial number pointer for such a device to
+     * ftdi_usb_open*(), or it will fail. See issue #7. */
+    serial = spi_ports[nport].serial;
+    if (serial[0] == '\0')
+        serial = NULL;
+    rc = ftdi_usb_open_desc(&ftdic, spi_ports[nport].vid, spi_ports[nport].pid,
+            NULL, serial);
+    if (rc < 0)
     {
-        SPI_ERR("FTDI: ftdi_usb_open_desc() failed: %s", ftdi_get_error_string(&ftdic));
+        SPI_ERR("FTDI: ftdi_usb_open_desc() failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
@@ -706,29 +727,34 @@ int spi_open(int nport)
 
     LOG(INFO, "FTDI: using FTDI device: \"%s\"", spi_ports[nport].name);
 
-    if (ftdi_usb_reset(&ftdic) < 0) {
-        SPI_ERR("FTDI: reset failed: %s", ftdi_get_error_string(&ftdic));
+    rc = ftdi_usb_reset(&ftdic);
+    if (rc < 0) {
+        SPI_ERR("FTDI: reset failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
-    if (ftdi_usb_purge_buffers(&ftdic) < 0) {
-        SPI_ERR("FTDI: purge buffers failed: %s", ftdi_get_error_string(&ftdic));
+    rc = ftdi_usb_purge_buffers(&ftdic);
+    if (rc < 0) {
+        SPI_ERR("FTDI: purge buffers failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
     /* Set 1 ms latency timer, see FTDI AN232B-04 */
-    if (ftdi_set_latency_timer(&ftdic, 1) < 0) {
-        SPI_ERR("FTDI: setting latency timer failed: %s", ftdi_get_error_string(&ftdic));
+    rc = ftdi_set_latency_timer(&ftdic, 1);
+    if (rc < 0) {
+        SPI_ERR("FTDI: setting latency timer failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
-    if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
-        SPI_ERR("FTDI: reset bitmode failed: %s", ftdi_get_error_string(&ftdic));
+    rc = ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET);
+    if (rc < 0) {
+        SPI_ERR("FTDI: reset bitmode failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
-    if (ftdi_set_bitmode(&ftdic, PINS_OUTPUT, BITMODE_SYNCBB) < 0) {
-        SPI_ERR("FTDI: set synchronous bitbang mode failed: %s", ftdi_get_error_string(&ftdic));
+    rc = ftdi_set_bitmode(&ftdic, PINS_OUTPUT, BITMODE_SYNCBB);
+    if (rc < 0) {
+        SPI_ERR("FTDI: set synchronous bitbang mode failed: [%d] %s", rc, ftdi_get_error_string(&ftdic));
         goto open_err;
     }
 
@@ -912,6 +938,8 @@ void spi_output_stats(void)
 
 int spi_close(void)
 {
+    int rc;
+
     LOG(DEBUG, "spi_nrefs=%d, spi_dev_open=%d", spi_nrefs, spi_dev_open);
 
     if (spi_dev_open) {
@@ -926,14 +954,16 @@ int spi_close(void)
             ftdi_out_buf_offset = 0;
         }
 
-        if (ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET) < 0) {
-            SPI_ERR("FTDI: reset bitmode failed: %s",
+        rc = ftdi_set_bitmode(&ftdic, 0, BITMODE_RESET);
+        if (rc < 0) {
+            SPI_ERR("FTDI: reset bitmode failed: [%d] %s", rc,
                     ftdi_get_error_string(&ftdic));
             return -1;
         }
 
-        if (ftdi_usb_close(&ftdic) < 0) {
-            SPI_ERR("FTDI: close failed: %s",
+        rc = ftdi_usb_close(&ftdic);
+        if (rc < 0) {
+            SPI_ERR("FTDI: close failed: [%d] %s", rc,
                     ftdi_get_error_string(&ftdic));
             return -1;
         }
