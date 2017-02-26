@@ -1,6 +1,8 @@
 TARGET_PLATFORM ?= linux
 
 WINE_LIB ?=	/usr/lib/i386-linux-gnu/wine
+# Uncomment for wine-devel:
+#WINE_LIB = /opt/wine-devel/lib/wine /opt/wine-devel/lib
 I386_LIB ?=	/usr/lib/i386-linux-gnu
 STDCXX_LIB ?=	/usr/lib/gcc/i686-linux-gnu/$(WINEGCC_VER)
 
@@ -28,7 +30,7 @@ CXXFLAGS += -fno-exceptions
 LDFLAGS +=	-shared -m32 -static-libgcc
 # 64 bit winegcc tries to link with 64 bit wine libs even if -m32 is specified.
 # Direct it to the 32bit libraries.
-LDFLAGS +=	-L$(WINE_LIB) -L$(I386_LIB) -L$(STDCXX_LIB)
+LDFLAGS +=	$(addprefix -L,$(WINE_LIB)) $(addprefix -L,$(I386_LIB)) $(addprefix -L,$(STDCXX_LIB))
 #LDLIBS=	-lftdi -lusb-1.0
 # Build with static versions of libraries
 LDLIBS +=	$(I386_LIB)/libftdi.a $(I386_LIB)/libusb.a
