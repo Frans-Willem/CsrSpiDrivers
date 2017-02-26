@@ -416,6 +416,7 @@ static int spifns_sequence_setvar(const char *szName, const char *szValue) {
                     memcpy(g_szErrorString,szError,sizeof(szError));
                     return 1;
                 }
+                break;
             }
         }
     }
