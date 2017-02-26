@@ -234,7 +234,7 @@ variables or using the -TRANS option to most CSR commandline apps.
   `stderr`.
 * `FTDI_INTERFACE` (since version 0.5.1) - specify interface on multi-interface
   chips (FT2232, FT4232). Default: `A`.
-* `FTDI_PINOUT` (since version 0.5.1) - specify a pinout. Available pinouts:
+* `FTDI_PINOUT` (since version 0.5.2) - specify a pinout. Available pinouts:
   * `default` - default pinout as described in
     [Using FT232RL breakout board as a programmer]
     (#using-ft232rl-breakout-board-as-a-programmer).
