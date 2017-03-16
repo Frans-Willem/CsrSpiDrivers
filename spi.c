@@ -867,8 +867,8 @@ int spi_isopen(void)
 #ifdef SPI_STATS
 void spi_output_stats(void)
 {
-    double xfer_pct, avg_read, avg_write, rate, iops;
-    double ftdi_rate, ftdi_xfers_per_io, avg_ftdi_xfer, ftdi_short_rate;
+    double xfer_pct = NAN, avg_read = NAN, avg_write = NAN, rate = NAN, iops = NAN;
+    double ftdi_rate = NAN, ftdi_xfers_per_io = NAN, avg_ftdi_xfer = NAN, ftdi_short_rate = NAN;
     struct timeval tv;
     long inxfer_ms;
     FILE *fp;
