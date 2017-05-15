@@ -126,7 +126,7 @@ Cheap (< $5) FT232RL modules usually contain counterfeit FT232RL chips
 [2](http://www.eevblog.com/forum/reviews/ftdi-driver-kills-fake-ftdi-ft232/msg536891/#msg536891),
 [3](http://dangerousprototypes.com/forum/viewtopic.php?p=56343#p56343)).  I've
 got such chip (this one has read-only EEPROM, S/N A50285BI, probably it's a
-[generation 2 counterfeit] (https://blog.cesanta.com/FTDI-adventures)) and
+[generation 2 counterfeit](https://blog.cesanta.com/FTDI-adventures)) and
 verified csr-spi-ftdi to work with it.
 
 There is a known data loss issue with counterfeit FT232RL chip and ASM1042 USB
@@ -235,15 +235,14 @@ variables or using the -TRANS option to most CSR commandline apps.
 * `FTDI_INTERFACE` (since version 0.5.1) - specify interface on multi-interface
   chips (FT2232, FT4232). Default: `A`.
 * `FTDI_PINOUT` (since version 0.5.2) - specify a pinout. Available pinouts:
-  * `default` - default pinout as described in
-    [Using FT232RL breakout board as a programmer]
-    (#using-ft232rl-breakout-board-as-a-programmer).
+  * `default` - default pinout as described in [Using FT232RL breakout board as
+    a programmer](#using-ft232rl-breakout-board-as-a-programmer).
   * `noleds` - this is the same as `default` but without LEDs.
   * `hwspi` - pinout for use with MPSSE chips (FT2232, FT4232, FT232H), uses
     the same pins as hardware SPI. Note that hardware SPI capability is not
     used, just the same pinout is used for convenience. This pinout can be used
-    with adapters like [TIAO TUMPA]
-    (http://www.tiaowiki.com/w/TIAO_USB_Multi_Protocol_Adapter_User's_Manual).
+    with adapters like [TIAO
+    TUMPA](http://www.tiaowiki.com/w/TIAO_USB_Multi_Protocol_Adapter_User's_Manual).
     The pinout is as follows: `CS` - `DBUS3`, `CLK` - `DBUS0`, `MOSI` -
     `DBUS1`, `MISO` - `DBUS2`.
   * `hwspi+leds` - this is the same as `hwspi` but adds read and write LEDs on
@@ -424,33 +423,31 @@ Build with command:
   spilpt.dll drivers](https://github.com/Frans-Willem/CsrSpiDrivers);
 * Thanks to **unicorn** from <http://www.nebo-forum.kiev.ua/> for the idea of a
   DLL for Wine.
-* Thanks to all the [Contributors]
-  (https://github.com/lorf/csr-spi-ftdi/wiki/Contributors)!
+* Thanks to all the [Contributors](https://github.com/lorf/csr-spi-ftdi/wiki/Contributors)!
 
 ## Related projects
 
 * [LPT programmer and general info](http://byron76.blogspot.com/) by Robin
   Gross;
-* [Reverse-engineered SPILPT driver + Arduino SPILPT driver]
-  (https://github.com/Frans-Willem/CsrSpiDrivers) by Frans-Willem Hardijzer,
-  for Windows;
+* [Reverse-engineered SPILPT driver + Arduino SPILPT
+  driver](https://github.com/Frans-Willem/CsrSpiDrivers) by Frans-Willem
+  Hardijzer, for Windows;
 * [USBSPI programmer](http://jernej87.blogspot.com/) based on CSR BC3 chip
   using original firmware by Jernej Škrabec;
-* [USBSPI programmer software for Linux] (https://gitorious.org/csrprogrammer)
-  ([git mirror] (https://github.com/lorf/csrprogrammer)) by Jernej Škrabec;
-   * [USBSPI protocol analysis]
-     (http://jernej87.blogspot.com/2012/10/csrs-usb-programmer-protocol-analysis.html);
-   * [Using USBSPI on Linux]
-     (http://jernej87.blogspot.com/2012/10/dumping-bluecore4-firmware-on-linux.html);
-* [Remote debugging protocol implementaton]
-  (https://gitorious.org/csrprogrammer/csrremote) ([git mirror]
-  (https://github.com/lorf/csrremote))
-* [USBSPI programmer based on Stellaris Launchpad]
-  (https://github.com/Frans-Willem/CsrUsbSpiDeviceRE) by Frans-Willem
+* [USBSPI programmer software for Linux](https://gitorious.org/csrprogrammer)
+  ([git mirror](https://github.com/lorf/csrprogrammer)) by Jernej Škrabec;
+   * [USBSPI protocol
+     analysis](http://jernej87.blogspot.com/2012/10/csrs-usb-programmer-protocol-analysis.html);
+   * [Using USBSPI on
+     Linux](http://jernej87.blogspot.com/2012/10/dumping-bluecore4-firmware-on-linux.html);
+* [Remote debugging protocol
+  implementaton](https://gitorious.org/csrprogrammer/csrremote) ([git
+  mirror](https://github.com/lorf/csrremote))
+* [USBSPI programmer based on Stellaris
+  Launchpad](https://github.com/Frans-Willem/CsrUsbSpiDeviceRE) by Frans-Willem
   Hardijzer, for Windows;
    * [Port to Tiva C Launchpad](https://github.com/raplin/CsrUsbSpiDeviceRE)
-* See a list of [related projects in the wiki]
-  (https://github.com/lorf/csr-spi-ftdi/wiki/RelatedProjects).
+* See a list of [related projects in the wiki](https://github.com/lorf/csr-spi-ftdi/wiki/RelatedProjects).
 
 ## Other sources of information
 * ~~BlueSuite 2.5.0 "source code"
