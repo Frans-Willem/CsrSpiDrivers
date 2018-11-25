@@ -31,6 +31,8 @@
 
 # CSR BlueCore USB SPI programmer/debugger
 
+[![Download Release](https://img.shields.io/github/release/lorf/csr-spi-ftdi.svg?logo=github&label=download)](https://github.com/lorf/csr-spi-ftdi/releases/latest)
+
 This is USB SPI programmer and debugger for CSR BlueCore bluetooth chips, based
 on FTDI FT232R USB to UART converter chip. Programmer hardware can be made
 using simple FT232RL breakout board, or built as a dedicated programmer using
@@ -161,7 +163,7 @@ registration.
 ### Installing prebuilt drivers
 
 Prebuilt drivers for Linux and Windows can be downloaded from
-<https://github.com/lorf/csr-spi-ftdi/releases>.
+<https://github.com/lorf/csr-spi-ftdi/releases/latest>.
 
 #### Installing on Ubuntu/Debian Linux
 
